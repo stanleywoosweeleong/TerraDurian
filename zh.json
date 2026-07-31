@@ -394,5 +394,9 @@
  "Copernicus GLO-90 sampled 3×3 via Open-Meteo, Horn's method.": "Copernicus GLO-90，经 Open-Meteo 3×3 采样，Horn 法。",
  "Falls back to NASA SRTM 30 m via OpenTopoData where that host allows it.": "在 OpenTopoData 允许的情况下回退到 NASA SRTM 30 米。",
  "Mostly no": "大多为否",
- "SRTM 30 m (NASA) via OpenTopoData": "SRTM 30 米（NASA），经 OpenTopoData"
+ "SRTM 30 m (NASA) via OpenTopoData": "SRTM 30 米（NASA），经 OpenTopoData",
+ "Share this app": "分享本应用",
+ "Scan to open TerraDurian on a phone, or share the link:": "扫码在手机上打开 TerraDurian，或分享此链接：",
+ "Source code on": "源代码见",
+ "Free and open — installable to a home screen, and works offline once loaded.": "免费开放——可添加到主屏幕，加载后可离线使用。"
 }
