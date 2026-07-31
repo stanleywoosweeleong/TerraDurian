@@ -1522,16 +1522,16 @@ function band(v, lo, hi, hardLo, hardHi){
 
 function score(d, ndvi, terr, soil){
   const items = [
-    {k:'Temperature',      w:.16, s:band(d.tMean, AG.tOptLo, AG.tOptHi, 15, 38), t:'mean ' + fx(d.tMean,1) + ' °C'},
-    {k:'Heat stress',      w:.10, s:Math.max(0, 100 - d.heatDays30 * 8), t:d.heatDays30 + ' d >35 °C in 30 d'},
+    {k:'Temperature',      w:.16, s:band(d.tMean, AG.tOptLo, AG.tOptHi, 15, 38), t:T('sc.mean', fx(d.tMean,1))},
+    {k:'Heat stress',      w:.10, s:Math.max(0, 100 - d.heatDays30 * 8), t:T('sc.heat', d.heatDays30)},
     {k:'Rainfall',         w:.16, s:band(d.rainAnnual, AG.rainLo, AG.rainHi, 600, 5000),
-       t:fx(d.rainAnnual,0) + ' mm/yr' + (d.nDays < 330 ? ' (extrapolated — use 12 months)' : '')},
+       t:T('sc.rain', fx(d.rainAnnual,0), d.nDays < 330)},
     {k:'Dry-spell window', w:.08, s:d.bestDry >= AG.dryTrigger ? 100 : Math.round(d.bestDry / AG.dryTrigger * 100),
-       t:'longest dry spell ' + d.bestDry + ' d'},
+       t:T('sc.dry', d.bestDry)},
     {k:'Humidity',         w:.08, s:band(d.rh, AG.rhLo, AG.rhHi, 45, 98), t:fx(d.rh,0) + ' % RH'},
     {k:'Solar radiation',  w:.06, s:band(d.solar, 4.5, 7, 2, 9), t:fx(d.solar,1) + ' kWh/m²/d'},
     {k:'Wind exposure',    w:.04, s:Math.max(0, 100 - Math.max(0, (d.windMax || 0) - 6) * 12),
-       t:'peak ' + fx(d.windMax,1) + ' m/s'}
+       t:T('sc.wind', fx(d.windMax,1))}
   ];
   if (ndvi != null)
     items.push({k:'Canopy vigour', w:.08, s:band(ndvi, .70, .90, .15, 1.0), t:'NDVI ' + fx(ndvi,2)});
@@ -1546,11 +1546,10 @@ function score(d, ndvi, terr, soil){
     const wl = Math.max(0, 100 - d.waterlogDays * 6);
     const clayPen = (soil && soil.clay != null && soil.clay >= 40) ? 25 : 0;
     items.push({k:'Drainage', w:.14, s:Math.max(0, Math.min(sl, 0.4*sl + 0.6*wl + 20) - clayPen),
-      t:fx(terr.slopePct,1) + '% slope, ' + terr.landform + ', ' + d.waterlogDays + ' d waterlogged'
-        + (clayPen ? ', heavy clay' : '')});
+      t:T('sc.drain', fx(terr.slopePct,1), terr.landform, d.waterlogDays, !!clayPen)});
   } else {
     items.push({k:'Drainage (model)', w:.10, s:Math.max(0, 100 - d.waterlogDays * 6),
-      t:d.waterlogDays + ' d root zone >0.90 sat. — no slope data'});
+      t:T('sc.drainM', d.waterlogDays)});
   }
   if (terr && terr.elevDem != null || d.elev != null){
     const e = (terr && terr.elevDem != null) ? terr.elevDem : d.elev;
@@ -1558,7 +1557,7 @@ function score(d, ndvi, terr, soil){
   }
   if (soil && soil.phh2o != null)
     items.push({k:'Soil pH', w:.08, s:band(soil.phh2o, AG.phLo, AG.phHi, 3.8, 8.2),
-      t:'pH ' + fx(soil.phh2o,1) + (soil.texture ? ' · ' + soil.texture : '')});
+      t:T('sc.ph', fx(soil.phh2o,1), soil.texture || '')});
 
   let num = 0, den = 0;
   items.forEach(i => { if (i.s != null){ num += i.s * i.w; den += i.w; } });
@@ -1619,8 +1618,8 @@ function renderDurian(){
                           : v >= 65 ? 'Good, with manageable constraints'
                           : v >= 50 ? 'Marginal — needs intervention'
                           : 'Poor fit for durian';
-  $('verdictNote').textContent = sc.items.filter(i => i.s != null).length + ' factors, '
-    + p.date[0] + ' → ' + p.date[p.date.length-1] + '. ET₀ by ' + d.et0Method + '.';
+  $('verdictNote').textContent = T('kpi.note', sc.items.filter(i => i.s != null).length,
+    p.date[0], p.date[p.date.length-1], d.et0Method);
   $('scoreBars').innerHTML = sc.items.filter(i => i.s != null).map(i =>
     '<div class="brow"><div>' + i.k + '<div class="muted" style="font-size:11px">' + i.t + '</div></div>'
     + '<div class="track"><div class="fill" style="width:' + i.s + '%;background:' + col(i.s) + '"></div></div>'
@@ -1629,44 +1628,35 @@ function renderDurian(){
   const fd = forwardDry(), fs = forwardStress();
   $('kHeat').innerHTML = d.heatDays30 + '<span class="unit"> d &gt;35°C</span>';
   $('kSoil').innerHTML = fx(d.depNow * 100, 0) + '<span class="unit">% depleted</span>'
-    + '<div class="unit" style="font-size:11px">Ks ' + fx(d.ksNow, 2)
-    + (d.depNow > P_DEPLETE ? ' — <span style="color:var(--warn)">stressed</span>' : ' — comfortable') + '</div>';
+    + '<div class="unit" style="font-size:11px">' + T('kpi.ks', fx(d.ksNow, 2), d.depNow > P_DEPLETE) + '</div>';
   $('kRain').innerHTML = fx(d.rain30, 0) + '<span class="unit"> mm</span>';
   $('kDry').innerHTML  = d.stressNow + '<span class="unit"> stress days</span>'
-    + (fs && fs.hitDay ? '<div class="unit" style="font-size:11px;color:var(--good)">→ trigger on ' + fs.hitDay + '</div>'
-       : fs ? '<div class="unit" style="font-size:11px">→ ' + fs.endRun + ' d by ' + S.fc[S.fc.length-1].date + '</div>' : '');
+    + (fs && fs.hitDay ? '<div class="unit" style="font-size:11px;color:var(--good)">' + T('kpi.trig', fs.hitDay) + '</div>'
+       : fs ? '<div class="unit" style="font-size:11px">' + T('kpi.by', fs.endRun, S.fc[S.fc.length-1].date) + '</div>' : '');
 
   const A = [];
   if (d.deficit30 > 40) A.push(['bad','Irrigation deficit',
-    'Crop demand beat rainfall by <b>' + fx(d.deficit30,0) + ' mm</b> over 30 days — about <b>'
-    + fx(d.litres30,0) + ' L/tree/day</b> at your canopy size. See the Irrigation tab.']);
+    T('a.deficit', fx(d.deficit30,0), fx(d.litres30,0))]);
   if (S.terr && S.terr.slopePct != null && S.terr.slopePct < 2) A.push(['bad','Flat ground — drainage risk',
-    'Slope is only <b>' + fx(S.terr.slopePct,1) + '%</b>. Water will not shed. This is the classic <i>Phytophthora</i> setup: '
-    + 'plant on raised mounds, cut drainage trenches, and never let water stand around the collar.']);
+    T('a.flat', fx(S.terr.slopePct,1))]);
   if (d.waterlogDays >= 7) A.push(['bad','Waterlogging',
-    'Root-zone wetness above 0.90 saturation on <b>' + d.waterlogDays + '</b> of 30 days.']);
+    T('a.wlog', d.waterlogDays)]);
   if (S.soil && S.soil.phh2o != null && S.soil.phh2o < 5.0) A.push(['warn','Soil too acid',
-    'pH <b>' + fx(S.soil.phh2o,1) + '</b> is below the 5.5–6.5 durian likes. Aluminium toxicity locks up phosphorus. Lime it.']);
+    T('a.acid', fx(S.soil.phh2o,1))]);
   if (S.soil && S.soil.phh2o != null && S.soil.phh2o > 7.0) A.push(['warn','Soil too alkaline',
-    'pH <b>' + fx(S.soil.phh2o,1) + '</b> — iron and zinc go unavailable. Expect interveinal chlorosis.']);
+    T('a.alk', fx(S.soil.phh2o,1))]);
   if (d.heatDays30 >= 8) A.push(['warn','Heat stress',
-    '<b>' + d.heatDays30 + '</b> days above 35 °C in the last month. Expect flower abortion and fruit drop.']);
+    T('a.heat', d.heatDays30)]);
   if (d.stressNow >= AG.stressTrigger) A.push(['good','Induction window OPEN — trees are under real stress',
-    'Root zone is <b>' + fx(d.depNow*100,0) + '% depleted</b> (Ks ' + fx(d.ksNow,2) + ') and has been past the stress '
-    + 'threshold for <b>' + d.stressNow + ' consecutive days</b>. This is the signal durian needs. '
-    + '<b>Do not irrigate</b> until flower buds are visible.']);
-  else if (fs && fs.hitDay) A.push(['good','Induction window will open on ' + fs.hitDay,
-    'Carrying the root-zone balance through the forecast, the trees reach <b>' + AG.stressTrigger
-    + ' consecutive stress days</b> on <b>' + fs.hitDay + '</b> (depletion rising to '
-    + fx(fs.endDep*100,0) + '%). <b>Stop irrigating now</b> if you want flowers — this is the decision point, '
-    + 'and it will pass.']);
+    T('a.open', fx(d.depNow*100,0), fx(d.ksNow,2), d.stressNow)]);
+  else if (fs && fs.hitDay) A.push(['good', T('t.willOpen', fs.hitDay),
+    T('a.willOpen', AG.stressTrigger, fs.hitDay, fx(fs.endDep*100,0))]);
   else if (fs && fs.endRun >= 5) A.push(['warn','Stress building, but short of the trigger',
-    'Depletion reaches <b>' + fx(fs.endDep*100,0) + '%</b> and <b>' + fs.endRun + ' stress days</b> by the end of the '
-    + 'forecast — not the ' + AG.stressTrigger + ' needed. A rain shelter over the root zone now could carry it across.']);
+    T('a.building', fx(fs.endDep*100,0), fs.endRun, AG.stressTrigger)]);
   if (d.rh > 88) A.push(['warn','Fungal disease pressure',
-    '30-day mean humidity <b>' + fx(d.rh,0) + '%</b>. <i>Phytophthora palmivora</i> and leaf blight move fast above ~88%. Prune for airflow.']);
+    T('a.fungal', fx(d.rh,0))]);
   if (d.windMax != null && d.windMax > 10) A.push(['warn','Wind exposure',
-    'Peak gust <b>' + fx(d.windMax,1) + ' m/s</b>. Durian limbs are brittle and heavy fruit snaps them — prop and windbreak.']);
+    T('a.wind', fx(d.windMax,1))]);
   if (!A.length) A.push(['good','Nothing urgent','No threshold tripped in the last 30 days.']);
   $('alerts').innerHTML = A.map(a =>
     '<div class="alert ' + a[0] + '"><div><b>' + a[1] + '</b><small>' + a[2] + '</small></div></div>').join('');
@@ -1678,42 +1668,37 @@ function renderDurian(){
   const devHi   = (g && g > 1) ? Math.round(GDD_HI / g) : 130;
   let f;
   if (d.stressNow >= AG.stressTrigger){
-    f = '<div class="alert good"><div><b>Induction underway — day ' + d.stressNow + ' of real water stress</b><small>'
-      + 'Root zone <b>' + fx(d.depNow*100,0) + '% depleted</b>. Anthesis in roughly 3–5 weeks; at <b>' + fx(g,1)
-      + ' GDD/day</b> fruit matures in about <b>' + devDays + ' days</b>, landing <b>'
-      + fmtD(new Date(Date.now() + devLo*864e5)) + '</b> – <b>' + fmtD(new Date(Date.now() + devHi*864e5))
-      + '</b>.</small></div></div>';
+    f = '<div class="alert good"><div><b>' + T('fl.uTitle', d.stressNow) + '</b><small>'
+      + T('fl.uBody', fx(d.depNow*100,0), fx(g,1), devDays,
+          fmtD(new Date(Date.now() + devLo*864e5)), fmtD(new Date(Date.now() + devHi*864e5)))
+      + '</small></div></div>';
   } else if (d.lastStressInduct){
     const t0 = new Date(d.lastStressInduct + 'T00:00:00');
     const since = Math.round((Date.now() - t0) / 864e5);
-    f = '<div class="alert ' + (since < 170 ? 'good' : '') + '"><div><b>Last real stress event ended '
-      + d.lastStressInduct + '</b><small>' + since + ' days ago — the trees genuinely dried out then, even if it rained. '
-      + 'If it set flowers, harvest lands around <b>' + fmtD(new Date(t0.getTime() + (devLo+28)*864e5))
-      + '</b> – <b>' + fmtD(new Date(t0.getTime() + (devHi+35)*864e5)) + '</b>. '
-      + (since < 170 ? 'Still ahead or current — line up labour and buyers.' : 'That window has passed.')
+    f = '<div class="alert ' + (since < 170 ? 'good' : '') + '"><div><b>' + T('fl.lTitle', d.lastStressInduct)
+      + '</b><small>' + T('fl.lBody', since, fmtD(new Date(t0.getTime() + (devLo+28)*864e5)),
+          fmtD(new Date(t0.getTime() + (devHi+35)*864e5)), since < 170)
       + '</small></div></div>';
   } else {
     f = '<div class="alert warn"><div><b>No induction trigger in this record</b><small>'
-      + 'Longest real stress run: <b>' + d.bestStress + ' days</b> (vs ' + d.bestDry + ' rainless days), short of the '
-      + AG.stressTrigger + ' durian needs. Check the Climate baseline tab — the 10-year record is the one that matters, '
-      + 'not a single year.</small></div></div>';
+      + T('fl.none', d.bestStress, d.bestDry, AG.stressTrigger)
+      + '</small></div></div>';
   }
   f += '<table style="margin-top:10px"><tbody>'
     + '<tr><th colspan="2" style="padding-left:0">Water stress — FAO-56 root-zone balance</th></tr>'
     + '<tr><td>Root-zone depletion now</td><td class="num" style="color:'
-      + (d.depNow > P_DEPLETE ? 'var(--warn)' : 'var(--good)') + '">' + fx(d.depNow*100,0) + ' % of TAW</td></tr>'
-    + '<tr><td>Stress coefficient Ks</td><td class="num">' + fx(d.ksNow,2)
-      + (d.ksNow < 1 ? ' (transpiration limited)' : ' (unstressed)') + '</td></tr>'
-    + '<tr><td>Consecutive stress days</td><td class="num"><b>' + d.stressNow + ' d</b>'
-      + (fs && fs.hitDay ? ' → trigger ' + fs.hitDay : fs ? ' → ' + fs.endRun + ' d (fcst)' : '') + '</td></tr>'
-    + '<tr><td>Longest stress run in window</td><td class="num">' + d.bestStress + ' d</td></tr>'
+      + (d.depNow > P_DEPLETE ? 'var(--warn)' : 'var(--good)') + '">' + T('w.taw', fx(d.depNow*100,0)) + '</td></tr>'
+    + '<tr><td>Stress coefficient Ks</td><td class="num">' + T('w.ksrow', fx(d.ksNow,2), d.ksNow < 1) + '</td></tr>'
+    + '<tr><td>Consecutive stress days</td><td class="num"><b>' + T('d.days', d.stressNow) + '</b>'
+      + (fs && fs.hitDay ? T('w.trig', fs.hitDay) : fs ? T('w.fcst', fs.endRun) : '') + '</td></tr>'
+    + '<tr><td>Longest stress run in window</td><td class="num">' + T('d.days', d.bestStress) + '</td></tr>'
     + '<tr><td>TAW / RAW</td><td class="num">' + fx(d.taw,0) + ' / ' + fx(d.raw,0) + ' mm</td></tr>'
     + '<tr><th colspan="2" style="padding-left:0">For comparison — the naive rainfall rule</th></tr>'
-    + '<tr><td>Consecutive rainless days</td><td class="num muted">' + d.dry + ' d</td></tr>'
-    + '<tr><td>Longest rainless run</td><td class="num muted">' + d.bestDry + ' d</td></tr>'
+    + '<tr><td>Consecutive rainless days</td><td class="num muted">' + T('d.days', d.dry) + '</td></tr>'
+    + '<tr><td>Longest rainless run</td><td class="num muted">' + T('d.days', d.bestDry) + '</td></tr>'
     + '<tr><th colspan="2" style="padding-left:0">Fruit development</th></tr>'
-    + '<tr><td>Heat accumulation</td><td class="num">' + fx(g,1) + ' GDD/day (base 10 °C)</td></tr>'
-    + '<tr><td>Flower → harvest at this rate</td><td class="num">' + devDays + ' d</td></tr>'
+    + '<tr><td>Heat accumulation</td><td class="num">' + T('w.gdd', fx(g,1)) + '</td></tr>'
+    + '<tr><td>Flower → harvest at this rate</td><td class="num">' + T('d.days', devDays) + '</td></tr>'
     + '</tbody></table>';
   $('flowering').innerHTML = f;
 
@@ -1755,18 +1740,16 @@ function renderIrrigation(){
     const x = S.fc[0];
     const etcT = (x.et0 != null ? x.et0 : 4) * f.kc;
     today = Math.max(0, etcT - 0.8 * (x.rain || 0)) * f.canopyArea / f.eff;
-    tSrc = 'today: ETc ' + fx(etcT,1) + ' mm − 80% of ' + fx(x.rain,1) + ' mm rain, × '
-         + fx(f.canopyArea,0) + ' m² canopy ÷ ' + Math.round(f.eff*100) + '% efficiency (forecast)';
+    tSrc = T('ir.todaySrc', fx(etcT,1), fx(x.rain,1), fx(f.canopyArea,0), Math.round(f.eff*100));
   } else {
     today = dd.litres[dd.litres.length-1];
-    tSrc = 'last observed day (' + S.power.date[S.power.date.length-1] + ') — POWER lags ~3 days';
+    tSrc = T('ir.lastSrc', S.power.date[S.power.date.length-1]);
   }
   $('iTree').innerHTML = fx(today, 0) + '<span class="unit"> L</span>';
   $('iTreeSrc').textContent = tSrc;
-  $('iKc').innerHTML = f.kc + ' <span class="unit">Kcb · ' + f.stage + '</span>';
+  $('iKc').innerHTML = f.kc + ' <span class="unit">' + T('ir.kcUnit', f.stage) + '</span>';
   const kcSrc = document.querySelectorAll('#tab-irrig .card .src')[3];
-  if (kcSrc) kcSrc.textContent = 'Age ' + f.age + ' yr → canopy ' + f.canopy + ' m Ø → '
-    + fx(f.canopyArea, 0) + ' m² of leaf. Age sets the canopy; the canopy sets the water.';
+  if (kcSrc) kcSrc.textContent = T('ir.kcSrc', f.age, f.canopy, fx(f.canopyArea, 0));
 
   // what the same weather asks of a tree at every age — this is the answer to "does age matter?"
   const et0now = (S.fc && S.fc.length && S.fc[0].et0 != null) ? S.fc[0].et0
@@ -1779,7 +1762,7 @@ function renderIrrigation(){
     const L = et0now * k * ca / f.eff;
     const hi = a === f.age || (a <= f.age && a === ages[ages.length-1]);
     return '<tr' + (Math.abs(a - f.age) < 1.5 ? ' style="background:#1c2430"' : '') + '>'
-      + '<td>' + a + ' yr <span class="muted">' + stageOf(a) + '</span></td>'
+      + '<td>' + T('ir.yr', a) + '<span class="muted">' + T('stage', stageOf(a)) + '</span></td>'
       + '<td class="num">' + c.toFixed(1) + ' m</td>'
       + '<td class="num">' + ca.toFixed(0) + ' m²</td>'
       + '<td class="num">' + k + '</td>'
@@ -1788,11 +1771,9 @@ function renderIrrigation(){
   if ($('iAge')) $('iAge').innerHTML =
     '<table><thead><tr><th>Age</th><th class="num">Canopy Ø</th><th class="num">Leaf area</th>'
     + '<th class="num">Kcb</th><th class="num">L/tree/day</th></tr></thead><tbody>' + ageRows + '</tbody></table>'
-    + '<p class="muted" style="font-size:11px;margin-top:8px">At today\'s ET₀ of ' + fx(et0now,1)
-    + ' mm/day and no rain, at ' + f.space + ' m spacing. Your row is highlighted. '
-    + 'A mature tree drinks roughly <b>' + Math.round((Math.pow(canopyFromAge(20, f.space), 2) * 0.98)
-      / (Math.pow(canopyFromAge(2, f.space), 2) * 0.85)) + '×</b> what a 2-year-old does — '
-    + 'not because it is older, but because it carries that much more leaf.</p>'
+    + '<p class="muted" style="font-size:11px;margin-top:8px">'
+    + T('ir.ageNote', fx(et0now,1), f.space, Math.round((Math.pow(canopyFromAge(20, f.space), 2) * 0.98)
+      / (Math.pow(canopyFromAge(2, f.space), 2) * 0.85))) + '</p>'
     + '<div class="alert ' + (f.age < 4 ? 'warn' : 'good') + '" style="margin-top:10px"><div><b>'
     + (f.age < 1 ? 'Seedling — never let it dry out'
      : f.age < 4 ? 'Juvenile — little and often'
@@ -1828,8 +1809,7 @@ function renderIrrigation(){
   }
   $('iWeek').innerHTML = fx(wk, 0) + '<span class="unit"> L</span>';
   $('iBlock').innerHTML = fx(wk * f.trees / 1000, 1) + '<span class="unit"> m³</span>';
-  $('iBlockSrc').textContent = f.trees + ' trees over ' + f.area + ' ha ≈ ' + fx(wk * f.trees / 1000, 1)
-    + ' m³/week (' + fx(wk * f.trees / 7000, 1) + ' m³/day)';
+  $('iBlockSrc').textContent = T('ir.block', f.trees, f.area, fx(wk * f.trees / 1000, 1), fx(wk * f.trees / 7000, 1));
 
   chart('cIrr', {type:'bar', data:{labels: S.power.date.slice(-90), datasets:[
     {label:'L/tree/day needed', data: dd.litres.slice(-90), backgroundColor:'#38bdf8', borderWidth:0}]}});
@@ -1852,17 +1832,13 @@ function renderForecast(){
   const hotDays = S.fc.filter(x => x.tmax > 35).length;
   const wetDays = S.fc.filter(x => x.rain >= 10).length;
   if (fd && fd.extra >= 3) A.push(['warn','Dry run ahead',
-    '<b>' + fd.extra + '</b> dry days forecast, taking the current spell to <b>' + fd.total + ' days</b>. '
-    + (fd.reaches ? 'That crosses the induction threshold — a deliberate choice point: irrigate to protect fruit, or withhold to force flowers.'
-                  : 'Not yet enough to trigger flowering.')]);
+    T('fc.dry', fd.extra, fd.total, fd.reaches)]);
   if (hotDays >= 3) A.push(['bad','Heat event',
-    '<b>' + hotDays + '</b> days above 35 °C forecast. Irrigate at dawn, mulch, shade young trees. '
-    + 'Flowers and pinhead fruit abort fast at these temperatures.']);
+    T('fc.heat', hotDays)]);
   if (rain16 > 250) A.push(['warn','Heavy rain incoming',
-    '<b>' + fx(rain16,0) + ' mm</b> over 16 days, ' + wetDays + ' days ≥10 mm. Clear drains before it arrives; '
-    + 'saturated soil plus warm weather is peak <i>Phytophthora</i> weather.']);
+    T('fc.heavy', fx(rain16,0), wetDays)]);
   if (rain16 < 20) A.push(['warn','Very little rain forecast',
-    'Only <b>' + fx(rain16,0) + ' mm</b> in 16 days. Check the Irrigation tab unless you are inducing.']);
+    T('fc.little', fx(rain16,0))]);
   if (!A.length) A.push(['good','Nothing notable','No heat, drought or deluge signal in the next 16 days.']);
   $('fcAlerts').innerHTML = A.map(a =>
     '<div class="alert ' + a[0] + '"><div><b>' + a[1] + '</b><small>' + a[2] + '</small></div></div>').join('');
@@ -1932,7 +1908,129 @@ var TPL = {
   'smap.caveatBody': {
     en: function(vwc,ratio){ return 'Vegetation water content over your farm is <b>'+vwc+' kg/m²</b>. SMAP\'s L-band retrieval is trusted below about <b>5 kg/m²</b>; above that it cannot cleanly separate the soil\'s emission from the canopy\'s. Your closed durian canopy is roughly <b>'+ratio+'×</b> over that limit.<br><br><b>So read these numbers as a trend, not a measurement.</b> The absolute values (~0.28 m³/m³) carry real uncertainty — very possibly ±0.06 or worse. What may still survive is the <i>shape</i>: whether the soil is drying or wetting, and roughly when. That is precisely what the model validation needs, so the comparison is still worth making — but a poor correlation would be ambiguous. It could mean my water balance is wrong, or simply that SMAP is too noisy here to judge it. A <b>good</b> correlation would be genuinely informative; a bad one would not be damning.'; },
     zh: function(vwc,ratio){ return '你农场上方的植被含水量为 <b>'+vwc+' kg/m²</b>。SMAP 的 L 波段反演在约 <b>5 kg/m²</b> 以下才可信；超过该值后，它无法干净地把土壤辐射与冠层辐射分开。你郁闭的榴莲冠层大约是该上限的 <b>'+ratio+' 倍</b>。<br><br><b>因此请把这些数字当作趋势，而非测量值。</b>其绝对值（约 0.28 m³/m³）带有实实在在的不确定性——很可能达到 ±0.06 甚至更差。可能仍然可靠的是其<i>形态</i>：土壤在变干还是变湿，以及大致的时间。这正是模型验证所需要的，因此这项对比仍然值得做——但相关性差则含义不明：既可能说明我的水分平衡有误，也可能只是 SMAP 在这里噪声太大而无法判断。<b>良好</b>的相关性会有真正的参考价值；差的相关性则并不构成否定。'; }
-  }
+  },
+
+  /* ── maps ── */
+  'stage': { en:function(s){return s;}, zh:function(s){ return ({seedling:'苗期',juvenile:'幼龄',establishing:'成形期',bearing:'结果期',mature:'成熟期'})[s]||s; } },
+  'tex':   { en:function(s){return s;}, zh:function(s){ return ({'clay':'黏土','sandy clay':'砂质黏土','silty clay':'粉质黏土','clay loam':'黏壤土','sandy clay loam':'砂质黏壤土','silty clay loam':'粉质黏壤土','loam':'壤土','sandy loam':'砂质壤土','silt loam':'粉砂壤土','silt':'粉砂土','loamy sand':'壤质砂土','sand':'砂土'})[s]||s; } },
+  'mon':   { en:function(m){return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m];}, zh:function(m){ return (m+1)+'月'; } },
+  'dsname':{ en:function(s){return s;}, zh:function(s){ return ({forecast:'预报',terrain:'地形',soil:'土壤',MODIS:'MODIS',SMAP:'SMAP',baseline:'气候基线','ERA5-Land soil':'ERA5-Land 土壤'})[s]||s; } },
+
+  /* ── score sublabels ── */
+  'sc.mean':  { en:function(v){return 'mean '+v+' °C';}, zh:function(v){return '平均 '+v+' °C';} },
+  'sc.heat':  { en:function(n){return n+' d >35 °C in 30 d';}, zh:function(n){return '30 天内 '+n+' 天 >35 °C';} },
+  'sc.rain':  { en:function(v,x){return v+' mm/yr'+(x?' (extrapolated — use 12 months)':'');}, zh:function(v,x){return v+' 毫米/年'+(x?'（外推值——请用 12 个月数据）':'');} },
+  'sc.dry':   { en:function(n){return 'longest dry spell '+n+' d';}, zh:function(n){return '最长干旱期 '+n+' 天';} },
+  'sc.wind':  { en:function(v){return 'peak '+v+' m/s';}, zh:function(v){return '峰值 '+v+' m/s';} },
+  'sc.drain': { en:function(sp,lf,wl,clay){return sp+'% slope, '+lf+', '+wl+' d waterlogged'+(clay?', heavy clay':'');}, zh:function(sp,lf,wl,clay){return '坡度 '+sp+'%，'+T('lf',lf)+'，积水 '+wl+' 天'+(clay?'，黏土偏重':'');} },
+  'sc.drainM':{ en:function(n){return n+' d root zone >0.90 sat. — no slope data';}, zh:function(n){return '根区饱和度 >0.90 共 '+n+' 天——无坡度数据';} },
+  'sc.ph':    { en:function(v,t2){return 'pH '+v+(t2?' · '+t2:'');}, zh:function(v,t2){return 'pH '+v+(t2?' · '+T('tex',t2):'');} },
+
+  /* ── durian KPIs & alerts ── */
+  'kpi.note': { en:function(n,d0,d1,m){return n+' factors, '+d0+' → '+d1+'. ET₀ by '+m+'.';}, zh:function(n,d0,d1,m){return n+' 个因子，'+d0+' → '+d1+'。ET₀ 采用 '+m+'。';} },
+  'kpi.ks':   { en:function(k,s){return 'Ks '+k+(s?' — <span style="color:var(--warn)">stressed</span>':' — comfortable');}, zh:function(k,s){return 'Ks '+k+(s?' — <span style="color:var(--warn)">胁迫中</span>':' — 宽裕');} },
+  'kpi.trig': { en:function(d){return '→ trigger on '+d;}, zh:function(d){return '→ '+d+' 触发';} },
+  'kpi.by':   { en:function(n,d){return '→ '+n+' d by '+d;}, zh:function(n,d){return '→ 至 '+d+' 达 '+n+' 天';} },
+  'a.deficit':{ en:function(mm,l){return 'Crop demand beat rainfall by <b>'+mm+' mm</b> over 30 days — about <b>'+l+' L/tree/day</b> at your canopy size. See the Irrigation tab.';}, zh:function(mm,l){return '过去 30 天作物需水比降雨多 <b>'+mm+' 毫米</b>——按你的树冠约合每株每天 <b>'+l+' 升</b>。详见灌溉页。';} },
+  'a.flat':   { en:function(sp){return 'Slope is only <b>'+sp+'%</b>. Water will not shed. This is the classic <i>Phytophthora</i> setup: plant on raised mounds, cut drainage trenches, and never let water stand around the collar.';}, zh:function(sp){return '坡度只有 <b>'+sp+'%</b>，水排不走。这是典型的<i>疫霉</i>温床：起高垄种植，开挖排水沟，绝不让水积在根颈周围。';} },
+  'a.wlog':   { en:function(n){return 'Root-zone wetness above 0.90 saturation on <b>'+n+'</b> of 30 days.';}, zh:function(n){return '30 天中有 <b>'+n+'</b> 天根区湿度超过 0.90 饱和度。';} },
+  'a.acid':   { en:function(ph){return 'pH <b>'+ph+'</b> is below the 5.5–6.5 durian likes. Aluminium toxicity locks up phosphorus. Lime it.';}, zh:function(ph){return 'pH <b>'+ph+'</b>，低于榴莲喜好的 5.5–6.5。铝毒会锁住磷。请施石灰。';} },
+  'a.alk':    { en:function(ph){return 'pH <b>'+ph+'</b> — iron and zinc go unavailable. Expect interveinal chlorosis.';}, zh:function(ph){return 'pH <b>'+ph+'</b>——铁和锌将无法被吸收，会出现叶脉间失绿。';} },
+  'a.heat':   { en:function(n){return '<b>'+n+'</b> days above 35 °C in the last month. Expect flower abortion and fruit drop.';}, zh:function(n){return '过去一个月有 <b>'+n+'</b> 天超过 35 °C。预计会出现落花落果。';} },
+  'a.open':   { en:function(dep,ks,run){return 'Root zone is <b>'+dep+'% depleted</b> (Ks '+ks+') and has been past the stress threshold for <b>'+run+' consecutive days</b>. This is the signal durian needs. <b>Do not irrigate</b> until flower buds are visible.';}, zh:function(dep,ks,run){return '根区已亏缺 <b>'+dep+'%</b>（Ks '+ks+'），且已连续 <b>'+run+' 天</b>超过胁迫阈值。这正是榴莲需要的信号。见到花芽之前<b>不要灌溉</b>。';} },
+  't.willOpen':{ en:function(d){return 'Induction window will open on '+d;}, zh:function(d){return '催花窗口将于 '+d+' 开启';} },
+  'a.willOpen':{ en:function(trig,day,dep){return 'Carrying the root-zone balance through the forecast, the trees reach <b>'+trig+' consecutive stress days</b> on <b>'+day+'</b> (depletion rising to '+dep+'%). <b>Stop irrigating now</b> if you want flowers — this is the decision point, and it will pass.';}, zh:function(trig,day,dep){return '将根区水分平衡沿预报推算，树木将在 <b>'+day+'</b> 达到<b>连续 '+trig+' 个胁迫日</b>（亏缺升至 '+dep+'%）。想要开花就<b>立即停止灌溉</b>——这是决策点，且稍纵即逝。';} },
+  'a.building':{ en:function(dep,run,trig){return 'Depletion reaches <b>'+dep+'%</b> and <b>'+run+' stress days</b> by the end of the forecast — not the '+trig+' needed. A rain shelter over the root zone now could carry it across.';}, zh:function(dep,run,trig){return '到预报期末亏缺达 <b>'+dep+'%</b>、胁迫 <b>'+run+' 天</b>——还不到所需的 '+trig+' 天。现在给根区搭遮雨棚或许能撑过去。';} },
+  'a.fungal': { en:function(rh){return '30-day mean humidity <b>'+rh+'%</b>. <i>Phytophthora palmivora</i> and leaf blight move fast above ~88%. Prune for airflow.';}, zh:function(rh){return '30 天平均湿度 <b>'+rh+'%</b>。湿度超过约 88% 时<i>疫霉</i>和叶枯病蔓延很快。修剪以利通风。';} },
+  'a.wind':   { en:function(v){return 'Peak gust <b>'+v+' m/s</b>. Durian limbs are brittle and heavy fruit snaps them — prop and windbreak.';}, zh:function(v){return '最大阵风 <b>'+v+' m/s</b>。榴莲枝条脆，重果易压断——请支撑并设防风带。';} },
+
+  /* ── flowering panel ── */
+  'fl.uTitle':{ en:function(d){return 'Induction underway — day '+d+' of real water stress';}, zh:function(d){return '催花进行中——真实水分胁迫第 '+d+' 天';} },
+  'fl.uBody': { en:function(dep,g,dev,lo,hi){return 'Root zone <b>'+dep+'% depleted</b>. Anthesis in roughly 3–5 weeks; at <b>'+g+' GDD/day</b> fruit matures in about <b>'+dev+' days</b>, landing <b>'+lo+'</b> – <b>'+hi+'</b>.';}, zh:function(dep,g,dev,lo,hi){return '根区已亏缺 <b>'+dep+'%</b>。约 3–5 周后开花；按每天 <b>'+g+' GDD</b>，果实约 <b>'+dev+' 天</b>成熟，落在 <b>'+lo+'</b> – <b>'+hi+'</b>。';} },
+  'fl.lTitle':{ en:function(d){return 'Last real stress event ended '+d;}, zh:function(d){return '上一次真实胁迫期结束于 '+d;} },
+  'fl.lBody': { en:function(since,lo,hi,cur){return since+' days ago — the trees genuinely dried out then, even if it rained. If it set flowers, harvest lands around <b>'+lo+'</b> – <b>'+hi+'</b>. '+(cur?'Still ahead or current — line up labour and buyers.':'That window has passed.');}, zh:function(since,lo,hi,cur){return since+' 天前——即使当时有雨，树木也确实经历了干旱。若因此成花，收成约在 <b>'+lo+'</b> – <b>'+hi+'</b>。'+(cur?'尚未到或正在进行——请安排人手和买家。':'该窗口已过。');} },
+  'fl.none':  { en:function(best,bestDry,trig){return 'Longest real stress run: <b>'+best+' days</b> (vs '+bestDry+' rainless days), short of the '+trig+' durian needs. Check the Climate baseline tab — the 10-year record is the one that matters, not a single year.';}, zh:function(best,bestDry,trig){return '最长真实胁迫连续期：<b>'+best+' 天</b>（对比无雨 '+bestDry+' 天），未达榴莲所需的 '+trig+' 天。请看气候基线页——重要的是 10 年记录，而非单独一年。';} },
+  'w.taw':    { en:function(v){return v+' % of TAW';}, zh:function(v){return v+'%（占总可利用水）';} },
+  'w.ksrow':  { en:function(v,lim){return v+(lim?' (transpiration limited)':' (unstressed)');}, zh:function(v,lim){return v+(lim?'（蒸腾受限）':'（无胁迫）');} },
+  'w.trig':   { en:function(d){return ' → trigger '+d;}, zh:function(d){return ' → '+d+' 触发';} },
+  'w.fcst':   { en:function(n){return ' → '+n+' d (fcst)';}, zh:function(n){return ' → '+n+' 天（预报）';} },
+  'd.days':   { en:function(v){return v+' d';}, zh:function(v){return v+' 天';} },
+  'w.gdd':    { en:function(g){return g+' GDD/day (base 10 °C)';}, zh:function(g){return '每天 '+g+' GDD（基点 10 °C）';} },
+
+  /* ── irrigation ── */
+  'ir.todaySrc':{ en:function(etc,rain,area,eff){return 'today: ETc '+etc+' mm − 80% of '+rain+' mm rain, × '+area+' m² canopy ÷ '+eff+'% efficiency (forecast)';}, zh:function(etc,rain,area,eff){return '今日：ETc '+etc+' 毫米 − 降雨 '+rain+' 毫米的 80%，× 树冠 '+area+' m² ÷ 效率 '+eff+'%（预报）';} },
+  'ir.lastSrc': { en:function(d){return 'last observed day ('+d+') — POWER lags ~3 days';}, zh:function(d){return '最近观测日（'+d+'）——POWER 滞后约 3 天';} },
+  'ir.kcUnit':  { en:function(st){return 'Kcb · '+st;}, zh:function(st){return 'Kcb · '+T('stage',st);} },
+  'ir.kcSrc':   { en:function(age,c,a){return 'Age '+age+' yr → canopy '+c+' m Ø → '+a+' m² of leaf. Age sets the canopy; the canopy sets the water.';}, zh:function(age,c,a){return '树龄 '+age+' 年 → 树冠直径 '+c+' 米 → 叶面积 '+a+' m²。树龄决定树冠，树冠决定用水。';} },
+  'ir.yr':      { en:function(a){return a+' yr ';}, zh:function(a){return a+' 年 ';} },
+  'ir.ageNote': { en:function(et0,sp,x){return 'At today\'s ET₀ of '+et0+' mm/day and no rain, at '+sp+' m spacing. Your row is highlighted. A mature tree drinks roughly <b>'+x+'×</b> what a 2-year-old does — not because it is older, but because it carries that much more leaf.';}, zh:function(et0,sp,x){return '按今日 ET₀ '+et0+' 毫米/天、无降雨、株距 '+sp+' 米计算。你的行已高亮。成年树的用水约为 2 年生幼树的 <b>'+x+' 倍</b>——不是因为它更老，而是因为它的叶子多那么多。';} },
+  'ir.block':   { en:function(t2,a,wk,dd2){return t2+' trees over '+a+' ha ≈ '+wk+' m³/week ('+dd2+' m³/day)';}, zh:function(t2,a,wk,dd2){return a+' 公顷 '+t2+' 株 ≈ 每周 '+wk+' m³（每天 '+dd2+' m³）';} },
+
+  /* ── forecast alerts ── */
+  'fc.dry':   { en:function(x,tot,hit){return '<b>'+x+'</b> dry days forecast, taking the current spell to <b>'+tot+' days</b>. '+(hit?'That crosses the induction threshold — a deliberate choice point: irrigate to protect fruit, or withhold to force flowers.':'Not yet enough to trigger flowering.');}, zh:function(x,tot,hit){return '预报还有 <b>'+x+'</b> 个无雨日，当前干旱期将达 <b>'+tot+' 天</b>。'+(hit?'这将越过催花阈值——需要主动抉择：灌溉保果，还是停水催花。':'尚不足以触发开花。');} },
+  'fc.heat':  { en:function(n){return '<b>'+n+'</b> days above 35 °C forecast. Irrigate at dawn, mulch, shade young trees. Flowers and pinhead fruit abort fast at these temperatures.';}, zh:function(n){return '预报有 <b>'+n+'</b> 天超过 35 °C。请清晨灌溉、覆盖保墒、为幼树遮荫。这种温度下花和幼果会迅速脱落。';} },
+  'fc.heavy': { en:function(mm,w){return '<b>'+mm+' mm</b> over 16 days, '+w+' days ≥10 mm. Clear drains before it arrives; saturated soil plus warm weather is peak <i>Phytophthora</i> weather.';}, zh:function(mm,w){return '16 天内 <b>'+mm+' 毫米</b>，其中 '+w+' 天 ≥10 毫米。雨来之前清理排水沟；土壤饱和加上温暖天气正是<i>疫霉</i>高发天气。';} },
+  'fc.little':{ en:function(mm){return 'Only <b>'+mm+' mm</b> in 16 days. Check the Irrigation tab unless you are inducing.';}, zh:function(mm){return '16 天仅 <b>'+mm+' 毫米</b>。若不是在催花，请查看灌溉页。';} },
+
+  /* ── SMAP panel ── */
+  'smap.title':{ en:function(p){return 'Real SMAP: '+p+' at 9 km';}, zh:function(p){return '真实 SMAP：'+p+'（9 公里）';} },
+  'smap.real': { en:function(kind,lag){
+      var src = kind==='worker' ? 'It reaches your browser through a Cloudflare Worker that reads NASA\'s OPeNDAP service and slices out just your 9 km grid cell — no login needed on this device, works on mobile.'
+              : kind==='script' ? 'It was pulled from NASA Earthdata by the fetch_smap.py script and read from the local smap.json file.'
+              : 'It is served by ORNL DAAC through the same no-key endpoint as MODIS.';
+      return 'This is the actual L-band radiometer measuring your soil, not a land-surface model. '+src
+        +' Units are volumetric water content (m³ of water per m³ of soil) — around 0.10 is dry, 0.40 is saturated for most soils.'
+        +(lag ? '<br><br><b>Latency:</b> NASA\'s SMAP archive runs roughly <b>'+lag+' day'+(lag===1?'':'s')+'</b> behind today (satellite processing time). Near-current, but not instantaneous — excellent for <b>validating the model</b> and reading past seasons; for today\'s irrigation the ERA5-Land / POWER soil and the forecast lead.' : ''); },
+    zh: function(kind,lag){
+      var src = kind==='worker' ? '数据经由一个 Cloudflare Worker 到达你的浏览器：它读取 NASA 的 OPeNDAP 服务并只截取你所在的 9 公里网格单元——本设备无需登录，手机也能用。'
+              : kind==='script' ? '数据由 fetch_smap.py 脚本从 NASA Earthdata 拉取，并从本地 smap.json 文件读取。'
+              : '数据由 ORNL DAAC 通过与 MODIS 相同的免密钥端点提供。';
+      return '这是真正测量你土壤的 L 波段辐射计，而非陆面模型。'+src
+        +'单位为体积含水量（每 m³ 土壤中水的 m³ 数）——约 0.10 为干燥，0.40 对多数土壤已属饱和。'
+        +(lag ? '<br><br><b>时延：</b>NASA 的 SMAP 档案大约落后今天 <b>'+lag+' 天</b>（卫星处理耗时）。接近当前但非实时——非常适合<b>验证模型</b>和回看往季；今天的灌溉决策请以 ERA5-Land / POWER 土壤数据和预报为准。' : ''); } },
+  'smap.foot': { en:function(p){return p+' is the surface product: SMAP measures the top ~5 cm of soil directly. Deeper root-zone moisture would need the L4 assimilation product, which is not what is shown here.';}, zh:function(p){return p+' 是表层产品：SMAP 直接测量土壤最上层约 5 厘米。更深的根区湿度需要 L4 同化产品，此处展示的并非该产品。';} },
+  'smap.surfRow':{ en:function(b){return 'SMAP surface ('+b+')';}, zh:function(b){return 'SMAP 表层（'+b+'）';} },
+  'smap.rootRow':{ en:function(b){return 'SMAP root zone ('+b+')';}, zh:function(b){return 'SMAP 根区（'+b+'）';} },
+  'smap.proxyRow':{ en:function(){return 'MERRA-2 proxy (GWETROOT)';}, zh:function(){return 'MERRA-2 替代（GWETROOT）';} },
+  'smap.proxyNote':{ en:function(){return 'model, ~50 km';}, zh:function(){return '模型，约 50 公里';} },
+  'smap.fileWarn':{ en:function(){return '<b>You are running from file://</b><small>Most APIs reject the <code>null</code> origin that <code>file://</code> sends. Serve the page instead:<br><code>python3 -m http.server 8000</code> → <code>http://localhost:8000/TerraDurian.html</code><br>Soil and SMAP both failing while Open-Meteo works is exactly this signature. Try localhost before concluding SMAP is unavailable.</small>';}, zh:function(){return '<b>你正在从 file:// 运行</b><small>多数 API 会拒绝 <code>file://</code> 发送的 <code>null</code> 来源。请改为通过服务器打开页面：<br><code>python3 -m http.server 8000</code> → <code>http://localhost:8000/TerraDurian.html</code><br>土壤和 SMAP 同时失败而 Open-Meteo 正常，正是这种情形的特征。在断定 SMAP 不可用之前请先试试 localhost。</small>';} },
+  'smap.unavail':{ en:function(err,cat,lat,lon){
+      return (err ? '<span class="err">'+err+'</span><br><br>' : '')
+        +(cat ? 'ORNL answered, and its catalogue is:<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>If SMAP is genuinely not in that list, no amount of retrying will help — it is not served here.<br><br>'
+              : 'ORNL did not even return a catalogue, so we learned nothing about whether it carries SMAP.<br><br>')
+        +'Falling back to <b>POWER GWETTOP/GWETROOT</b> — MERRA-2 land-model wetness at ~50 km. That is a <i>model</i>, not a measurement, and 5× coarser than SMAP. A serviceable proxy that has never once observed your field.<br><br>'
+        +'<b>The reliable route:</b> run <code>fetch_smap.py</code> (it sits next to this file). It logs into <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a> — free — pulls the genuine SPL3SMP_E granules server-side, where Earthdata\'s CORS block does not apply, and writes <code>smap.json</code> beside this page. This app looks for that file first and will use it automatically on the next Fetch.<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; },
+    zh: function(err,cat,lat,lon){
+      return (err ? '<span class="err">'+err+'</span><br><br>' : '')
+        +(cat ? 'ORNL 有响应，其目录为：<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>如果 SMAP 确实不在该列表中，再多重试也没用——此服务不提供它。<br><br>'
+              : 'ORNL 连目录都没有返回，因此我们无从得知它是否提供 SMAP。<br><br>')
+        +'回退到 <b>POWER GWETTOP/GWETROOT</b>——约 50 公里的 MERRA-2 陆面模型湿度。那是<i>模型</i>而非测量，比 SMAP 粗 5 倍。是个可用的替代，但从未真正观测过你的田块。<br><br>'
+        +'<b>可靠的途径：</b>运行 <code>fetch_smap.py</code>（就在本文件旁）。它登录 <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a>（免费），在服务器端拉取真正的 SPL3SMP_E 颗粒（Earthdata 的 CORS 限制在那里不适用），并在页面旁写出 <code>smap.json</code>。本应用会优先查找该文件，下次「获取」时自动使用。<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; } },
+
+  /* ── baseline ── */
+  'bl.anomT': { en:function(wet,p){return (wet?'Wetter':'Drier')+' than normal by '+p+'%';}, zh:function(wet,p){return '比常值'+(wet?'偏湿':'偏干')+' '+p+'%';} },
+  'bl.anomB': { en:function(cur,nor,ta,nt){return 'The last 12 months delivered <b>'+cur+' mm</b> against a 10-year normal of <b>'+nor+' mm</b>. Temperature ran <b>'+ta+' °C</b> against the 10-year mean of '+nt+' °C.';}, zh:function(cur,nor,ta,nt){return '过去 12 个月降雨 <b>'+cur+' 毫米</b>，10 年常值为 <b>'+nor+' 毫米</b>。气温相对 10 年均值（'+nt+' °C）偏差 <b>'+ta+' °C</b>。';} },
+  'bl.winT':  { en:function(m){return 'Your induction window: '+m;}, zh:function(m){return '你的催花窗口：'+m;} },
+  'bl.win':   { en:function(trig,mon,pct,mean){return 'Using the root-zone water balance, the trees reached <b>'+trig+'+ consecutive days of real water stress</b> starting in <b>'+mon+'</b> in <b>'+pct+'% of the last 10 years</b> (mean longest stress run '+mean+' days). Stop irrigating going into this month and let the root zone draw down.';}, zh:function(trig,mon,pct,mean){return '按根区水分平衡计算，过去 10 年中有 <b>'+pct+'%</b> 的年份，树木自 <b>'+mon+'</b> 起达到<b>连续 '+trig+' 天以上的真实水分胁迫</b>（最长胁迫期平均 '+mean+' 天）。进入该月前停止灌溉，让根区水分消耗下去。';} },
+  'bl.nowinT':{ en:function(){return 'No reliable natural induction window — even on the stress model';}, zh:function(){return '没有可靠的自然催花窗口——即使按胁迫模型也是如此';} },
+  'bl.nowin': { en:function(trig,mon,pct,mean){return 'No month reaches '+trig+'+ consecutive stress days in 30% of years. Best is <b>'+mon+'</b> at <b>'+pct+'%</b> (mean longest run '+mean+' d). Flowering will stay erratic unless you force it.';}, zh:function(trig,mon,pct,mean){return '没有任何月份能在 30% 的年份达到连续 '+trig+' 天以上胁迫。最佳是 <b>'+mon+'</b>，占 <b>'+pct+'%</b>（最长连续期平均 '+mean+' 天）。除非人工催花，开花将持续不稳定。';} },
+  'bl.foot':  { en:function(pd,trig,taw){return '<b>Yrs w/ 10 d STRESS</b> is the number that matters: years in which the root zone actually stayed past '+pd+'% depletion for '+trig+'+ straight days (TAW '+taw+' mm). The <b>old rain rule</b> column counts consecutive rainless days — it resets on 1 mm of drizzle, which the tree does not even notice. Where Δ is positive, the naive rule was <b>hiding a real window from you</b>.';}, zh:function(pd,trig,taw){return '<b>「达 10 天胁迫的年数」</b>才是关键数字：即根区真正超过 '+pd+'% 亏缺并持续 '+trig+' 天以上的年份（总可利用水 '+taw+' 毫米）。<b>「旧降雨规则」</b>一栏数的是连续无雨天数——1 毫米的毛毛雨就会把它清零，而树根本感觉不到。凡 Δ 为正的地方，都是简单规则<b>把真实窗口藏了起来</b>。';} },
+  'bl.heatLeg':{ en:function(y0,y1,g,st){return 'Rows = '+y0+' → '+y1+' (top to bottom). <b style="color:var(--good)">'+g+' green cells</b> — months that hit the 10-day trigger. '+(st?'This is the <b>root-zone water balance</b>: consecutive days the trees were genuinely past the stress threshold.':'This is the <b>naive rule</b>: consecutive days with under 1 mm of rain. Any drizzle resets it to zero.');}, zh:function(y0,y1,g,st){return '行 = '+y0+' → '+y1+'（自上而下）。<b style="color:var(--good)">'+g+' 个绿格</b>——达到 10 天触发阈值的月份。'+(st?'这是<b>根区水分平衡</b>：树木真正超过胁迫阈值的连续天数。':'这是<b>简单规则</b>：降雨不足 1 毫米的连续天数。任何毛毛雨都会将其清零。');} },
+
+  /* ── validation ── */
+  'val.noov': { en:function(a,b,c,dd2){return 'No overlapping days. SMAP covers '+a+' to '+b+', while the model window runs '+c+' to '+dd2+'. Fetch SMAP for a period the dashboard actually covers — the script now works backwards from today, so just re-run it.';}, zh:function(a,b,c,dd2){return '没有重叠的日期。SMAP 覆盖 '+a+' 至 '+b+'，而模型窗口为 '+c+' 至 '+dd2+'。请为仪表盘实际覆盖的时段获取 SMAP——脚本现在从今天往回取数，重新运行即可。';} },
+  'val.r':    { en:function(r,n){return 'correlation r = <b>'+r+'</b> across '+n+' overlapping days — '+(+r>0.6?'the model tracks the real instrument well.':+r>0.3?'moderate agreement; treat the model as indicative.':'poor agreement — <b>trust SMAP over my model here</b>.');}, zh:function(r,n){return '在 '+n+' 个重叠日上相关系数 r = <b>'+r+'</b>——'+(+r>0.6?'模型与真实仪器吻合良好。':+r>0.3?'中等吻合；模型仅作参考。':'吻合较差——<b>此处请相信 SMAP 而非我的模型</b>。');} },
+  'val.head': { en:function(){return 'Red = my FAO-56 model. Blue = real SMAP (rescaled to its wet/dry range). ';}, zh:function(){return '红 = 我的 FAO-56 模型。蓝 = 真实 SMAP（按其干湿范围重标定）。';} },
+  'val.caveat':{ en:function(vwc){return '<br><br><b>Caveat that cuts both ways:</b> NASA flags most of these SMAP retrievals as unreliable because your canopy (VWC '+vwc+' kg/m²) is far above the ~5 kg/m² limit for a clean L-band retrieval. A <b>high</b> correlation is therefore strong evidence the model is right — two independent, noisy methods agreeing is hard to fake. A <b>low</b> correlation proves little: it may be my model, or it may be SMAP struggling to see your soil at all. Do not throw away the water balance on the strength of a bad score here.';}, zh:function(vwc){return '<br><br><b>双向的注意事项：</b>NASA 将其中大部分 SMAP 反演标记为不可靠，因为你的冠层（植被含水量 '+vwc+' kg/m²）远超干净 L 波段反演约 5 kg/m² 的上限。因此<b>高</b>相关是模型正确的有力证据——两种独立且带噪声的方法达成一致很难是巧合。<b>低</b>相关则说明不了什么：可能是模型的问题，也可能是 SMAP 根本看不清你的土壤。不要因为这里分数差就抛弃水分平衡模型。';} },
+
+  /* ── site soil-fail & pills & compare ── */
+  'site.soilfail':{ en:function(err){return 'Soil lookup failed'+(err?': '+err:'');}, zh:function(err){return '土壤查询失败'+(err?'：'+err:'');} },
+  'pill.mean':{ en:function(v){return v+' °C mean';}, zh:function(v){return '平均 '+v+' °C';} },
+  'pill.root':{ en:function(v){return v+' root sat.';}, zh:function(v){return '根区饱和度 '+v;} },
+  'pill.rh':  { en:function(rh,w){return rh+'% RH · peak '+w+' m/s';}, zh:function(rh,w){return '湿度 '+rh+'% · 峰值 '+w+' m/s';} },
+  'pill.lst': { en:function(v){return v+' °C day';}, zh:function(v){return '白天 '+v+' °C';} },
+  'pill.na':  { en:function(){return 'unavailable';}, zh:function(){return '不可用';} },
+  'st.failed':{ en:function(list){return 'loaded · failed: '+list;}, zh:function(list){return '已加载 · 失败：'+list;} }
 };
 
 function renderSmap(){
@@ -1942,34 +2040,17 @@ function renderSmap(){
   if (!sm){
     const fileOrigin = location.protocol === 'file:';
     let why = '';
-    if (fileOrigin) why = '<div class="alert bad" style="margin-bottom:8px"><div><b>You are running from file://</b>'
-      + '<small>Most APIs reject the <code>null</code> origin that <code>file://</code> sends. Serve the page instead:'
-      + '<br><code>python3 -m http.server 8000</code> → <code>http://localhost:8000/TerraDurian.html</code>'
-      + '<br>Soil and SMAP both failing while Open-Meteo works is exactly this signature. Try localhost before '
-      + 'concluding SMAP is unavailable.</small></div></div>';
+    if (fileOrigin) why = '<div class="alert bad" style="margin-bottom:8px"><div>' + T('smap.fileWarn') + '</div></div>';
     card.innerHTML = why + '<div class="alert warn"><div><b>Real SMAP unavailable</b><small>'
-      + (S.errs.SMAP ? '<span class="err">' + S.errs.SMAP + '</span><br><br>' : '')
-      + (S.ornlProducts ? 'ORNL answered, and its catalogue is:<br><code style="display:block;margin:6px 0;'
-          + 'white-space:normal;line-height:1.7">' + S.ornlProducts.join(' · ') + '</code>'
-          + 'If SMAP is genuinely not in that list, no amount of retrying will help — it is not served here.<br><br>'
-        : 'ORNL did not even return a catalogue, so we learned nothing about whether it carries SMAP.<br><br>')
-      + 'Falling back to <b>POWER GWETTOP/GWETROOT</b> — MERRA-2 land-model wetness at ~50 km. That is a '
-      + '<i>model</i>, not a measurement, and 5× coarser than SMAP. A serviceable proxy that has never once '
-      + 'observed your field.<br><br>'
-      + '<b>The reliable route:</b> run <code>fetch_smap.py</code> (it sits next to this file). It logs into '
-      + '<a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a> — free — pulls the '
-      + 'genuine SPL3SMP_E granules server-side, where Earthdata\'s CORS block does not apply, and writes '
-      + '<code>smap.json</code> beside this page. This app looks for that file first and will use it automatically '
-      + 'on the next Fetch.<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>'
-      + 'python fetch_smap.py ' + fx(S.lat,4) + ' ' + fx(S.lon,4) + ' 730</code>'
+      + T('smap.unavail', S.errs.SMAP || '', S.ornlProducts ? S.ornlProducts.join(' · ') : '', fx(S.lat,4), fx(S.lon,4))
       + '</small></div></div>';
     return;
   }
   const l = sm.latest, lr = sm.latestRoot;
   const rows = [];
-  if (l)  rows.push(['SMAP surface (' + sm.bSurf + ')', fx(l.v, 3) + ' m³/m³', l.date]);
-  if (lr) rows.push(['SMAP root zone (' + sm.bRoot + ')', fx(lr.v, 3) + ' m³/m³', lr.date]);
-  rows.push(['MERRA-2 proxy (GWETROOT)', fx(d ? d.soilRoot : null, 2) + ' sat. frac.', 'model, ~50 km']);
+  if (l)  rows.push([T('smap.surfRow', sm.bSurf), fx(l.v, 3) + ' m³/m³', l.date]);
+  if (lr) rows.push([T('smap.rootRow', sm.bRoot), fx(lr.v, 3) + ' m³/m³', lr.date]);
+  rows.push([T('smap.proxyRow'), fx(d ? d.soilRoot : null, 2) + ' sat. frac.', T('smap.proxyNote')]);
   const lag = S.smapLag;
   const flagPct = (S.smapFlagged && sm.surf) ? Math.round(100 * S.smapFlagged / sm.surf.length) : 0;
   let caveat = '';
@@ -1978,27 +2059,15 @@ function renderSmap(){
       + T('smap.caveatBody', fx(S.smapVWC, 1), fx(S.smapVWC / 5, 1))
       + '</small></div></div>';
   }
-  const src = /Worker/.test(sm.prod)
-    ? 'It reaches your browser through a Cloudflare Worker that reads NASA\'s OPeNDAP service and slices out '
-      + 'just your 9 km grid cell — no login needed on this device, works on mobile.'
-    : /fetch_smap/.test(sm.prod)
-      ? 'It was pulled from NASA Earthdata by the fetch_smap.py script and read from the local smap.json file.'
-      : 'It is served by ORNL DAAC through the same no-key endpoint as MODIS.';
-  card.innerHTML = caveat + '<div class="alert good"><div><b>Real SMAP: ' + sm.prod + ' at 9 km</b><small>'
-    + 'This is the actual L-band radiometer measuring your soil, not a land-surface model. ' + src
-    + ' Units are volumetric water content (m³ of water per m³ of soil) — around 0.10 is dry, 0.40 is saturated for most soils.'
-    + (lag ? '<br><br><b>Latency:</b> NASA\'s SMAP archive runs roughly <b>' + lag + ' day' + (lag === 1 ? '' : 's')
-        + '</b> behind today (satellite processing time). Near-current, but not instantaneous — excellent for '
-        + '<b>validating the model</b> and reading past seasons; for today\'s irrigation the ERA5-Land / POWER soil and the forecast lead.'
-      : '')
+  const kind = /Worker/.test(sm.prod) ? 'worker' : /fetch_smap/.test(sm.prod) ? 'script' : 'ornl';
+  card.innerHTML = caveat + '<div class="alert good"><div><b>' + T('smap.title', sm.prod) + '</b><small>'
+    + T('smap.real', kind, lag)
     + '</small></div></div>'
     + '<table style="margin-top:10px"><tbody>'
     + rows.map(r => '<tr><td>' + r[0] + '</td><td class="num">' + r[1] + '</td>'
         + '<td class="muted" style="font-size:11px">' + r[2] + '</td></tr>').join('')
     + '</tbody></table>'
-    + '<p class="muted" style="font-size:11px">' + sm.prod.replace(/ \(.*/, '')
-    + ' is the surface product: SMAP measures the top ~5 cm of soil directly. Deeper root-zone moisture would need '
-    + 'the L4 assimilation product, which is not what is shown here.</p>';
+    + '<p class="muted" style="font-size:11px">' + T('smap.foot', sm.prod.replace(/ \(.*/, '')) + '</p>';
 }
 
 /* ═════════ RENDER — SITE & SOIL ═════════ */
@@ -2063,7 +2132,7 @@ function renderSite(){
                  : so.phh2o > 6.5 ? 'above optimum' : 'in the 5.5–6.5 sweet spot';
     $('sSoilTbl').innerHTML = '<tbody>'
       + row('pH (H₂O)', fx(so.phh2o,1), '', phNote)
-      + row('Texture', so.texture || '–', '', (so.clay >= 40 ? 'holds water — drainage risk' : 'workable'))
+      + row('Texture', so.texture ? T('tex', so.texture) : '–', '', (so.clay >= 40 ? 'holds water — drainage risk' : 'workable'))
       + row('Clay', fx(so.clay,0), ' %', so.clay >= 40 ? 'heavy' : '')
       + row('Sand', fx(so.sand,0), ' %', so.sand >= 70 ? 'droughty, leaches nutrients' : '')
       + row('Silt', fx(so.silt,0), ' %', '')
@@ -2071,8 +2140,7 @@ function renderSite(){
       + row('Bulk density', fx(so.bdod,2), ' kg/dm³', (so.bdod != null && so.bdod > 1.6) ? 'compacted' : '')
       + '</tbody>';
   } else {
-    $('sSoilTbl').innerHTML = '<tbody><tr><td class="err">Soil lookup failed'
-      + (S.errs.soil ? ': ' + S.errs.soil : '') + '</td></tr>'
+    $('sSoilTbl').innerHTML = '<tbody><tr><td class="err">' + T('site.soilfail', S.errs.soil || '') + '</td></tr>'
       + '<tr><td class="muted">Both ISRIC SoilGrids and the OpenEPI mirror refused the request, while other hosts '
       + 'answered fine — so this is those servers, not your connection. Soil is simply <b>excluded from the score</b>: '
       + 'the total is computed from the remaining factors, not penalised.<br><br>'
@@ -2098,11 +2166,9 @@ function renderBaseline(){
   if (ta != null && Math.abs(ta) < 0.005) ta = 0;   // avoid printing '-0.00'
   const cls = Math.abs(rp) < 10 ? 'good' : Math.abs(rp) < 25 ? 'warn' : 'bad';
   $('bAnom').innerHTML =
-    '<div class="alert ' + cls + '"><div><b>' + (rp >= 0 ? 'Wetter' : 'Drier') + ' than normal by '
-    + fx(Math.abs(rp), 0) + '%</b><small>The last 12 months delivered <b>' + fx(b.curAnnual, 0)
-    + ' mm</b> against a 10-year normal of <b>' + fx(b.normAnnual, 0) + ' mm</b>. '
-    + 'Temperature ran <b>' + (ta >= 0 ? '+' : '') + fx(ta, 2) + ' °C</b> against the 10-year mean of '
-    + fx(b.normTmean, 1) + ' °C.</small></div></div>'
+    '<div class="alert ' + cls + '"><div><b>' + T('bl.anomT', rp >= 0, fx(Math.abs(rp), 0))
+    + '</b><small>' + T('bl.anomB', fx(b.curAnnual, 0), fx(b.normAnnual, 0),
+        (ta >= 0 ? '+' : '') + fx(ta, 2), fx(b.normTmean, 1)) + '</small></div></div>'
     + '<table style="margin-top:10px"><tbody>'
     + '<tr><td>Last 12 months rainfall</td><td class="num">' + fx(b.curAnnual, 0) + ' mm</td></tr>'
     + '<tr><td>10-year normal</td><td class="num">' + fx(b.normAnnual, 0) + ' mm</td></tr>'
@@ -2121,16 +2187,13 @@ function renderBaseline(){
   const oldBest = b.inductMonths.slice().sort((x, y) => y.pct - x.pct)[0];
   let h;
   if (top.length){
-    h = '<div class="alert good"><div><b>Your induction window: ' + top.map(m => MONTHS[m.m]).join(', ')
-      + '</b><small>Using the root-zone water balance, the trees reached <b>' + AG.stressTrigger
-      + '+ consecutive days of real water stress</b> starting in <b>' + MONTHS[top[0].m] + '</b> in <b>'
-      + fx(top[0].spct, 0) + '% of the last 10 years</b> (mean longest stress run ' + fx(top[0].meanSBest, 1)
-      + ' days). Stop irrigating going into this month and let the root zone draw down.</small></div></div>';
+    h = '<div class="alert good"><div><b>' + T('bl.winT', top.map(m => T('mon', m.m)).join(', '))
+      + '</b><small>' + T('bl.win', AG.stressTrigger, T('mon', top[0].m), fx(top[0].spct, 0),
+          fx(top[0].meanSBest, 1)) + '</small></div></div>';
   } else {
-    h = '<div class="alert warn"><div><b>No reliable natural induction window — even on the stress model</b><small>'
-      + 'No month reaches ' + AG.stressTrigger + '+ consecutive stress days in 30% of years. Best is <b>'
-      + MONTHS[best[0].m] + '</b> at <b>' + fx(best[0].spct, 0) + '%</b> (mean longest run '
-      + fx(best[0].meanSBest, 1) + ' d). Flowering will stay erratic unless you force it.</small></div></div>';
+    h = '<div class="alert warn"><div><b>' + T('bl.nowinT') + '</b><small>'
+      + T('bl.nowin', AG.stressTrigger, T('mon', best[0].m), fx(best[0].spct, 0), fx(best[0].meanSBest, 1))
+      + '</small></div></div>';
   }
   const dRule = (m) => {
     const diff = m.spct - m.pct;
@@ -2141,18 +2204,15 @@ function renderBaseline(){
      + '<th class="num">Mean stress run</th><th class="num">Yrs w/ 10 d STRESS</th>'
      + '<th class="num">Old rain rule</th><th class="num">Δ</th></tr></thead><tbody>'
      + b.inductMonths.map(m => '<tr' + (m.spct >= 30 ? ' style="background:#11251a"' : '') + '>'
-        + '<td>' + MONTHS[m.m] + '</td>'
+        + '<td>' + T('mon', m.m) + '</td>'
         + '<td class="num">' + fx(b.normRain[m.m], 0) + ' mm</td>'
         + '<td class="num">' + fx(m.meanSBest, 1) + ' d</td>'
         + '<td class="num" style="font-weight:700;color:' + (m.spct >= 30 ? 'var(--good)' : m.spct > 0 ? 'var(--warn)' : 'var(--dim)') + '">'
         + fx(m.spct, 0) + '%</td>'
         + '<td class="num muted">' + fx(m.pct, 0) + '%</td>'
         + '<td class="num">' + dRule(m) + '</td></tr>').join('') + '</tbody></table>'
-     + '<p class="muted" style="font-size:11px;margin-top:8px"><b>Yrs w/ 10 d STRESS</b> is the number that matters: '
-     + 'years in which the root zone actually stayed past ' + fx(P_DEPLETE*100,0) + '% depletion for '
-     + AG.stressTrigger + '+ straight days (TAW ' + fx(b.taw,0) + ' mm). The <b>old rain rule</b> column counts '
-     + 'consecutive rainless days — it resets on 1 mm of drizzle, which the tree does not even notice. '
-     + 'Where Δ is positive, the naive rule was <b>hiding a real window from you</b>.</p>';
+     + '<p class="muted" style="font-size:11px;margin-top:8px">'
+     + T('bl.foot', fx(P_DEPLETE*100,0), AG.stressTrigger, fx(b.taw,0)) + '</p>';
   $('bInduct').innerHTML = h;
 
   chart('cClim', {type:'bar', data:{labels:MONTHS, datasets:[
@@ -2178,12 +2238,7 @@ function renderBaseline(){
       }).join('') + '</div>';
     });
     const greens = grid.reduce((a, r) => a + r.filter(v => v >= 10).length, 0);
-    g += '<div class="legend">Rows = ' + b.years[0] + ' → ' + b.years[b.years.length-1] + ' (top to bottom). '
-       + '<b style="color:var(--good)">' + greens + ' green cells</b> — months that hit the 10-day trigger. '
-       + (useStress
-          ? 'This is the <b>root-zone water balance</b>: consecutive days the trees were genuinely past the stress threshold.'
-          : 'This is the <b>naive rule</b>: consecutive days with under 1 mm of rain. Any drizzle resets it to zero.')
-       + '</div>';
+    g += '<div class="legend">' + T('bl.heatLeg', b.years[0], b.years[b.years.length-1], greens, useStress) + '</div>';
     $('bHeat').innerHTML = g;
     $('hmS').onclick = () => drawHeat(true);
     $('hmR').onclick = () => drawHeat(false);
@@ -2249,19 +2304,13 @@ function renderCharts(){
       const observed = labels.map(dt => byDate[dt] != null ? byDate[dt] : null);
       const pts = labels.map((dt, i) => (observed[i] != null && modelled[i] != null) ? [modelled[i], observed[i]] : null)
                         .filter(Boolean);
-      let r2txt = 'No overlapping days. SMAP covers '
-        + vals[0].date + ' to ' + vals[vals.length-1].date + ', while the model window runs '
-        + labels[0] + ' to ' + labels[labels.length-1] + '. Fetch SMAP for a period the dashboard '
-        + 'actually covers — the script now works backwards from today, so just re-run it.';
+      let r2txt = T('val.noov', vals[0].date, vals[vals.length-1].date, labels[0], labels[labels.length-1]);
       if (pts.length >= 6){
         const mx = avg(pts.map(p2 => p2[0])), my = avg(pts.map(p2 => p2[1]));
         let sxy = 0, sxx = 0, syy = 0;
         pts.forEach(p2 => { sxy += (p2[0]-mx)*(p2[1]-my); sxx += Math.pow(p2[0]-mx,2); syy += Math.pow(p2[1]-my,2); });
         const r = (sxx && syy) ? sxy / Math.sqrt(sxx*syy) : 0;
-        r2txt = 'correlation r = <b>' + r.toFixed(2) + '</b> across ' + pts.length + ' overlapping days — '
-          + (r > 0.6 ? 'the model tracks the real instrument well.'
-           : r > 0.3 ? 'moderate agreement; treat the model as indicative.'
-           : 'poor agreement — <b>trust SMAP over my model here</b>.');
+        r2txt = T('val.r', r.toFixed(2), pts.length);
       }
       chart('cVal', {type:'line', data:{labels, datasets:[
         LN('Modelled depletion % (FAO-56)', modelled, '#f87171'),
@@ -2269,16 +2318,7 @@ function renderCharts(){
         LN('Stress threshold', new Array(N).fill(P_DEPLETE*100), '#4ade80', {borderDash:[6,4], borderWidth:1})
       ]}, options:{scales:{y:{min:0, max:100, grid:GRID, ticks:TICK}, x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
       if ($('valNote')) $('valNote').innerHTML =
-        'Red = my FAO-56 model. Blue = real SMAP (rescaled to its wet/dry range). '
-        + r2txt
-        + (S.smapFlagged
-            ? '<br><br><b>Caveat that cuts both ways:</b> NASA flags most of these SMAP retrievals as unreliable '
-              + 'because your canopy (VWC ' + fx(S.smapVWC,1) + ' kg/m²) is far above the ~5 kg/m² limit for a clean '
-              + 'L-band retrieval. A <b>high</b> correlation is therefore strong evidence the model is right — two '
-              + 'independent, noisy methods agreeing is hard to fake. A <b>low</b> correlation proves little: it may '
-              + 'be my model, or it may be SMAP struggling to see your soil at all. Do not throw away the water '
-              + 'balance on the strength of a bad score here.'
-            : '');
+        T('val.head') + r2txt + (S.smapFlagged ? T('val.caveat', fx(S.smapVWC,1)) : '');
     }
   }
   chart('cBal',   {type:'bar',  data:{labels:t(x,90), datasets:[
@@ -2307,21 +2347,21 @@ function pills(){
   const d = S.derived;
   const set = (id, txt, c) => { const e = $(id); if (e){ e.textContent = txt; e.className = 'pill ' + (c || ''); } };
   set('pSolar', fx(d.solar,1) + ' kWh/m²/d', d.solar >= 4.5 ? 'good' : 'warn');
-  set('pTemp',  fx(d.tMean,1) + ' °C mean', (d.tMean >= 24 && d.tMean <= 32) ? 'good' : 'warn');
+  set('pTemp',  T('pill.mean', fx(d.tMean,1)), (d.tMean >= 24 && d.tMean <= 32) ? 'good' : 'warn');
   set('pRain',  fx(d.rainAnnual,0) + ' mm/yr', d.rainAnnual >= 1500 ? 'good' : 'warn');
-  set('pSoil',  fx(d.soilRoot,2) + ' root sat.', d.soilRoot > .9 ? 'bad' : d.soilRoot < .3 ? 'warn' : 'good');
-  set('pAtm',   fx(d.rh,0) + '% RH · peak ' + fx(d.windMax,1) + ' m/s', d.rh > 88 ? 'warn' : 'good');
+  set('pSoil',  T('pill.root', fx(d.soilRoot,2)), d.soilRoot > .9 ? 'bad' : d.soilRoot < .3 ? 'warn' : 'good');
+  set('pAtm',   T('pill.rh', fx(d.rh,0), fx(d.windMax,1)), d.rh > 88 ? 'warn' : 'good');
   const tw = d.tws[d.tws.length-1];
   set('pTws',   (tw >= 0 ? '+' : '') + fx(tw,0) + ' mm', tw < -150 ? 'bad' : '');
   const sm = S.smap && S.smap.latest;
-  set('pSmap', sm ? fx(sm.v,3) + ' m³/m³' : 'unavailable',
+  set('pSmap', sm ? fx(sm.v,3) + ' m³/m³' : T('pill.na'),
       sm ? (sm.v > 0.35 ? 'bad' : sm.v < 0.12 ? 'warn' : 'good') : '');
   if (S.smap && $('smapSrc')) $('smapSrc').textContent = S.smap.prod + ' · ' + S.smap.bSurf
     + (S.smap.bRoot ? ' + ' + S.smap.bRoot : '') + ' · 9 km';
   const nv = S.ndvi && S.ndvi.filter(r => r.v != null).slice(-1)[0];
-  set('pNdvi',  nv ? 'NDVI ' + fx(nv.v,2) : 'unavailable', nv ? (nv.v >= .7 ? 'good' : nv.v >= .5 ? 'warn' : 'bad') : '');
+  set('pNdvi',  nv ? 'NDVI ' + fx(nv.v,2) : T('pill.na'), nv ? (nv.v >= .7 ? 'good' : nv.v >= .5 ? 'warn' : 'bad') : '');
   const lv = S.lstD && S.lstD.filter(r => r.v != null).slice(-1)[0];
-  set('pLst',   lv ? fx(lv.v,1) + ' °C day' : 'unavailable', lv ? (lv.v > 40 ? 'bad' : 'good') : '');
+  set('pLst',   lv ? T('pill.lst', fx(lv.v,1)) : T('pill.na'), lv ? (lv.v > 40 ? 'bad' : 'good') : '');
 }
 
 /* ═════════ COMPARE / EXPORT ═════════ */
@@ -2459,7 +2499,7 @@ async function run(){
   }));
   renderSite(); renderSmap(); renderDurian();       // repaint with whatever did arrive
   const bad = results.filter(Boolean);
-  setStatus(bad.length ? 'loaded · failed: ' + bad.join(', ') : 'all datasets loaded');
+  setStatus(bad.length ? T('st.failed', bad.map(n => T('dsname', n)).join(', ')) : 'all datasets loaded');
   if (bad.length) log('NOTE: ' + bad.join(', ') + ' failed — see the panels for the reason. Pressing Fetch again often clears rate-limit errors.');
   $('run').disabled = false;
 }
