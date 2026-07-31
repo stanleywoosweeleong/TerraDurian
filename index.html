@@ -630,6 +630,218 @@ const median = a => {
 };
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+/* ── language-aware templates for number-bearing dynamic strings ──
+   The app owns the numbers; each template supplies English AND Chinese, so a
+   sentence with an interpolated value translates as a whole (Chinese word order
+   differs from English, so fragment-by-fragment swapping cannot work here). */
+function TDLANG(){ try { return localStorage.getItem('td_lang') || 'en'; } catch(e){ return 'en'; } }
+function T(key){
+  var a = [].slice.call(arguments, 1), e = TPL[key];
+  if (!e) return '';
+  return (e[TDLANG()] || e.en).apply(null, a);
+}
+var TPL = {
+  'drain.knoll': {
+    en: function(sp,tpi){ return 'Gradient is only <b>'+sp+'%</b>, but your point sits <b>'+tpi+' m above the ground around it</b> — a local high point. Water runs off in every direction rather than collecting, so this is <i>not</i> the flat-bottom trap that kills durian. A convex rise is among the best ground you can plant on. Keep the crown clear and do not let anyone build a road or bund that dams the downslope side.'; },
+    zh: function(sp,tpi){ return '坡度虽然只有 <b>'+sp+'%</b>，但你所在的点比四周地面高出 <b>'+tpi+' 米</b>——是一个局部高点。水会向四周排走而非汇集，因此这里<i>不是</i>那种害死榴莲的平底积水陷阱。凸起的高地是最适合种植的地形之一。保持顶部畅通，别让任何人在下坡侧修路或筑坝挡住排水。'; }
+  },
+  'drain.hollow': {
+    en: function(ab,sp){ return 'Your point sits <b>'+ab+' m below</b> the ground around it, at <b>'+sp+'%</b> gradient. Water drains <i>towards</i> you and has nowhere to leave. This is the classic <i>Phytophthora palmivora</i> setup, and it outweighs every favourable weather number on the dashboard. Raised mounds (60–100 cm) and a real drainage network are not optional here.'; },
+    zh: function(ab,sp){ return '你所在的点比四周地面低 <b>'+ab+' 米</b>，坡度 <b>'+sp+'%</b>。水会<i>朝你</i>汇流且无处排出。这是典型的 <i>Phytophthora palmivora</i>（疫霉）温床，其危害超过面板上所有有利的气象数值。这里必须做高垄（60–100 厘米）和完善的排水系统，别无选择。'; }
+  },
+  'drain.flat': {
+    en: function(sp){ return '<b>'+sp+'%</b> gradient with no local rise or hollow. Water will move slowly. Not fatal, but plant on mounds and cut drains. Walk the plot after heavy rain and see where puddles form — the DEM is 90 m resolution and cannot see a shallow depression the size of a tree.'; },
+    zh: function(sp){ return '坡度 <b>'+sp+'%</b>，无局部高地或洼地。水流缓慢。并非致命，但仍应起垄种植并开挖排水沟。大雨后到地块实地走一走，看看积水出现在哪里——DEM 分辨率为 90 米，看不到一棵树大小的浅洼。'; }
+  },
+  'drain.ideal': {
+    en: function(sp,asp){ return '<b>'+sp+'%</b> slope sheds water without eroding. This is the ground durian wants, and why traditional orchards sit on hillsides. Aspect '+asp+'.'; },
+    zh: function(sp,asp){ return '<b>'+sp+'%</b> 的坡度既能排水又不至侵蚀。这正是榴莲想要的地形，也是传统果园选在山坡上的原因。坡向为 '+asp+'。'; }
+  },
+  'drain.steep': {
+    en: function(sp){ return '<b>'+sp+'%</b>. Drainage is excellent, but expect topsoil loss and hard mechanical access. Terrace, and keep a living ground cover.'; },
+    zh: function(sp){ return '<b>'+sp+'%</b>。排水极好，但要预料到表土流失和机械通行困难。请修梯田，并保留活的地被覆盖。'; }
+  },
+  'drain.vsteep': {
+    en: function(sp){ return '<b>'+sp+'%</b> — severe erosion risk, dangerous for harvesting, and fertiliser washes off before the trees use it.'; },
+    zh: function(sp){ return '<b>'+sp+'%</b>——严重的侵蚀风险，采收危险，且肥料在树木吸收之前就被冲走。'; }
+  },
+  'drain.clay': {
+    en: function(c){ return 'Clay is <b>'+c+'%</b>. Even a decent slope will not save a clay pan — water perches on it. Consider deep ripping before planting.'; },
+    zh: function(c){ return '黏土含量为 <b>'+c+'%</b>。即使坡度不错也救不了黏土硬盘层——水会滞留其上。种植前可考虑深松破盘。'; }
+  },
+  'drain.noterr': {
+    en: function(err){ return (err ? 'Both DEM sources failed — '+err+'. ' : '') + 'The drainage score therefore falls back to MERRA-2 root-zone wetness — a ~50 km model average that cannot see your field. Treat the drainage number with real suspicion until this loads. Press <b>Fetch all data</b> again: OpenTopoData rate-limits to one request per second and often refuses a burst.'; },
+    zh: function(err){ return (err ? 'DEM 两个数据源都失败——'+err+'。' : '') + '因此排水评分回退到 MERRA-2 根区湿度——约 50 公里的模型平均值，看不到你的田块。在此数据成功加载前，请对排水数字保持高度怀疑。请再次点击<b>获取所有数据</b>：OpenTopoData 限制每秒一次请求，常会拒绝突发请求。'; }
+  },
+  'lf': {
+    en: function(x){ return x; },
+    zh: function(x){ return ({knoll:'小丘',hollow:'洼地',planar:'平面',flat:'平坦'})[x] || x; }
+  },
+  'smap.caveatTitle': {
+    en: function(p){ return 'NASA flags '+p+'% of these retrievals as unreliable'; },
+    zh: function(p){ return 'NASA 将其中 '+p+'% 的反演标记为不可靠'; }
+  },
+  'smap.caveatBody': {
+    en: function(vwc,ratio){ return 'Vegetation water content over your farm is <b>'+vwc+' kg/m²</b>. SMAP\'s L-band retrieval is trusted below about <b>5 kg/m²</b>; above that it cannot cleanly separate the soil\'s emission from the canopy\'s. Your closed durian canopy is roughly <b>'+ratio+'×</b> over that limit.<br><br><b>So read these numbers as a trend, not a measurement.</b> The absolute values (~0.28 m³/m³) carry real uncertainty — very possibly ±0.06 or worse. What may still survive is the <i>shape</i>: whether the soil is drying or wetting, and roughly when. That is precisely what the model validation needs, so the comparison is still worth making — but a poor correlation would be ambiguous. It could mean my water balance is wrong, or simply that SMAP is too noisy here to judge it. A <b>good</b> correlation would be genuinely informative; a bad one would not be damning.'; },
+    zh: function(vwc,ratio){ return '你农场上方的植被含水量为 <b>'+vwc+' kg/m²</b>。SMAP 的 L 波段反演在约 <b>5 kg/m²</b> 以下才可信；超过该值后，它无法干净地把土壤辐射与冠层辐射分开。你郁闭的榴莲冠层大约是该上限的 <b>'+ratio+' 倍</b>。<br><br><b>因此请把这些数字当作趋势，而非测量值。</b>其绝对值（约 0.28 m³/m³）带有实实在在的不确定性——很可能达到 ±0.06 甚至更差。可能仍然可靠的是其<i>形态</i>：土壤在变干还是变湿，以及大致的时间。这正是模型验证所需要的，因此这项对比仍然值得做——但相关性差则含义不明：既可能说明我的水分平衡有误，也可能只是 SMAP 在这里噪声太大而无法判断。<b>良好</b>的相关性会有真正的参考价值；差的相关性则并不构成否定。'; }
+  },
+
+  /* ── maps ── */
+  'stage': { en:function(s){return s;}, zh:function(s){ return ({seedling:'苗期',juvenile:'幼龄',establishing:'成形期',bearing:'结果期',mature:'成熟期'})[s]||s; } },
+  'tex':   { en:function(s){return s;}, zh:function(s){ return ({'clay':'黏土','sandy clay':'砂质黏土','silty clay':'粉质黏土','clay loam':'黏壤土','sandy clay loam':'砂质黏壤土','silty clay loam':'粉质黏壤土','loam':'壤土','sandy loam':'砂质壤土','silt loam':'粉砂壤土','silt':'粉砂土','loamy sand':'壤质砂土','sand':'砂土'})[s]||s; } },
+  'mon':   { en:function(m){return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m];}, zh:function(m){ return (m+1)+'月'; } },
+  'dsname':{ en:function(s){return s;}, zh:function(s){ return ({forecast:'预报',terrain:'地形',soil:'土壤',MODIS:'MODIS',SMAP:'SMAP',baseline:'气候基线','ERA5-Land soil':'ERA5-Land 土壤'})[s]||s; } },
+
+  /* ── score sublabels ── */
+  'sc.mean':  { en:function(v){return 'mean '+v+' °C';}, zh:function(v){return '平均 '+v+' °C';} },
+  'sc.heat':  { en:function(n){return n+' d >35 °C in 30 d';}, zh:function(n){return '30 天内 '+n+' 天 >35 °C';} },
+  'sc.rain':  { en:function(v,x){return v+' mm/yr'+(x?' (extrapolated — use 12 months)':'');}, zh:function(v,x){return v+' 毫米/年'+(x?'（外推值——请用 12 个月数据）':'');} },
+  'sc.dry':   { en:function(n){return 'longest dry spell '+n+' d';}, zh:function(n){return '最长干旱期 '+n+' 天';} },
+  'sc.wind':  { en:function(v){return 'peak '+v+' m/s';}, zh:function(v){return '峰值 '+v+' m/s';} },
+  'sc.drain': { en:function(sp,lf,wl,clay){return sp+'% slope, '+lf+', '+wl+' d waterlogged'+(clay?', heavy clay':'');}, zh:function(sp,lf,wl,clay){return '坡度 '+sp+'%，'+T('lf',lf)+'，积水 '+wl+' 天'+(clay?'，黏土偏重':'');} },
+  'sc.drainM':{ en:function(n){return n+' d root zone >0.90 sat. — no slope data';}, zh:function(n){return '根区饱和度 >0.90 共 '+n+' 天——无坡度数据';} },
+  'sc.ph':    { en:function(v,t2){return 'pH '+v+(t2?' · '+t2:'');}, zh:function(v,t2){return 'pH '+v+(t2?' · '+T('tex',t2):'');} },
+
+  /* ── durian KPIs & alerts ── */
+  'kpi.note': { en:function(n,d0,d1,m){return n+' factors, '+d0+' → '+d1+'. ET₀ by '+m+'.';}, zh:function(n,d0,d1,m){return n+' 个因子，'+d0+' → '+d1+'。ET₀ 采用 '+m+'。';} },
+  'kpi.ks':   { en:function(k,s){return 'Ks '+k+(s?' — <span style="color:var(--warn)">stressed</span>':' — comfortable');}, zh:function(k,s){return 'Ks '+k+(s?' — <span style="color:var(--warn)">胁迫中</span>':' — 宽裕');} },
+  'kpi.trig': { en:function(d){return '→ trigger on '+d;}, zh:function(d){return '→ '+d+' 触发';} },
+  'kpi.by':   { en:function(n,d){return '→ '+n+' d by '+d;}, zh:function(n,d){return '→ 至 '+d+' 达 '+n+' 天';} },
+  'a.deficit':{ en:function(mm,l){return 'Crop demand beat rainfall by <b>'+mm+' mm</b> over 30 days — about <b>'+l+' L/tree/day</b> at your canopy size. See the Irrigation tab.';}, zh:function(mm,l){return '过去 30 天作物需水比降雨多 <b>'+mm+' 毫米</b>——按你的树冠约合每株每天 <b>'+l+' 升</b>。详见灌溉页。';} },
+  'a.flat':   { en:function(sp){return 'Slope is only <b>'+sp+'%</b>. Water will not shed. This is the classic <i>Phytophthora</i> setup: plant on raised mounds, cut drainage trenches, and never let water stand around the collar.';}, zh:function(sp){return '坡度只有 <b>'+sp+'%</b>，水排不走。这是典型的<i>疫霉</i>温床：起高垄种植，开挖排水沟，绝不让水积在根颈周围。';} },
+  'a.wlog':   { en:function(n){return 'Root-zone wetness above 0.90 saturation on <b>'+n+'</b> of 30 days.';}, zh:function(n){return '30 天中有 <b>'+n+'</b> 天根区湿度超过 0.90 饱和度。';} },
+  'a.acid':   { en:function(ph){return 'pH <b>'+ph+'</b> is below the 5.5–6.5 durian likes. Aluminium toxicity locks up phosphorus. Lime it.';}, zh:function(ph){return 'pH <b>'+ph+'</b>，低于榴莲喜好的 5.5–6.5。铝毒会锁住磷。请施石灰。';} },
+  'a.alk':    { en:function(ph){return 'pH <b>'+ph+'</b> — iron and zinc go unavailable. Expect interveinal chlorosis.';}, zh:function(ph){return 'pH <b>'+ph+'</b>——铁和锌将无法被吸收，会出现叶脉间失绿。';} },
+  'a.heat':   { en:function(n){return '<b>'+n+'</b> days above 35 °C in the last month. Expect flower abortion and fruit drop.';}, zh:function(n){return '过去一个月有 <b>'+n+'</b> 天超过 35 °C。预计会出现落花落果。';} },
+  'a.open':   { en:function(dep,ks,run){return 'Root zone is <b>'+dep+'% depleted</b> (Ks '+ks+') and has been past the stress threshold for <b>'+run+' consecutive days</b>. This is the signal durian needs. <b>Do not irrigate</b> until flower buds are visible.';}, zh:function(dep,ks,run){return '根区已亏缺 <b>'+dep+'%</b>（Ks '+ks+'），且已连续 <b>'+run+' 天</b>超过胁迫阈值。这正是榴莲需要的信号。见到花芽之前<b>不要灌溉</b>。';} },
+  't.willOpen':{ en:function(d){return 'Induction window will open on '+d;}, zh:function(d){return '催花窗口将于 '+d+' 开启';} },
+  'a.willOpen':{ en:function(trig,day,dep){return 'Carrying the root-zone balance through the forecast, the trees reach <b>'+trig+' consecutive stress days</b> on <b>'+day+'</b> (depletion rising to '+dep+'%). <b>Stop irrigating now</b> if you want flowers — this is the decision point, and it will pass.';}, zh:function(trig,day,dep){return '将根区水分平衡沿预报推算，树木将在 <b>'+day+'</b> 达到<b>连续 '+trig+' 个胁迫日</b>（亏缺升至 '+dep+'%）。想要开花就<b>立即停止灌溉</b>——这是决策点，且稍纵即逝。';} },
+  'a.building':{ en:function(dep,run,trig){return 'Depletion reaches <b>'+dep+'%</b> and <b>'+run+' stress days</b> by the end of the forecast — not the '+trig+' needed. A rain shelter over the root zone now could carry it across.';}, zh:function(dep,run,trig){return '到预报期末亏缺达 <b>'+dep+'%</b>、胁迫 <b>'+run+' 天</b>——还不到所需的 '+trig+' 天。现在给根区搭遮雨棚或许能撑过去。';} },
+  'a.fungal': { en:function(rh){return '30-day mean humidity <b>'+rh+'%</b>. <i>Phytophthora palmivora</i> and leaf blight move fast above ~88%. Prune for airflow.';}, zh:function(rh){return '30 天平均湿度 <b>'+rh+'%</b>。湿度超过约 88% 时<i>疫霉</i>和叶枯病蔓延很快。修剪以利通风。';} },
+  'a.wind':   { en:function(v){return 'Peak gust <b>'+v+' m/s</b>. Durian limbs are brittle and heavy fruit snaps them — prop and windbreak.';}, zh:function(v){return '最大阵风 <b>'+v+' m/s</b>。榴莲枝条脆，重果易压断——请支撑并设防风带。';} },
+
+  /* ── flowering panel ── */
+  'fl.uTitle':{ en:function(d){return 'Induction underway — day '+d+' of real water stress';}, zh:function(d){return '催花进行中——真实水分胁迫第 '+d+' 天';} },
+  'fl.uBody': { en:function(dep,g,dev,lo,hi){return 'Root zone <b>'+dep+'% depleted</b>. Anthesis in roughly 3–5 weeks; at <b>'+g+' GDD/day</b> fruit matures in about <b>'+dev+' days</b>, landing <b>'+lo+'</b> – <b>'+hi+'</b>.';}, zh:function(dep,g,dev,lo,hi){return '根区已亏缺 <b>'+dep+'%</b>。约 3–5 周后开花；按每天 <b>'+g+' GDD</b>，果实约 <b>'+dev+' 天</b>成熟，落在 <b>'+lo+'</b> – <b>'+hi+'</b>。';} },
+  'fl.lTitle':{ en:function(d){return 'Last real stress event ended '+d;}, zh:function(d){return '上一次真实胁迫期结束于 '+d;} },
+  'fl.lBody': { en:function(since,lo,hi,cur){return since+' days ago — the trees genuinely dried out then, even if it rained. If it set flowers, harvest lands around <b>'+lo+'</b> – <b>'+hi+'</b>. '+(cur?'Still ahead or current — line up labour and buyers.':'That window has passed.');}, zh:function(since,lo,hi,cur){return since+' 天前——即使当时有雨，树木也确实经历了干旱。若因此成花，收成约在 <b>'+lo+'</b> – <b>'+hi+'</b>。'+(cur?'尚未到或正在进行——请安排人手和买家。':'该窗口已过。');} },
+  'fl.none':  { en:function(best,bestDry,trig){return 'Longest real stress run: <b>'+best+' days</b> (vs '+bestDry+' rainless days), short of the '+trig+' durian needs. Check the Climate baseline tab — the 10-year record is the one that matters, not a single year.';}, zh:function(best,bestDry,trig){return '最长真实胁迫连续期：<b>'+best+' 天</b>（对比无雨 '+bestDry+' 天），未达榴莲所需的 '+trig+' 天。请看气候基线页——重要的是 10 年记录，而非单独一年。';} },
+  'w.taw':    { en:function(v){return v+' % of TAW';}, zh:function(v){return v+'%（占总可利用水）';} },
+  'w.ksrow':  { en:function(v,lim){return v+(lim?' (transpiration limited)':' (unstressed)');}, zh:function(v,lim){return v+(lim?'（蒸腾受限）':'（无胁迫）');} },
+  'w.trig':   { en:function(d){return ' → trigger '+d;}, zh:function(d){return ' → '+d+' 触发';} },
+  'w.fcst':   { en:function(n){return ' → '+n+' d (fcst)';}, zh:function(n){return ' → '+n+' 天（预报）';} },
+  'd.days':   { en:function(v){return v+' d';}, zh:function(v){return v+' 天';} },
+  'w.gdd':    { en:function(g){return g+' GDD/day (base 10 °C)';}, zh:function(g){return '每天 '+g+' GDD（基点 10 °C）';} },
+
+  /* ── irrigation ── */
+  'ir.todaySrc':{ en:function(etc,rain,area,eff){return 'today: ETc '+etc+' mm − 80% of '+rain+' mm rain, × '+area+' m² canopy ÷ '+eff+'% efficiency (forecast)';}, zh:function(etc,rain,area,eff){return '今日：ETc '+etc+' 毫米 − 降雨 '+rain+' 毫米的 80%，× 树冠 '+area+' m² ÷ 效率 '+eff+'%（预报）';} },
+  'ir.lastSrc': { en:function(d){return 'last observed day ('+d+') — POWER lags ~3 days';}, zh:function(d){return '最近观测日（'+d+'）——POWER 滞后约 3 天';} },
+  'ir.kcUnit':  { en:function(st){return 'Kcb · '+st;}, zh:function(st){return 'Kcb · '+T('stage',st);} },
+  'ir.kcSrc':   { en:function(age,c,a){return 'Age '+age+' yr → canopy '+c+' m Ø → '+a+' m² of leaf. Age sets the canopy; the canopy sets the water.';}, zh:function(age,c,a){return '树龄 '+age+' 年 → 树冠直径 '+c+' 米 → 叶面积 '+a+' m²。树龄决定树冠，树冠决定用水。';} },
+  'ir.yr':      { en:function(a){return a+' yr ';}, zh:function(a){return a+' 年 ';} },
+  'ir.ageNote': { en:function(et0,sp,x){return 'At today\'s ET₀ of '+et0+' mm/day and no rain, at '+sp+' m spacing. Your row is highlighted. A mature tree drinks roughly <b>'+x+'×</b> what a 2-year-old does — not because it is older, but because it carries that much more leaf.';}, zh:function(et0,sp,x){return '按今日 ET₀ '+et0+' 毫米/天、无降雨、株距 '+sp+' 米计算。你的行已高亮。成年树的用水约为 2 年生幼树的 <b>'+x+' 倍</b>——不是因为它更老，而是因为它的叶子多那么多。';} },
+  'ir.block':   { en:function(t2,a,wk,dd2){return t2+' trees over '+a+' ha ≈ '+wk+' m³/week ('+dd2+' m³/day)';}, zh:function(t2,a,wk,dd2){return a+' 公顷 '+t2+' 株 ≈ 每周 '+wk+' m³（每天 '+dd2+' m³）';} },
+
+  /* ── forecast alerts ── */
+  'fc.dry':   { en:function(x,tot,hit){return '<b>'+x+'</b> dry days forecast, taking the current spell to <b>'+tot+' days</b>. '+(hit?'That crosses the induction threshold — a deliberate choice point: irrigate to protect fruit, or withhold to force flowers.':'Not yet enough to trigger flowering.');}, zh:function(x,tot,hit){return '预报还有 <b>'+x+'</b> 个无雨日，当前干旱期将达 <b>'+tot+' 天</b>。'+(hit?'这将越过催花阈值——需要主动抉择：灌溉保果，还是停水催花。':'尚不足以触发开花。');} },
+  'fc.heat':  { en:function(n){return '<b>'+n+'</b> days above 35 °C forecast. Irrigate at dawn, mulch, shade young trees. Flowers and pinhead fruit abort fast at these temperatures.';}, zh:function(n){return '预报有 <b>'+n+'</b> 天超过 35 °C。请清晨灌溉、覆盖保墒、为幼树遮荫。这种温度下花和幼果会迅速脱落。';} },
+  'fc.heavy': { en:function(mm,w){return '<b>'+mm+' mm</b> over 16 days, '+w+' days ≥10 mm. Clear drains before it arrives; saturated soil plus warm weather is peak <i>Phytophthora</i> weather.';}, zh:function(mm,w){return '16 天内 <b>'+mm+' 毫米</b>，其中 '+w+' 天 ≥10 毫米。雨来之前清理排水沟；土壤饱和加上温暖天气正是<i>疫霉</i>高发天气。';} },
+  'fc.little':{ en:function(mm){return 'Only <b>'+mm+' mm</b> in 16 days. Check the Irrigation tab unless you are inducing.';}, zh:function(mm){return '16 天仅 <b>'+mm+' 毫米</b>。若不是在催花，请查看灌溉页。';} },
+
+  /* ── SMAP panel ── */
+  'smap.title':{ en:function(p){return 'Real SMAP: '+p+' at 9 km';}, zh:function(p){return '真实 SMAP：'+p+'（9 公里）';} },
+  'smap.real': { en:function(kind,lag){
+      var src = kind==='worker' ? 'It reaches your browser through a Cloudflare Worker that reads NASA\'s OPeNDAP service and slices out just your 9 km grid cell — no login needed on this device, works on mobile.'
+              : kind==='script' ? 'It was pulled from NASA Earthdata by the fetch_smap.py script and read from the local smap.json file.'
+              : 'It is served by ORNL DAAC through the same no-key endpoint as MODIS.';
+      return 'This is the actual L-band radiometer measuring your soil, not a land-surface model. '+src
+        +' Units are volumetric water content (m³ of water per m³ of soil) — around 0.10 is dry, 0.40 is saturated for most soils.'
+        +(lag ? '<br><br><b>Latency:</b> NASA\'s SMAP archive runs roughly <b>'+lag+' day'+(lag===1?'':'s')+'</b> behind today (satellite processing time). Near-current, but not instantaneous — excellent for <b>validating the model</b> and reading past seasons; for today\'s irrigation the ERA5-Land / POWER soil and the forecast lead.' : ''); },
+    zh: function(kind,lag){
+      var src = kind==='worker' ? '数据经由一个 Cloudflare Worker 到达你的浏览器：它读取 NASA 的 OPeNDAP 服务并只截取你所在的 9 公里网格单元——本设备无需登录，手机也能用。'
+              : kind==='script' ? '数据由 fetch_smap.py 脚本从 NASA Earthdata 拉取，并从本地 smap.json 文件读取。'
+              : '数据由 ORNL DAAC 通过与 MODIS 相同的免密钥端点提供。';
+      return '这是真正测量你土壤的 L 波段辐射计，而非陆面模型。'+src
+        +'单位为体积含水量（每 m³ 土壤中水的 m³ 数）——约 0.10 为干燥，0.40 对多数土壤已属饱和。'
+        +(lag ? '<br><br><b>时延：</b>NASA 的 SMAP 档案大约落后今天 <b>'+lag+' 天</b>（卫星处理耗时）。接近当前但非实时——非常适合<b>验证模型</b>和回看往季；今天的灌溉决策请以 ERA5-Land / POWER 土壤数据和预报为准。' : ''); } },
+  'smap.foot': { en:function(p){return p+' is the surface product: SMAP measures the top ~5 cm of soil directly. Deeper root-zone moisture would need the L4 assimilation product, which is not what is shown here.';}, zh:function(p){return p+' 是表层产品：SMAP 直接测量土壤最上层约 5 厘米。更深的根区湿度需要 L4 同化产品，此处展示的并非该产品。';} },
+  'smap.surfRow':{ en:function(b){return 'SMAP surface ('+b+')';}, zh:function(b){return 'SMAP 表层（'+b+'）';} },
+  'smap.rootRow':{ en:function(b){return 'SMAP root zone ('+b+')';}, zh:function(b){return 'SMAP 根区（'+b+'）';} },
+  'smap.proxyRow':{ en:function(){return 'MERRA-2 proxy (GWETROOT)';}, zh:function(){return 'MERRA-2 替代（GWETROOT）';} },
+  'smap.proxyNote':{ en:function(){return 'model, ~50 km';}, zh:function(){return '模型，约 50 公里';} },
+  'smap.fileWarn':{ en:function(){return '<b>You are running from file://</b><small>Most APIs reject the <code>null</code> origin that <code>file://</code> sends. Serve the page instead:<br><code>python3 -m http.server 8000</code> → <code>http://localhost:8000/TerraDurian.html</code><br>Soil and SMAP both failing while Open-Meteo works is exactly this signature. Try localhost before concluding SMAP is unavailable.</small>';}, zh:function(){return '<b>你正在从 file:// 运行</b><small>多数 API 会拒绝 <code>file://</code> 发送的 <code>null</code> 来源。请改为通过服务器打开页面：<br><code>python3 -m http.server 8000</code> → <code>http://localhost:8000/TerraDurian.html</code><br>土壤和 SMAP 同时失败而 Open-Meteo 正常，正是这种情形的特征。在断定 SMAP 不可用之前请先试试 localhost。</small>';} },
+  'smap.unavail':{ en:function(err,cat,lat,lon){
+      return (err ? '<span class="err">'+err+'</span><br><br>' : '')
+        +(cat ? 'ORNL answered, and its catalogue is:<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>If SMAP is genuinely not in that list, no amount of retrying will help — it is not served here.<br><br>'
+              : 'ORNL did not even return a catalogue, so we learned nothing about whether it carries SMAP.<br><br>')
+        +'Falling back to <b>POWER GWETTOP/GWETROOT</b> — MERRA-2 land-model wetness at ~50 km. That is a <i>model</i>, not a measurement, and 5× coarser than SMAP. A serviceable proxy that has never once observed your field.<br><br>'
+        +'<b>The reliable route:</b> run <code>fetch_smap.py</code> (it sits next to this file). It logs into <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a> — free — pulls the genuine SPL3SMP_E granules server-side, where Earthdata\'s CORS block does not apply, and writes <code>smap.json</code> beside this page. This app looks for that file first and will use it automatically on the next Fetch.<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; },
+    zh: function(err,cat,lat,lon){
+      return (err ? '<span class="err">'+err+'</span><br><br>' : '')
+        +(cat ? 'ORNL 有响应，其目录为：<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>如果 SMAP 确实不在该列表中，再多重试也没用——此服务不提供它。<br><br>'
+              : 'ORNL 连目录都没有返回，因此我们无从得知它是否提供 SMAP。<br><br>')
+        +'回退到 <b>POWER GWETTOP/GWETROOT</b>——约 50 公里的 MERRA-2 陆面模型湿度。那是<i>模型</i>而非测量，比 SMAP 粗 5 倍。是个可用的替代，但从未真正观测过你的田块。<br><br>'
+        +'<b>可靠的途径：</b>运行 <code>fetch_smap.py</code>（就在本文件旁）。它登录 <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a>（免费），在服务器端拉取真正的 SPL3SMP_E 颗粒（Earthdata 的 CORS 限制在那里不适用），并在页面旁写出 <code>smap.json</code>。本应用会优先查找该文件，下次「获取」时自动使用。<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; } },
+
+  /* ── baseline ── */
+  'bl.anomT': { en:function(wet,p){return (wet?'Wetter':'Drier')+' than normal by '+p+'%';}, zh:function(wet,p){return '比常值'+(wet?'偏湿':'偏干')+' '+p+'%';} },
+  'bl.anomB': { en:function(cur,nor,ta,nt){return 'The last 12 months delivered <b>'+cur+' mm</b> against a 10-year normal of <b>'+nor+' mm</b>. Temperature ran <b>'+ta+' °C</b> against the 10-year mean of '+nt+' °C.';}, zh:function(cur,nor,ta,nt){return '过去 12 个月降雨 <b>'+cur+' 毫米</b>，10 年常值为 <b>'+nor+' 毫米</b>。气温相对 10 年均值（'+nt+' °C）偏差 <b>'+ta+' °C</b>。';} },
+  'bl.winT':  { en:function(m){return 'Your induction window: '+m;}, zh:function(m){return '你的催花窗口：'+m;} },
+  'bl.win':   { en:function(trig,mon,pct,mean){return 'Using the root-zone water balance, the trees reached <b>'+trig+'+ consecutive days of real water stress</b> starting in <b>'+mon+'</b> in <b>'+pct+'% of the last 10 years</b> (mean longest stress run '+mean+' days). Stop irrigating going into this month and let the root zone draw down.';}, zh:function(trig,mon,pct,mean){return '按根区水分平衡计算，过去 10 年中有 <b>'+pct+'%</b> 的年份，树木自 <b>'+mon+'</b> 起达到<b>连续 '+trig+' 天以上的真实水分胁迫</b>（最长胁迫期平均 '+mean+' 天）。进入该月前停止灌溉，让根区水分消耗下去。';} },
+  'bl.nowinT':{ en:function(){return 'No reliable natural induction window — even on the stress model';}, zh:function(){return '没有可靠的自然催花窗口——即使按胁迫模型也是如此';} },
+  'bl.nowin': { en:function(trig,mon,pct,mean){return 'No month reaches '+trig+'+ consecutive stress days in 30% of years. Best is <b>'+mon+'</b> at <b>'+pct+'%</b> (mean longest run '+mean+' d). Flowering will stay erratic unless you force it.';}, zh:function(trig,mon,pct,mean){return '没有任何月份能在 30% 的年份达到连续 '+trig+' 天以上胁迫。最佳是 <b>'+mon+'</b>，占 <b>'+pct+'%</b>（最长连续期平均 '+mean+' 天）。除非人工催花，开花将持续不稳定。';} },
+  'bl.foot':  { en:function(pd,trig,taw){return '<b>Yrs w/ 10 d STRESS</b> is the number that matters: years in which the root zone actually stayed past '+pd+'% depletion for '+trig+'+ straight days (TAW '+taw+' mm). The <b>old rain rule</b> column counts consecutive rainless days — it resets on 1 mm of drizzle, which the tree does not even notice. Where Δ is positive, the naive rule was <b>hiding a real window from you</b>.';}, zh:function(pd,trig,taw){return '<b>「达 10 天胁迫的年数」</b>才是关键数字：即根区真正超过 '+pd+'% 亏缺并持续 '+trig+' 天以上的年份（总可利用水 '+taw+' 毫米）。<b>「旧降雨规则」</b>一栏数的是连续无雨天数——1 毫米的毛毛雨就会把它清零，而树根本感觉不到。凡 Δ 为正的地方，都是简单规则<b>把真实窗口藏了起来</b>。';} },
+  'bl.heatLeg':{ en:function(y0,y1,g,st){return 'Rows = '+y0+' → '+y1+' (top to bottom). <b style="color:var(--good)">'+g+' green cells</b> — months that hit the 10-day trigger. '+(st?'This is the <b>root-zone water balance</b>: consecutive days the trees were genuinely past the stress threshold.':'This is the <b>naive rule</b>: consecutive days with under 1 mm of rain. Any drizzle resets it to zero.');}, zh:function(y0,y1,g,st){return '行 = '+y0+' → '+y1+'（自上而下）。<b style="color:var(--good)">'+g+' 个绿格</b>——达到 10 天触发阈值的月份。'+(st?'这是<b>根区水分平衡</b>：树木真正超过胁迫阈值的连续天数。':'这是<b>简单规则</b>：降雨不足 1 毫米的连续天数。任何毛毛雨都会将其清零。');} },
+
+  /* ── validation ── */
+  'val.noov': { en:function(a,b,c,dd2){return 'No overlapping days. SMAP covers '+a+' to '+b+', while the model window runs '+c+' to '+dd2+'. Fetch SMAP for a period the dashboard actually covers — the script now works backwards from today, so just re-run it.';}, zh:function(a,b,c,dd2){return '没有重叠的日期。SMAP 覆盖 '+a+' 至 '+b+'，而模型窗口为 '+c+' 至 '+dd2+'。请为仪表盘实际覆盖的时段获取 SMAP——脚本现在从今天往回取数，重新运行即可。';} },
+  'val.r':    { en:function(r,n){return 'correlation r = <b>'+r+'</b> across '+n+' overlapping days — '+(+r>0.6?'the model tracks the real instrument well.':+r>0.3?'moderate agreement; treat the model as indicative.':'poor agreement — <b>trust SMAP over my model here</b>.');}, zh:function(r,n){return '在 '+n+' 个重叠日上相关系数 r = <b>'+r+'</b>——'+(+r>0.6?'模型与真实仪器吻合良好。':+r>0.3?'中等吻合；模型仅作参考。':'吻合较差——<b>此处请相信 SMAP 而非我的模型</b>。');} },
+  'val.head': { en:function(){return 'Red = my FAO-56 model. Blue = real SMAP (rescaled to its wet/dry range). ';}, zh:function(){return '红 = 我的 FAO-56 模型。蓝 = 真实 SMAP（按其干湿范围重标定）。';} },
+  'val.caveat':{ en:function(vwc){return '<br><br><b>Caveat that cuts both ways:</b> NASA flags most of these SMAP retrievals as unreliable because your canopy (VWC '+vwc+' kg/m²) is far above the ~5 kg/m² limit for a clean L-band retrieval. A <b>high</b> correlation is therefore strong evidence the model is right — two independent, noisy methods agreeing is hard to fake. A <b>low</b> correlation proves little: it may be my model, or it may be SMAP struggling to see your soil at all. Do not throw away the water balance on the strength of a bad score here.';}, zh:function(vwc){return '<br><br><b>双向的注意事项：</b>NASA 将其中大部分 SMAP 反演标记为不可靠，因为你的冠层（植被含水量 '+vwc+' kg/m²）远超干净 L 波段反演约 5 kg/m² 的上限。因此<b>高</b>相关是模型正确的有力证据——两种独立且带噪声的方法达成一致很难是巧合。<b>低</b>相关则说明不了什么：可能是模型的问题，也可能是 SMAP 根本看不清你的土壤。不要因为这里分数差就抛弃水分平衡模型。';} },
+
+  /* ── site soil-fail & pills & compare ── */
+  'site.soilfail':{ en:function(err){return 'Soil lookup failed'+(err?': '+err:'');}, zh:function(err){return '土壤查询失败'+(err?'：'+err:'');} },
+  'pill.mean':{ en:function(v){return v+' °C mean';}, zh:function(v){return '平均 '+v+' °C';} },
+  'pill.root':{ en:function(v){return v+' root sat.';}, zh:function(v){return '根区饱和度 '+v;} },
+  'pill.rh':  { en:function(rh,w){return rh+'% RH · peak '+w+' m/s';}, zh:function(rh,w){return '湿度 '+rh+'% · 峰值 '+w+' m/s';} },
+  'pill.lst': { en:function(v){return v+' °C day';}, zh:function(v){return '白天 '+v+' °C';} },
+  'pill.na':  { en:function(){return 'unavailable';}, zh:function(){return '不可用';} },
+  'st.failed':{ en:function(list){return 'loaded · failed: '+list;}, zh:function(list){return '已加载 · 失败：'+list;} },
+
+  /* ── chart labels & axis titles (Chart.js draws on canvas, so these must be fed in localized) ── */
+  'ch': { en:function(s){return s;}, zh:function(s){ return ({
+      'Rainfall-model depletion %':'降雨模型亏缺 %','ERA5-Land 9 km (independent)':'ERA5-Land 9 公里（独立）',
+      'Forecast':'预报','Stress threshold (RAW)':'胁迫阈值（易利用水）','Stress threshold':'胁迫阈值',
+      '% of available water used':'已用可利用水 %','Rain mm':'降雨 mm','Crop demand ETc mm':'作物需水 ETc mm',
+      'L/tree/day needed':'每株每天所需升数','Tmax °C':'最高温 °C','Tmin °C':'最低温 °C',
+      'Tmax':'最高','Tmean':'平均','Tmin':'最低','mm/day':'mm/天',
+      'Solar kWh/m²/d':'太阳辐射 kWh/m²/d','Surface':'表层','Root zone':'根区','Profile':'剖面',
+      'Cumulative P−ETc anomaly (mm)':'累计 P−ETc 距平（mm）',
+      'SMAP surface m³/m³':'SMAP 表层 m³/m³','SMAP root zone m³/m³':'SMAP 根区 m³/m³',
+      'Modelled depletion % (FAO-56)':'模型亏缺 %（FAO-56）','SMAP observed, normalised %':'SMAP 观测，归一化 %',
+      'LST day °C':'白天地表温度 °C','LST night °C':'夜间地表温度 °C',
+      'West → East':'西 → 东','South → North':'南 → 北',
+      'Last 12 months mm':'近 12 个月 mm','10-yr normal mm':'10 年常值 mm',
+      'Dry days (<1 mm), 10-yr mean':'干旱天数（<1 毫米），10 年均值',
+      'RH2M %':'相对湿度 %','WS2M m/s':'风速 WS2M m/s','WS10M_MAX m/s':'阵风 WS10M_MAX m/s',
+      'Temperature':'气温','Heat stress':'热胁迫','Rainfall':'降雨','Dry-spell window':'干旱期窗口',
+      'Humidity':'湿度','Solar radiation':'太阳辐射','Wind exposure':'风力暴露','Canopy vigour':'树冠长势',
+      'Drainage':'排水','Drainage (model)':'排水（模型）','Elevation':'海拔','Soil pH':'土壤 pH'
+    })[s]||s; } },
+  'monS':{ en:function(i){return ['J','F','M','A','M','J','J','A','S','O','N','D'][i];}, zh:function(i){return ''+(i+1);} },
+  'wd':  { en:function(i){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i];}, zh:function(i){return ['周日','周一','周二','周三','周四','周五','周六'][i];} },
+  'asp': { en:function(a){return a;}, zh:function(a){ return ({N:'北',NE:'东北',E:'东',SE:'东南',S:'南',SW:'西南',W:'西',NW:'西北',flat:'平坦'})[a]||a; } },
+  'farm.sum': { en:function(t2,ha,st,ca,fc2,kc){return '≈ '+t2+' trees · '+ha+'/ha · '+st+' · canopy '+ca+' m² ('+fc2+'% ground cover) · Kcb '+kc;},
+                zh:function(t2,ha,st,ca,fc2,kc){return '≈ '+t2+' 株 · 每公顷 '+ha+' 株 · '+T('stage',st)+' · 树冠 '+ca+' m²（覆盖地面 '+fc2+'%）· Kcb '+kc;} },
+  'ndvi.note': { en:function(k,n){return 'MOD13Q1 250 m, cloud-screened with the pixel-reliability band: '+k+' of '+n+' composites had ≥5 clear pixels in the ±1 km window. Gaps are cloudy periods, honestly left empty rather than interpolated.';},
+                 zh:function(k,n){return 'MOD13Q1 250 米，经像元可靠性波段云筛选：'+n+' 个合成期中有 '+k+' 个在 ±1 公里窗口内有 ≥5 个晴空像元。空缺为多云时段，如实留空而非插值。';} },
+  'date': { en:function(dt){return dt.toDateString().slice(4);}, zh:function(dt){return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日';} },
+  'wdate':{ en:function(dt){return dt.toDateString().slice(0,10);}, zh:function(dt){return (dt.getMonth()+1)+'月'+dt.getDate()+'日 '+T('wd',dt.getDay());} },
+  'err': { en:function(s){return s;}, zh:function(s){ return ({
+      'answered, but with no pH or texture for this point — SoilGrids has gaps, and a coastal/hill pixel can fall in one. Use "Enter my own soil test".':'有响应，但该点没有 pH 或质地数据——SoilGrids 存在空缺，海岸/山地像元可能正落在空缺中。请使用「输入我的土壤检测」。'
+    })[s]||s; } }
+};
+
 /* ═════════ CONTROLS (wired first — they must survive any later failure) ═════════ */
 function setPoint(lat, lon, fly){
   S.lat = +(+lat).toFixed(4); S.lon = +(+lon).toFixed(4);
@@ -667,9 +879,8 @@ function farm(){
 }
 function farmSummary(){
   const f = farm();
-  $('fSummary').textContent = '≈ ' + f.trees + ' trees · ' + Math.round(f.treesPerHa)
-    + '/ha · ' + f.stage + ' · canopy ' + f.canopyArea.toFixed(0) + ' m² ('
-    + Math.round(f.fc * 100) + '% ground cover) · Kcb ' + f.kc;
+  $('fSummary').textContent = T('farm.sum', f.trees, Math.round(f.treesPerHa), f.stage,
+    f.canopyArea.toFixed(0), Math.round(f.fc * 100), f.kc);
 }
 
 guard('controls', () => {
@@ -1565,7 +1776,7 @@ function score(d, ndvi, terr, soil){
 }
 
 /* ═════════ RENDER — DURIAN ═════════ */
-const fmtD = t => t.toDateString().slice(4);
+const fmtD = t => T('date', t);
 
 function forwardDry(){                       // extend the current dry spell using the forecast
   if (!S.fc || !S.derived) return null;
@@ -1719,13 +1930,13 @@ function renderDurian(){
   chart('cDep', {type:'line', data:{
     labels: p.date.slice(-N).concat(fs ? fs.path.map(x => x.date) : []),
     datasets:[
-      LN('Rainfall-model depletion %', depPct.concat(fcDep.map(() => null)), '#f87171', {fill:true, spanGaps:false}),
-      LN('ERA5-Land 9 km (independent)', eraDep.concat(fcDep.map(() => null)), '#38bdf8', {borderDash:[2,2], spanGaps:true}),
-      LN('Forecast', new Array(N).fill(null).concat(fcDep), '#fbbf24', {borderDash:[4,3]}),
-      LN('Stress threshold (RAW)', new Array(N + fcDep.length).fill(P_DEPLETE*100), '#4ade80', {borderDash:[6,4], borderWidth:1})
+      LN(T('ch','Rainfall-model depletion %'), depPct.concat(fcDep.map(() => null)), '#f87171', {fill:true, spanGaps:false}),
+      LN(T('ch','ERA5-Land 9 km (independent)'), eraDep.concat(fcDep.map(() => null)), '#38bdf8', {borderDash:[2,2], spanGaps:true}),
+      LN(T('ch','Forecast'), new Array(N).fill(null).concat(fcDep), '#fbbf24', {borderDash:[4,3]}),
+      LN(T('ch','Stress threshold (RAW)'), new Array(N + fcDep.length).fill(P_DEPLETE*100), '#4ade80', {borderDash:[6,4], borderWidth:1})
     ]},
     options:{scales:{y:{min:0, max:100, grid:GRID, ticks:TICK,
-      title:{display:true, text:'% of available water used', color:'#8b98a5'}},
+      title:{display:true, text:T('ch','% of available water used'), color:'#8b98a5'}},
       x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
 }
 
@@ -1794,7 +2005,7 @@ function renderIrrigation(){
       const need = Math.max(0, etc - 0.8 * (x.rain || 0)) * f.canopyArea / f.eff;
       wk += need;
       const cls = need <= 0 ? 'good' : need > 40 ? 'bad' : '';
-      rows += '<tr><td>' + new Date(x.date + 'T00:00:00').toDateString().slice(0,10) + '</td>'
+      rows += '<tr><td>' + T('wdate', new Date(x.date + 'T00:00:00')) + '</td>'
         + '<td class="num">' + fx(x.rain, 1) + '</td><td class="num">' + fx(etc, 1) + '</td>'
         + '<td class="num" style="color:' + (need <= 0 ? 'var(--good)' : need > 40 ? 'var(--bad)' : 'var(--txt)') + '">'
         + (need <= 0 ? 'none' : fx(need, 0) + ' L') + '</td></tr>';
@@ -1812,7 +2023,7 @@ function renderIrrigation(){
   $('iBlockSrc').textContent = T('ir.block', f.trees, f.area, fx(wk * f.trees / 1000, 1), fx(wk * f.trees / 7000, 1));
 
   chart('cIrr', {type:'bar', data:{labels: S.power.date.slice(-90), datasets:[
-    {label:'L/tree/day needed', data: dd.litres.slice(-90), backgroundColor:'#38bdf8', borderWidth:0}]}});
+    {label:T('ch','L/tree/day needed'), data: dd.litres.slice(-90), backgroundColor:'#38bdf8', borderWidth:0}]}});
 }
 
 /* ═════════ RENDER — FORECAST ═════════ */
@@ -1821,7 +2032,7 @@ function renderForecast(){
   $('fcCards').innerHTML = S.fc.map(x => {
     const dry = x.rain < 1, hot = x.tmax > 35;
     return '<div class="fcd ' + (hot ? 'hot' : dry ? 'dry' : 'wet') + '">'
-      + '<b>' + new Date(x.date + 'T00:00:00').toDateString().slice(0,3) + '</b>'
+      + '<b>' + T('wd', new Date(x.date + 'T00:00:00').getDay()) + '</b>'
       + '<div class="muted">' + x.date.slice(5) + '</div>'
       + '<div class="t">' + fx(x.tmax,0) + '° / ' + fx(x.tmin,0) + '°</div>'
       + '<div class="r">' + (x.rain < 0.1 ? '—' : fx(x.rain,1) + ' mm') + '</div></div>';
@@ -1844,9 +2055,9 @@ function renderForecast(){
     '<div class="alert ' + a[0] + '"><div><b>' + a[1] + '</b><small>' + a[2] + '</small></div></div>').join('');
 
   chart('cFc', {type:'bar', data:{labels:S.fc.map(x => x.date.slice(5)), datasets:[
-    {label:'Rain mm', data:S.fc.map(x => x.rain), backgroundColor:'#38bdf8', borderWidth:0, order:3},
-    LN('Tmax °C', S.fc.map(x => x.tmax), '#f87171', {type:'line', yAxisID:'y1', order:1, pointRadius:2}),
-    LN('Tmin °C', S.fc.map(x => x.tmin), '#38bdf8', {type:'line', yAxisID:'y1', order:2, pointRadius:2})]},
+    {label:T('ch','Rain mm'), data:S.fc.map(x => x.rain), backgroundColor:'#38bdf8', borderWidth:0, order:3},
+    LN(T('ch','Tmax °C'), S.fc.map(x => x.tmax), '#f87171', {type:'line', yAxisID:'y1', order:1, pointRadius:2}),
+    LN(T('ch','Tmin °C'), S.fc.map(x => x.tmin), '#38bdf8', {type:'line', yAxisID:'y1', order:2, pointRadius:2})]},
     options:{scales:{
       y:{grid:GRID, ticks:TICK, title:{display:true, text:'mm', color:'#8b98a5'}},
       y1:{position:'right', grid:{drawOnChartArea:false}, ticks:TICK, title:{display:true, text:'°C', color:'#8b98a5'}},
@@ -1854,185 +2065,6 @@ function renderForecast(){
 }
 
 /* ═════════ RENDER — SMAP ═════════ */
-/* ── language-aware templates for number-bearing dynamic strings ──
-   The app owns the numbers; each template supplies English AND Chinese, so a
-   sentence with an interpolated value translates as a whole (Chinese word order
-   differs from English, so fragment-by-fragment swapping cannot work here). */
-function TDLANG(){ try { return localStorage.getItem('td_lang') || 'en'; } catch(e){ return 'en'; } }
-function T(key){
-  var a = [].slice.call(arguments, 1), e = TPL[key];
-  if (!e) return '';
-  return (e[TDLANG()] || e.en).apply(null, a);
-}
-var TPL = {
-  'drain.knoll': {
-    en: function(sp,tpi){ return 'Gradient is only <b>'+sp+'%</b>, but your point sits <b>'+tpi+' m above the ground around it</b> — a local high point. Water runs off in every direction rather than collecting, so this is <i>not</i> the flat-bottom trap that kills durian. A convex rise is among the best ground you can plant on. Keep the crown clear and do not let anyone build a road or bund that dams the downslope side.'; },
-    zh: function(sp,tpi){ return '坡度虽然只有 <b>'+sp+'%</b>，但你所在的点比四周地面高出 <b>'+tpi+' 米</b>——是一个局部高点。水会向四周排走而非汇集，因此这里<i>不是</i>那种害死榴莲的平底积水陷阱。凸起的高地是最适合种植的地形之一。保持顶部畅通，别让任何人在下坡侧修路或筑坝挡住排水。'; }
-  },
-  'drain.hollow': {
-    en: function(ab,sp){ return 'Your point sits <b>'+ab+' m below</b> the ground around it, at <b>'+sp+'%</b> gradient. Water drains <i>towards</i> you and has nowhere to leave. This is the classic <i>Phytophthora palmivora</i> setup, and it outweighs every favourable weather number on the dashboard. Raised mounds (60–100 cm) and a real drainage network are not optional here.'; },
-    zh: function(ab,sp){ return '你所在的点比四周地面低 <b>'+ab+' 米</b>，坡度 <b>'+sp+'%</b>。水会<i>朝你</i>汇流且无处排出。这是典型的 <i>Phytophthora palmivora</i>（疫霉）温床，其危害超过面板上所有有利的气象数值。这里必须做高垄（60–100 厘米）和完善的排水系统，别无选择。'; }
-  },
-  'drain.flat': {
-    en: function(sp){ return '<b>'+sp+'%</b> gradient with no local rise or hollow. Water will move slowly. Not fatal, but plant on mounds and cut drains. Walk the plot after heavy rain and see where puddles form — the DEM is 90 m resolution and cannot see a shallow depression the size of a tree.'; },
-    zh: function(sp){ return '坡度 <b>'+sp+'%</b>，无局部高地或洼地。水流缓慢。并非致命，但仍应起垄种植并开挖排水沟。大雨后到地块实地走一走，看看积水出现在哪里——DEM 分辨率为 90 米，看不到一棵树大小的浅洼。'; }
-  },
-  'drain.ideal': {
-    en: function(sp,asp){ return '<b>'+sp+'%</b> slope sheds water without eroding. This is the ground durian wants, and why traditional orchards sit on hillsides. Aspect '+asp+'.'; },
-    zh: function(sp,asp){ return '<b>'+sp+'%</b> 的坡度既能排水又不至侵蚀。这正是榴莲想要的地形，也是传统果园选在山坡上的原因。坡向为 '+asp+'。'; }
-  },
-  'drain.steep': {
-    en: function(sp){ return '<b>'+sp+'%</b>. Drainage is excellent, but expect topsoil loss and hard mechanical access. Terrace, and keep a living ground cover.'; },
-    zh: function(sp){ return '<b>'+sp+'%</b>。排水极好，但要预料到表土流失和机械通行困难。请修梯田，并保留活的地被覆盖。'; }
-  },
-  'drain.vsteep': {
-    en: function(sp){ return '<b>'+sp+'%</b> — severe erosion risk, dangerous for harvesting, and fertiliser washes off before the trees use it.'; },
-    zh: function(sp){ return '<b>'+sp+'%</b>——严重的侵蚀风险，采收危险，且肥料在树木吸收之前就被冲走。'; }
-  },
-  'drain.clay': {
-    en: function(c){ return 'Clay is <b>'+c+'%</b>. Even a decent slope will not save a clay pan — water perches on it. Consider deep ripping before planting.'; },
-    zh: function(c){ return '黏土含量为 <b>'+c+'%</b>。即使坡度不错也救不了黏土硬盘层——水会滞留其上。种植前可考虑深松破盘。'; }
-  },
-  'drain.noterr': {
-    en: function(err){ return (err ? 'Both DEM sources failed — '+err+'. ' : '') + 'The drainage score therefore falls back to MERRA-2 root-zone wetness — a ~50 km model average that cannot see your field. Treat the drainage number with real suspicion until this loads. Press <b>Fetch all data</b> again: OpenTopoData rate-limits to one request per second and often refuses a burst.'; },
-    zh: function(err){ return (err ? 'DEM 两个数据源都失败——'+err+'。' : '') + '因此排水评分回退到 MERRA-2 根区湿度——约 50 公里的模型平均值，看不到你的田块。在此数据成功加载前，请对排水数字保持高度怀疑。请再次点击<b>获取所有数据</b>：OpenTopoData 限制每秒一次请求，常会拒绝突发请求。'; }
-  },
-  'lf': {
-    en: function(x){ return x; },
-    zh: function(x){ return ({knoll:'小丘',hollow:'洼地',planar:'平面',flat:'平坦'})[x] || x; }
-  },
-  'smap.caveatTitle': {
-    en: function(p){ return 'NASA flags '+p+'% of these retrievals as unreliable'; },
-    zh: function(p){ return 'NASA 将其中 '+p+'% 的反演标记为不可靠'; }
-  },
-  'smap.caveatBody': {
-    en: function(vwc,ratio){ return 'Vegetation water content over your farm is <b>'+vwc+' kg/m²</b>. SMAP\'s L-band retrieval is trusted below about <b>5 kg/m²</b>; above that it cannot cleanly separate the soil\'s emission from the canopy\'s. Your closed durian canopy is roughly <b>'+ratio+'×</b> over that limit.<br><br><b>So read these numbers as a trend, not a measurement.</b> The absolute values (~0.28 m³/m³) carry real uncertainty — very possibly ±0.06 or worse. What may still survive is the <i>shape</i>: whether the soil is drying or wetting, and roughly when. That is precisely what the model validation needs, so the comparison is still worth making — but a poor correlation would be ambiguous. It could mean my water balance is wrong, or simply that SMAP is too noisy here to judge it. A <b>good</b> correlation would be genuinely informative; a bad one would not be damning.'; },
-    zh: function(vwc,ratio){ return '你农场上方的植被含水量为 <b>'+vwc+' kg/m²</b>。SMAP 的 L 波段反演在约 <b>5 kg/m²</b> 以下才可信；超过该值后，它无法干净地把土壤辐射与冠层辐射分开。你郁闭的榴莲冠层大约是该上限的 <b>'+ratio+' 倍</b>。<br><br><b>因此请把这些数字当作趋势，而非测量值。</b>其绝对值（约 0.28 m³/m³）带有实实在在的不确定性——很可能达到 ±0.06 甚至更差。可能仍然可靠的是其<i>形态</i>：土壤在变干还是变湿，以及大致的时间。这正是模型验证所需要的，因此这项对比仍然值得做——但相关性差则含义不明：既可能说明我的水分平衡有误，也可能只是 SMAP 在这里噪声太大而无法判断。<b>良好</b>的相关性会有真正的参考价值；差的相关性则并不构成否定。'; }
-  },
-
-  /* ── maps ── */
-  'stage': { en:function(s){return s;}, zh:function(s){ return ({seedling:'苗期',juvenile:'幼龄',establishing:'成形期',bearing:'结果期',mature:'成熟期'})[s]||s; } },
-  'tex':   { en:function(s){return s;}, zh:function(s){ return ({'clay':'黏土','sandy clay':'砂质黏土','silty clay':'粉质黏土','clay loam':'黏壤土','sandy clay loam':'砂质黏壤土','silty clay loam':'粉质黏壤土','loam':'壤土','sandy loam':'砂质壤土','silt loam':'粉砂壤土','silt':'粉砂土','loamy sand':'壤质砂土','sand':'砂土'})[s]||s; } },
-  'mon':   { en:function(m){return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m];}, zh:function(m){ return (m+1)+'月'; } },
-  'dsname':{ en:function(s){return s;}, zh:function(s){ return ({forecast:'预报',terrain:'地形',soil:'土壤',MODIS:'MODIS',SMAP:'SMAP',baseline:'气候基线','ERA5-Land soil':'ERA5-Land 土壤'})[s]||s; } },
-
-  /* ── score sublabels ── */
-  'sc.mean':  { en:function(v){return 'mean '+v+' °C';}, zh:function(v){return '平均 '+v+' °C';} },
-  'sc.heat':  { en:function(n){return n+' d >35 °C in 30 d';}, zh:function(n){return '30 天内 '+n+' 天 >35 °C';} },
-  'sc.rain':  { en:function(v,x){return v+' mm/yr'+(x?' (extrapolated — use 12 months)':'');}, zh:function(v,x){return v+' 毫米/年'+(x?'（外推值——请用 12 个月数据）':'');} },
-  'sc.dry':   { en:function(n){return 'longest dry spell '+n+' d';}, zh:function(n){return '最长干旱期 '+n+' 天';} },
-  'sc.wind':  { en:function(v){return 'peak '+v+' m/s';}, zh:function(v){return '峰值 '+v+' m/s';} },
-  'sc.drain': { en:function(sp,lf,wl,clay){return sp+'% slope, '+lf+', '+wl+' d waterlogged'+(clay?', heavy clay':'');}, zh:function(sp,lf,wl,clay){return '坡度 '+sp+'%，'+T('lf',lf)+'，积水 '+wl+' 天'+(clay?'，黏土偏重':'');} },
-  'sc.drainM':{ en:function(n){return n+' d root zone >0.90 sat. — no slope data';}, zh:function(n){return '根区饱和度 >0.90 共 '+n+' 天——无坡度数据';} },
-  'sc.ph':    { en:function(v,t2){return 'pH '+v+(t2?' · '+t2:'');}, zh:function(v,t2){return 'pH '+v+(t2?' · '+T('tex',t2):'');} },
-
-  /* ── durian KPIs & alerts ── */
-  'kpi.note': { en:function(n,d0,d1,m){return n+' factors, '+d0+' → '+d1+'. ET₀ by '+m+'.';}, zh:function(n,d0,d1,m){return n+' 个因子，'+d0+' → '+d1+'。ET₀ 采用 '+m+'。';} },
-  'kpi.ks':   { en:function(k,s){return 'Ks '+k+(s?' — <span style="color:var(--warn)">stressed</span>':' — comfortable');}, zh:function(k,s){return 'Ks '+k+(s?' — <span style="color:var(--warn)">胁迫中</span>':' — 宽裕');} },
-  'kpi.trig': { en:function(d){return '→ trigger on '+d;}, zh:function(d){return '→ '+d+' 触发';} },
-  'kpi.by':   { en:function(n,d){return '→ '+n+' d by '+d;}, zh:function(n,d){return '→ 至 '+d+' 达 '+n+' 天';} },
-  'a.deficit':{ en:function(mm,l){return 'Crop demand beat rainfall by <b>'+mm+' mm</b> over 30 days — about <b>'+l+' L/tree/day</b> at your canopy size. See the Irrigation tab.';}, zh:function(mm,l){return '过去 30 天作物需水比降雨多 <b>'+mm+' 毫米</b>——按你的树冠约合每株每天 <b>'+l+' 升</b>。详见灌溉页。';} },
-  'a.flat':   { en:function(sp){return 'Slope is only <b>'+sp+'%</b>. Water will not shed. This is the classic <i>Phytophthora</i> setup: plant on raised mounds, cut drainage trenches, and never let water stand around the collar.';}, zh:function(sp){return '坡度只有 <b>'+sp+'%</b>，水排不走。这是典型的<i>疫霉</i>温床：起高垄种植，开挖排水沟，绝不让水积在根颈周围。';} },
-  'a.wlog':   { en:function(n){return 'Root-zone wetness above 0.90 saturation on <b>'+n+'</b> of 30 days.';}, zh:function(n){return '30 天中有 <b>'+n+'</b> 天根区湿度超过 0.90 饱和度。';} },
-  'a.acid':   { en:function(ph){return 'pH <b>'+ph+'</b> is below the 5.5–6.5 durian likes. Aluminium toxicity locks up phosphorus. Lime it.';}, zh:function(ph){return 'pH <b>'+ph+'</b>，低于榴莲喜好的 5.5–6.5。铝毒会锁住磷。请施石灰。';} },
-  'a.alk':    { en:function(ph){return 'pH <b>'+ph+'</b> — iron and zinc go unavailable. Expect interveinal chlorosis.';}, zh:function(ph){return 'pH <b>'+ph+'</b>——铁和锌将无法被吸收，会出现叶脉间失绿。';} },
-  'a.heat':   { en:function(n){return '<b>'+n+'</b> days above 35 °C in the last month. Expect flower abortion and fruit drop.';}, zh:function(n){return '过去一个月有 <b>'+n+'</b> 天超过 35 °C。预计会出现落花落果。';} },
-  'a.open':   { en:function(dep,ks,run){return 'Root zone is <b>'+dep+'% depleted</b> (Ks '+ks+') and has been past the stress threshold for <b>'+run+' consecutive days</b>. This is the signal durian needs. <b>Do not irrigate</b> until flower buds are visible.';}, zh:function(dep,ks,run){return '根区已亏缺 <b>'+dep+'%</b>（Ks '+ks+'），且已连续 <b>'+run+' 天</b>超过胁迫阈值。这正是榴莲需要的信号。见到花芽之前<b>不要灌溉</b>。';} },
-  't.willOpen':{ en:function(d){return 'Induction window will open on '+d;}, zh:function(d){return '催花窗口将于 '+d+' 开启';} },
-  'a.willOpen':{ en:function(trig,day,dep){return 'Carrying the root-zone balance through the forecast, the trees reach <b>'+trig+' consecutive stress days</b> on <b>'+day+'</b> (depletion rising to '+dep+'%). <b>Stop irrigating now</b> if you want flowers — this is the decision point, and it will pass.';}, zh:function(trig,day,dep){return '将根区水分平衡沿预报推算，树木将在 <b>'+day+'</b> 达到<b>连续 '+trig+' 个胁迫日</b>（亏缺升至 '+dep+'%）。想要开花就<b>立即停止灌溉</b>——这是决策点，且稍纵即逝。';} },
-  'a.building':{ en:function(dep,run,trig){return 'Depletion reaches <b>'+dep+'%</b> and <b>'+run+' stress days</b> by the end of the forecast — not the '+trig+' needed. A rain shelter over the root zone now could carry it across.';}, zh:function(dep,run,trig){return '到预报期末亏缺达 <b>'+dep+'%</b>、胁迫 <b>'+run+' 天</b>——还不到所需的 '+trig+' 天。现在给根区搭遮雨棚或许能撑过去。';} },
-  'a.fungal': { en:function(rh){return '30-day mean humidity <b>'+rh+'%</b>. <i>Phytophthora palmivora</i> and leaf blight move fast above ~88%. Prune for airflow.';}, zh:function(rh){return '30 天平均湿度 <b>'+rh+'%</b>。湿度超过约 88% 时<i>疫霉</i>和叶枯病蔓延很快。修剪以利通风。';} },
-  'a.wind':   { en:function(v){return 'Peak gust <b>'+v+' m/s</b>. Durian limbs are brittle and heavy fruit snaps them — prop and windbreak.';}, zh:function(v){return '最大阵风 <b>'+v+' m/s</b>。榴莲枝条脆，重果易压断——请支撑并设防风带。';} },
-
-  /* ── flowering panel ── */
-  'fl.uTitle':{ en:function(d){return 'Induction underway — day '+d+' of real water stress';}, zh:function(d){return '催花进行中——真实水分胁迫第 '+d+' 天';} },
-  'fl.uBody': { en:function(dep,g,dev,lo,hi){return 'Root zone <b>'+dep+'% depleted</b>. Anthesis in roughly 3–5 weeks; at <b>'+g+' GDD/day</b> fruit matures in about <b>'+dev+' days</b>, landing <b>'+lo+'</b> – <b>'+hi+'</b>.';}, zh:function(dep,g,dev,lo,hi){return '根区已亏缺 <b>'+dep+'%</b>。约 3–5 周后开花；按每天 <b>'+g+' GDD</b>，果实约 <b>'+dev+' 天</b>成熟，落在 <b>'+lo+'</b> – <b>'+hi+'</b>。';} },
-  'fl.lTitle':{ en:function(d){return 'Last real stress event ended '+d;}, zh:function(d){return '上一次真实胁迫期结束于 '+d;} },
-  'fl.lBody': { en:function(since,lo,hi,cur){return since+' days ago — the trees genuinely dried out then, even if it rained. If it set flowers, harvest lands around <b>'+lo+'</b> – <b>'+hi+'</b>. '+(cur?'Still ahead or current — line up labour and buyers.':'That window has passed.');}, zh:function(since,lo,hi,cur){return since+' 天前——即使当时有雨，树木也确实经历了干旱。若因此成花，收成约在 <b>'+lo+'</b> – <b>'+hi+'</b>。'+(cur?'尚未到或正在进行——请安排人手和买家。':'该窗口已过。');} },
-  'fl.none':  { en:function(best,bestDry,trig){return 'Longest real stress run: <b>'+best+' days</b> (vs '+bestDry+' rainless days), short of the '+trig+' durian needs. Check the Climate baseline tab — the 10-year record is the one that matters, not a single year.';}, zh:function(best,bestDry,trig){return '最长真实胁迫连续期：<b>'+best+' 天</b>（对比无雨 '+bestDry+' 天），未达榴莲所需的 '+trig+' 天。请看气候基线页——重要的是 10 年记录，而非单独一年。';} },
-  'w.taw':    { en:function(v){return v+' % of TAW';}, zh:function(v){return v+'%（占总可利用水）';} },
-  'w.ksrow':  { en:function(v,lim){return v+(lim?' (transpiration limited)':' (unstressed)');}, zh:function(v,lim){return v+(lim?'（蒸腾受限）':'（无胁迫）');} },
-  'w.trig':   { en:function(d){return ' → trigger '+d;}, zh:function(d){return ' → '+d+' 触发';} },
-  'w.fcst':   { en:function(n){return ' → '+n+' d (fcst)';}, zh:function(n){return ' → '+n+' 天（预报）';} },
-  'd.days':   { en:function(v){return v+' d';}, zh:function(v){return v+' 天';} },
-  'w.gdd':    { en:function(g){return g+' GDD/day (base 10 °C)';}, zh:function(g){return '每天 '+g+' GDD（基点 10 °C）';} },
-
-  /* ── irrigation ── */
-  'ir.todaySrc':{ en:function(etc,rain,area,eff){return 'today: ETc '+etc+' mm − 80% of '+rain+' mm rain, × '+area+' m² canopy ÷ '+eff+'% efficiency (forecast)';}, zh:function(etc,rain,area,eff){return '今日：ETc '+etc+' 毫米 − 降雨 '+rain+' 毫米的 80%，× 树冠 '+area+' m² ÷ 效率 '+eff+'%（预报）';} },
-  'ir.lastSrc': { en:function(d){return 'last observed day ('+d+') — POWER lags ~3 days';}, zh:function(d){return '最近观测日（'+d+'）——POWER 滞后约 3 天';} },
-  'ir.kcUnit':  { en:function(st){return 'Kcb · '+st;}, zh:function(st){return 'Kcb · '+T('stage',st);} },
-  'ir.kcSrc':   { en:function(age,c,a){return 'Age '+age+' yr → canopy '+c+' m Ø → '+a+' m² of leaf. Age sets the canopy; the canopy sets the water.';}, zh:function(age,c,a){return '树龄 '+age+' 年 → 树冠直径 '+c+' 米 → 叶面积 '+a+' m²。树龄决定树冠，树冠决定用水。';} },
-  'ir.yr':      { en:function(a){return a+' yr ';}, zh:function(a){return a+' 年 ';} },
-  'ir.ageNote': { en:function(et0,sp,x){return 'At today\'s ET₀ of '+et0+' mm/day and no rain, at '+sp+' m spacing. Your row is highlighted. A mature tree drinks roughly <b>'+x+'×</b> what a 2-year-old does — not because it is older, but because it carries that much more leaf.';}, zh:function(et0,sp,x){return '按今日 ET₀ '+et0+' 毫米/天、无降雨、株距 '+sp+' 米计算。你的行已高亮。成年树的用水约为 2 年生幼树的 <b>'+x+' 倍</b>——不是因为它更老，而是因为它的叶子多那么多。';} },
-  'ir.block':   { en:function(t2,a,wk,dd2){return t2+' trees over '+a+' ha ≈ '+wk+' m³/week ('+dd2+' m³/day)';}, zh:function(t2,a,wk,dd2){return a+' 公顷 '+t2+' 株 ≈ 每周 '+wk+' m³（每天 '+dd2+' m³）';} },
-
-  /* ── forecast alerts ── */
-  'fc.dry':   { en:function(x,tot,hit){return '<b>'+x+'</b> dry days forecast, taking the current spell to <b>'+tot+' days</b>. '+(hit?'That crosses the induction threshold — a deliberate choice point: irrigate to protect fruit, or withhold to force flowers.':'Not yet enough to trigger flowering.');}, zh:function(x,tot,hit){return '预报还有 <b>'+x+'</b> 个无雨日，当前干旱期将达 <b>'+tot+' 天</b>。'+(hit?'这将越过催花阈值——需要主动抉择：灌溉保果，还是停水催花。':'尚不足以触发开花。');} },
-  'fc.heat':  { en:function(n){return '<b>'+n+'</b> days above 35 °C forecast. Irrigate at dawn, mulch, shade young trees. Flowers and pinhead fruit abort fast at these temperatures.';}, zh:function(n){return '预报有 <b>'+n+'</b> 天超过 35 °C。请清晨灌溉、覆盖保墒、为幼树遮荫。这种温度下花和幼果会迅速脱落。';} },
-  'fc.heavy': { en:function(mm,w){return '<b>'+mm+' mm</b> over 16 days, '+w+' days ≥10 mm. Clear drains before it arrives; saturated soil plus warm weather is peak <i>Phytophthora</i> weather.';}, zh:function(mm,w){return '16 天内 <b>'+mm+' 毫米</b>，其中 '+w+' 天 ≥10 毫米。雨来之前清理排水沟；土壤饱和加上温暖天气正是<i>疫霉</i>高发天气。';} },
-  'fc.little':{ en:function(mm){return 'Only <b>'+mm+' mm</b> in 16 days. Check the Irrigation tab unless you are inducing.';}, zh:function(mm){return '16 天仅 <b>'+mm+' 毫米</b>。若不是在催花，请查看灌溉页。';} },
-
-  /* ── SMAP panel ── */
-  'smap.title':{ en:function(p){return 'Real SMAP: '+p+' at 9 km';}, zh:function(p){return '真实 SMAP：'+p+'（9 公里）';} },
-  'smap.real': { en:function(kind,lag){
-      var src = kind==='worker' ? 'It reaches your browser through a Cloudflare Worker that reads NASA\'s OPeNDAP service and slices out just your 9 km grid cell — no login needed on this device, works on mobile.'
-              : kind==='script' ? 'It was pulled from NASA Earthdata by the fetch_smap.py script and read from the local smap.json file.'
-              : 'It is served by ORNL DAAC through the same no-key endpoint as MODIS.';
-      return 'This is the actual L-band radiometer measuring your soil, not a land-surface model. '+src
-        +' Units are volumetric water content (m³ of water per m³ of soil) — around 0.10 is dry, 0.40 is saturated for most soils.'
-        +(lag ? '<br><br><b>Latency:</b> NASA\'s SMAP archive runs roughly <b>'+lag+' day'+(lag===1?'':'s')+'</b> behind today (satellite processing time). Near-current, but not instantaneous — excellent for <b>validating the model</b> and reading past seasons; for today\'s irrigation the ERA5-Land / POWER soil and the forecast lead.' : ''); },
-    zh: function(kind,lag){
-      var src = kind==='worker' ? '数据经由一个 Cloudflare Worker 到达你的浏览器：它读取 NASA 的 OPeNDAP 服务并只截取你所在的 9 公里网格单元——本设备无需登录，手机也能用。'
-              : kind==='script' ? '数据由 fetch_smap.py 脚本从 NASA Earthdata 拉取，并从本地 smap.json 文件读取。'
-              : '数据由 ORNL DAAC 通过与 MODIS 相同的免密钥端点提供。';
-      return '这是真正测量你土壤的 L 波段辐射计，而非陆面模型。'+src
-        +'单位为体积含水量（每 m³ 土壤中水的 m³ 数）——约 0.10 为干燥，0.40 对多数土壤已属饱和。'
-        +(lag ? '<br><br><b>时延：</b>NASA 的 SMAP 档案大约落后今天 <b>'+lag+' 天</b>（卫星处理耗时）。接近当前但非实时——非常适合<b>验证模型</b>和回看往季；今天的灌溉决策请以 ERA5-Land / POWER 土壤数据和预报为准。' : ''); } },
-  'smap.foot': { en:function(p){return p+' is the surface product: SMAP measures the top ~5 cm of soil directly. Deeper root-zone moisture would need the L4 assimilation product, which is not what is shown here.';}, zh:function(p){return p+' 是表层产品：SMAP 直接测量土壤最上层约 5 厘米。更深的根区湿度需要 L4 同化产品，此处展示的并非该产品。';} },
-  'smap.surfRow':{ en:function(b){return 'SMAP surface ('+b+')';}, zh:function(b){return 'SMAP 表层（'+b+'）';} },
-  'smap.rootRow':{ en:function(b){return 'SMAP root zone ('+b+')';}, zh:function(b){return 'SMAP 根区（'+b+'）';} },
-  'smap.proxyRow':{ en:function(){return 'MERRA-2 proxy (GWETROOT)';}, zh:function(){return 'MERRA-2 替代（GWETROOT）';} },
-  'smap.proxyNote':{ en:function(){return 'model, ~50 km';}, zh:function(){return '模型，约 50 公里';} },
-  'smap.fileWarn':{ en:function(){return '<b>You are running from file://</b><small>Most APIs reject the <code>null</code> origin that <code>file://</code> sends. Serve the page instead:<br><code>python3 -m http.server 8000</code> → <code>http://localhost:8000/TerraDurian.html</code><br>Soil and SMAP both failing while Open-Meteo works is exactly this signature. Try localhost before concluding SMAP is unavailable.</small>';}, zh:function(){return '<b>你正在从 file:// 运行</b><small>多数 API 会拒绝 <code>file://</code> 发送的 <code>null</code> 来源。请改为通过服务器打开页面：<br><code>python3 -m http.server 8000</code> → <code>http://localhost:8000/TerraDurian.html</code><br>土壤和 SMAP 同时失败而 Open-Meteo 正常，正是这种情形的特征。在断定 SMAP 不可用之前请先试试 localhost。</small>';} },
-  'smap.unavail':{ en:function(err,cat,lat,lon){
-      return (err ? '<span class="err">'+err+'</span><br><br>' : '')
-        +(cat ? 'ORNL answered, and its catalogue is:<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>If SMAP is genuinely not in that list, no amount of retrying will help — it is not served here.<br><br>'
-              : 'ORNL did not even return a catalogue, so we learned nothing about whether it carries SMAP.<br><br>')
-        +'Falling back to <b>POWER GWETTOP/GWETROOT</b> — MERRA-2 land-model wetness at ~50 km. That is a <i>model</i>, not a measurement, and 5× coarser than SMAP. A serviceable proxy that has never once observed your field.<br><br>'
-        +'<b>The reliable route:</b> run <code>fetch_smap.py</code> (it sits next to this file). It logs into <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a> — free — pulls the genuine SPL3SMP_E granules server-side, where Earthdata\'s CORS block does not apply, and writes <code>smap.json</code> beside this page. This app looks for that file first and will use it automatically on the next Fetch.<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; },
-    zh: function(err,cat,lat,lon){
-      return (err ? '<span class="err">'+err+'</span><br><br>' : '')
-        +(cat ? 'ORNL 有响应，其目录为：<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>如果 SMAP 确实不在该列表中，再多重试也没用——此服务不提供它。<br><br>'
-              : 'ORNL 连目录都没有返回，因此我们无从得知它是否提供 SMAP。<br><br>')
-        +'回退到 <b>POWER GWETTOP/GWETROOT</b>——约 50 公里的 MERRA-2 陆面模型湿度。那是<i>模型</i>而非测量，比 SMAP 粗 5 倍。是个可用的替代，但从未真正观测过你的田块。<br><br>'
-        +'<b>可靠的途径：</b>运行 <code>fetch_smap.py</code>（就在本文件旁）。它登录 <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a>（免费），在服务器端拉取真正的 SPL3SMP_E 颗粒（Earthdata 的 CORS 限制在那里不适用），并在页面旁写出 <code>smap.json</code>。本应用会优先查找该文件，下次「获取」时自动使用。<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; } },
-
-  /* ── baseline ── */
-  'bl.anomT': { en:function(wet,p){return (wet?'Wetter':'Drier')+' than normal by '+p+'%';}, zh:function(wet,p){return '比常值'+(wet?'偏湿':'偏干')+' '+p+'%';} },
-  'bl.anomB': { en:function(cur,nor,ta,nt){return 'The last 12 months delivered <b>'+cur+' mm</b> against a 10-year normal of <b>'+nor+' mm</b>. Temperature ran <b>'+ta+' °C</b> against the 10-year mean of '+nt+' °C.';}, zh:function(cur,nor,ta,nt){return '过去 12 个月降雨 <b>'+cur+' 毫米</b>，10 年常值为 <b>'+nor+' 毫米</b>。气温相对 10 年均值（'+nt+' °C）偏差 <b>'+ta+' °C</b>。';} },
-  'bl.winT':  { en:function(m){return 'Your induction window: '+m;}, zh:function(m){return '你的催花窗口：'+m;} },
-  'bl.win':   { en:function(trig,mon,pct,mean){return 'Using the root-zone water balance, the trees reached <b>'+trig+'+ consecutive days of real water stress</b> starting in <b>'+mon+'</b> in <b>'+pct+'% of the last 10 years</b> (mean longest stress run '+mean+' days). Stop irrigating going into this month and let the root zone draw down.';}, zh:function(trig,mon,pct,mean){return '按根区水分平衡计算，过去 10 年中有 <b>'+pct+'%</b> 的年份，树木自 <b>'+mon+'</b> 起达到<b>连续 '+trig+' 天以上的真实水分胁迫</b>（最长胁迫期平均 '+mean+' 天）。进入该月前停止灌溉，让根区水分消耗下去。';} },
-  'bl.nowinT':{ en:function(){return 'No reliable natural induction window — even on the stress model';}, zh:function(){return '没有可靠的自然催花窗口——即使按胁迫模型也是如此';} },
-  'bl.nowin': { en:function(trig,mon,pct,mean){return 'No month reaches '+trig+'+ consecutive stress days in 30% of years. Best is <b>'+mon+'</b> at <b>'+pct+'%</b> (mean longest run '+mean+' d). Flowering will stay erratic unless you force it.';}, zh:function(trig,mon,pct,mean){return '没有任何月份能在 30% 的年份达到连续 '+trig+' 天以上胁迫。最佳是 <b>'+mon+'</b>，占 <b>'+pct+'%</b>（最长连续期平均 '+mean+' 天）。除非人工催花，开花将持续不稳定。';} },
-  'bl.foot':  { en:function(pd,trig,taw){return '<b>Yrs w/ 10 d STRESS</b> is the number that matters: years in which the root zone actually stayed past '+pd+'% depletion for '+trig+'+ straight days (TAW '+taw+' mm). The <b>old rain rule</b> column counts consecutive rainless days — it resets on 1 mm of drizzle, which the tree does not even notice. Where Δ is positive, the naive rule was <b>hiding a real window from you</b>.';}, zh:function(pd,trig,taw){return '<b>「达 10 天胁迫的年数」</b>才是关键数字：即根区真正超过 '+pd+'% 亏缺并持续 '+trig+' 天以上的年份（总可利用水 '+taw+' 毫米）。<b>「旧降雨规则」</b>一栏数的是连续无雨天数——1 毫米的毛毛雨就会把它清零，而树根本感觉不到。凡 Δ 为正的地方，都是简单规则<b>把真实窗口藏了起来</b>。';} },
-  'bl.heatLeg':{ en:function(y0,y1,g,st){return 'Rows = '+y0+' → '+y1+' (top to bottom). <b style="color:var(--good)">'+g+' green cells</b> — months that hit the 10-day trigger. '+(st?'This is the <b>root-zone water balance</b>: consecutive days the trees were genuinely past the stress threshold.':'This is the <b>naive rule</b>: consecutive days with under 1 mm of rain. Any drizzle resets it to zero.');}, zh:function(y0,y1,g,st){return '行 = '+y0+' → '+y1+'（自上而下）。<b style="color:var(--good)">'+g+' 个绿格</b>——达到 10 天触发阈值的月份。'+(st?'这是<b>根区水分平衡</b>：树木真正超过胁迫阈值的连续天数。':'这是<b>简单规则</b>：降雨不足 1 毫米的连续天数。任何毛毛雨都会将其清零。');} },
-
-  /* ── validation ── */
-  'val.noov': { en:function(a,b,c,dd2){return 'No overlapping days. SMAP covers '+a+' to '+b+', while the model window runs '+c+' to '+dd2+'. Fetch SMAP for a period the dashboard actually covers — the script now works backwards from today, so just re-run it.';}, zh:function(a,b,c,dd2){return '没有重叠的日期。SMAP 覆盖 '+a+' 至 '+b+'，而模型窗口为 '+c+' 至 '+dd2+'。请为仪表盘实际覆盖的时段获取 SMAP——脚本现在从今天往回取数，重新运行即可。';} },
-  'val.r':    { en:function(r,n){return 'correlation r = <b>'+r+'</b> across '+n+' overlapping days — '+(+r>0.6?'the model tracks the real instrument well.':+r>0.3?'moderate agreement; treat the model as indicative.':'poor agreement — <b>trust SMAP over my model here</b>.');}, zh:function(r,n){return '在 '+n+' 个重叠日上相关系数 r = <b>'+r+'</b>——'+(+r>0.6?'模型与真实仪器吻合良好。':+r>0.3?'中等吻合；模型仅作参考。':'吻合较差——<b>此处请相信 SMAP 而非我的模型</b>。');} },
-  'val.head': { en:function(){return 'Red = my FAO-56 model. Blue = real SMAP (rescaled to its wet/dry range). ';}, zh:function(){return '红 = 我的 FAO-56 模型。蓝 = 真实 SMAP（按其干湿范围重标定）。';} },
-  'val.caveat':{ en:function(vwc){return '<br><br><b>Caveat that cuts both ways:</b> NASA flags most of these SMAP retrievals as unreliable because your canopy (VWC '+vwc+' kg/m²) is far above the ~5 kg/m² limit for a clean L-band retrieval. A <b>high</b> correlation is therefore strong evidence the model is right — two independent, noisy methods agreeing is hard to fake. A <b>low</b> correlation proves little: it may be my model, or it may be SMAP struggling to see your soil at all. Do not throw away the water balance on the strength of a bad score here.';}, zh:function(vwc){return '<br><br><b>双向的注意事项：</b>NASA 将其中大部分 SMAP 反演标记为不可靠，因为你的冠层（植被含水量 '+vwc+' kg/m²）远超干净 L 波段反演约 5 kg/m² 的上限。因此<b>高</b>相关是模型正确的有力证据——两种独立且带噪声的方法达成一致很难是巧合。<b>低</b>相关则说明不了什么：可能是模型的问题，也可能是 SMAP 根本看不清你的土壤。不要因为这里分数差就抛弃水分平衡模型。';} },
-
-  /* ── site soil-fail & pills & compare ── */
-  'site.soilfail':{ en:function(err){return 'Soil lookup failed'+(err?': '+err:'');}, zh:function(err){return '土壤查询失败'+(err?'：'+err:'');} },
-  'pill.mean':{ en:function(v){return v+' °C mean';}, zh:function(v){return '平均 '+v+' °C';} },
-  'pill.root':{ en:function(v){return v+' root sat.';}, zh:function(v){return '根区饱和度 '+v;} },
-  'pill.rh':  { en:function(rh,w){return rh+'% RH · peak '+w+' m/s';}, zh:function(rh,w){return '湿度 '+rh+'% · 峰值 '+w+' m/s';} },
-  'pill.lst': { en:function(v){return v+' °C day';}, zh:function(v){return '白天 '+v+' °C';} },
-  'pill.na':  { en:function(){return 'unavailable';}, zh:function(){return '不可用';} },
-  'st.failed':{ en:function(list){return 'loaded · failed: '+list;}, zh:function(list){return '已加载 · 失败：'+list;} }
-};
-
 function renderSmap(){
   const sm = S.smap, d = S.derived;
   const card = $('smapCard');
@@ -2076,7 +2108,7 @@ function renderSite(){
   const elev = (t && t.elevDem != null) ? t.elevDem : (d && d.elev);
   $('sElev').innerHTML = fx(elev, 0) + '<span class="unit"> m</span>';
   $('sSlope').innerHTML = t ? fx(t.slopePct, 1) + '<span class="unit"> %</span>' : '–';
-  $('sAspect').innerHTML = t ? t.aspectTxt + (t.aspectTxt !== 'flat' ? '<span class="unit"> ' + fx(t.aspect,0) + '°</span>' : '') : '–';
+  $('sAspect').innerHTML = t ? T('asp', t.aspectTxt) + (t.aspectTxt !== 'flat' ? '<span class="unit"> ' + fx(t.aspect,0) + '°</span>' : '') : '–';
   $('sPh').innerHTML = (so && so.phh2o != null) ? fx(so.phh2o, 1) : '–';
 
   if (t){
@@ -2089,7 +2121,7 @@ function renderSite(){
       : sp < 2 ? ['warn','Flat and featureless — check drainage on foot',
           T('drain.flat', fx(sp,1))]
       : sp <= 15 ? ['good','Well drained — ideal',
-          T('drain.ideal', fx(sp,1), t.aspectTxt)]
+          T('drain.ideal', fx(sp,1), T('asp', t.aspectTxt))]
       : sp <= 25 ? ['warn','Steep — drainage fine, erosion and access are not',
           T('drain.steep', fx(sp,1))]
       : ['bad','Very steep',
@@ -2103,16 +2135,16 @@ function renderSite(){
       + '<tr><td>Slope</td><td class="num">' + fx(t.slopePct,1) + ' % (' + fx(t.slopeDeg,1) + '°)</td></tr>'
       + '<tr><td>Landform</td><td class="num" style="color:' + (t.landform === 'hollow' ? 'var(--bad)' : t.landform === 'knoll' ? 'var(--good)' : 'var(--txt)') + '">'
       + T('lf', t.landform) + ' (TPI ' + (t.tpi >= 0 ? '+' : '') + fx(t.tpi,1) + ' m)</td></tr>'
-      + '<tr><td>Aspect (downhill)</td><td class="num">' + t.aspectTxt + '</td></tr>'
+      + '<tr><td>Aspect (downhill)</td><td class="num">' + T('asp', t.aspectTxt) + '</td></tr>'
       + '<tr><td>Elevation (DEM, this point)</td><td class="num">' + fx(t.elevDem,0) + ' m</td></tr>'
       + '<tr><td>Elevation (POWER grid cell)</td><td class="num">' + fx(d ? d.elev : null, 0) + ' m</td></tr>'
       + '<tr><td>Relief across 180 m</td><td class="num">' + fx(t.relief, 0) + ' m</td></tr>'
       + '</tbody></table>'
       + '<p class="muted" style="font-size:11px">POWER reports the mean elevation of its ~50 km grid cell, so a large '
       + 'gap between the two elevations is expected in hilly country and is not an error — trust the DEM figure for your point.</p>';
-    chart('cTerr', {type:'line', data:{labels:['−90 m','centre','+90 m'], datasets:[
-      LN('West → East', t.ew, '#38bdf8', {pointRadius:3}),
-      LN('South → North', t.ns, '#4ade80', {pointRadius:3})]}});
+    chart('cTerr', {type:'line', data:{labels:['−90 m', TDLANG()==='zh' ? '中心' : 'centre', '+90 m'], datasets:[
+      LN(T('ch','West → East'), t.ew, '#38bdf8', {pointRadius:3}),
+      LN(T('ch','South → North'), t.ns, '#4ade80', {pointRadius:3})]}});
     const srcs = document.querySelectorAll('#tab-site .card .src');
     if (t.src && srcs.length >= 3){
       srcs[0].textContent = t.src;                                  // elevation card
@@ -2140,7 +2172,7 @@ function renderSite(){
       + row('Bulk density', fx(so.bdod,2), ' kg/dm³', (so.bdod != null && so.bdod > 1.6) ? 'compacted' : '')
       + '</tbody>';
   } else {
-    $('sSoilTbl').innerHTML = '<tbody><tr><td class="err">' + T('site.soilfail', S.errs.soil || '') + '</td></tr>'
+    $('sSoilTbl').innerHTML = '<tbody><tr><td class="err">' + T('site.soilfail', S.errs.soil ? T('err', S.errs.soil) : '') + '</td></tr>'
       + '<tr><td class="muted">Both ISRIC SoilGrids and the OpenEPI mirror refused the request, while other hosts '
       + 'answered fine — so this is those servers, not your connection. Soil is simply <b>excluded from the score</b>: '
       + 'the total is computed from the remaining factors, not penalised.<br><br>'
@@ -2215,11 +2247,12 @@ function renderBaseline(){
      + T('bl.foot', fx(P_DEPLETE*100,0), AG.stressTrigger, fx(b.taw,0)) + '</p>';
   $('bInduct').innerHTML = h;
 
-  chart('cClim', {type:'bar', data:{labels:MONTHS, datasets:[
-    {label:'10-yr normal mm', data:b.normRain, backgroundColor:'#2b3542', borderWidth:0, order:2},
-    LN('Last 12 months mm', b.curRain, '#38bdf8', {type:'line', order:1, pointRadius:3})]}});
-  chart('cDryM', {type:'bar', data:{labels:MONTHS, datasets:[
-    {label:'Dry days (<1 mm), 10-yr mean', data:b.normDry,
+  const monL = MONTHS.map((_, i) => T('mon', i));
+  chart('cClim', {type:'bar', data:{labels:monL, datasets:[
+    {label:T('ch','10-yr normal mm'), data:b.normRain, backgroundColor:'#2b3542', borderWidth:0, order:2},
+    LN(T('ch','Last 12 months mm'), b.curRain, '#38bdf8', {type:'line', order:1, pointRadius:3})]}});
+  chart('cDryM', {type:'bar', data:{labels:monL, datasets:[
+    {label:T('ch','Dry days (<1 mm), 10-yr mean'), data:b.normDry,
      backgroundColor:b.normDry.map(v => v >= 8 ? '#fbbf24' : '#2b3542'), borderWidth:0}]}});
 
   // heat map — stress runs by default, old rain rule available for comparison
@@ -2229,7 +2262,7 @@ function renderBaseline(){
       + '<button id="hmS" class="' + (useStress ? 'primary' : '') + '" style="padding:3px 10px;font-size:11px">Water stress (real)</button> '
       + '<button id="hmR" class="' + (!useStress ? 'primary' : '') + '" style="padding:3px 10px;font-size:11px">Rainless days (naive)</button>'
       + '</div>';
-    g += '<div class="hml">' + MONTHS.map(m => '<div>' + m[0] + '</div>').join('') + '</div>';
+    g += '<div class="hml">' + MONTHS.map((m, i) => '<div>' + T('monS', i) + '</div>').join('') + '</div>';
     grid.forEach((row, i) => {
       g += '<div class="hm">' + row.map(v => {
         const c = v >= 10 ? '#4ade80' : v >= 7 ? '#fbbf24' : v >= 4 ? '#3b4a5c' : '#1c2430';
@@ -2266,25 +2299,25 @@ const LN = (label, data, color, extra) => Object.assign(
 
 function renderCharts(){
   const p = S.power, d = S.derived, x = p.date, t = (a, n) => a.slice(-n);
-  chart('cSolar', {type:'line', data:{labels:x, datasets:[LN('Solar kWh/m²/d', p.SOLAR_KWH, '#fbbf24', {fill:true})]}});
+  chart('cSolar', {type:'line', data:{labels:x, datasets:[LN(T('ch','Solar kWh/m²/d'), p.SOLAR_KWH, '#fbbf24', {fill:true})]}});
   chart('cTemp',  {type:'line', data:{labels:x, datasets:[
-    LN('Tmax', p.T2M_MAX, '#f87171'), LN('Tmean', p.T2M, '#e6edf3'), LN('Tmin', p.T2M_MIN, '#38bdf8')]}});
-  chart('cRain',  {type:'bar',  data:{labels:x, datasets:[{label:'mm/day', data:p.PRECTOTCORR, backgroundColor:'#38bdf8', borderWidth:0}]}});
+    LN(T('ch','Tmax'), p.T2M_MAX, '#f87171'), LN(T('ch','Tmean'), p.T2M, '#e6edf3'), LN(T('ch','Tmin'), p.T2M_MIN, '#38bdf8')]}});
+  chart('cRain',  {type:'bar',  data:{labels:x, datasets:[{label:T('ch','mm/day'), data:p.PRECTOTCORR, backgroundColor:'#38bdf8', borderWidth:0}]}});
   chart('cSoil',  {type:'line', data:{labels:x, datasets:[
-    LN('Surface', p.GWETTOP, '#38bdf8'), LN('Root zone', p.GWETROOT, '#4ade80'), LN('Profile', p.GWETPROF, '#a78bfa')]},
+    LN(T('ch','Surface'), p.GWETTOP, '#38bdf8'), LN(T('ch','Root zone'), p.GWETROOT, '#4ade80'), LN(T('ch','Profile'), p.GWETPROF, '#a78bfa')]},
     options:{scales:{y:{min:0, max:1, grid:GRID, ticks:TICK}, x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
   chart('cAtm',   {type:'line', data:{labels:x, datasets:[
-    LN('RH2M %', p.RH2M, '#4ade80'),
-    LN('WS2M m/s', p.WS2M, '#fbbf24', {yAxisID:'y1'}),
-    LN('WS10M_MAX m/s', p.WS10M_MAX, '#f87171', {yAxisID:'y1'})]},
+    LN(T('ch','RH2M %'), p.RH2M, '#4ade80'),
+    LN(T('ch','WS2M m/s'), p.WS2M, '#fbbf24', {yAxisID:'y1'}),
+    LN(T('ch','WS10M_MAX m/s'), p.WS10M_MAX, '#f87171', {yAxisID:'y1'})]},
     options:{scales:{y:{grid:GRID, ticks:TICK}, y1:{position:'right', grid:{drawOnChartArea:false}, ticks:TICK},
       x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
-  chart('cTws',   {type:'line', data:{labels:x, datasets:[LN('Cumulative P−ETc anomaly (mm)', d.tws, '#a78bfa', {fill:true})]}});
+  chart('cTws',   {type:'line', data:{labels:x, datasets:[LN(T('ch','Cumulative P−ETc anomaly (mm)'), d.tws, '#a78bfa', {fill:true})]}});
 
   if (S.smap && S.smap.surf && S.smap.surf.length){
     const sm = S.smap;
-    const sets = [LN('SMAP surface m³/m³', sm.surf.map(r => r.v), '#38bdf8', {pointRadius:2, spanGaps:true, fill:true})];
-    if (sm.root) sets.push(LN('SMAP root zone m³/m³', sm.root.map(r => r.v), '#4ade80', {pointRadius:2, spanGaps:true}));
+    const sets = [LN(T('ch','SMAP surface m³/m³'), sm.surf.map(r => r.v), '#38bdf8', {pointRadius:2, spanGaps:true, fill:true})];
+    if (sm.root) sets.push(LN(T('ch','SMAP root zone m³/m³'), sm.root.map(r => r.v), '#4ade80', {pointRadius:2, spanGaps:true}));
     chart('cSmap', {type:'line', data:{labels: sm.surf.map(r => r.date), datasets: sets},
       options:{scales:{y:{grid:GRID, ticks:TICK, title:{display:true, text:'m³/m³', color:'#8b98a5'}},
         x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
@@ -2313,22 +2346,24 @@ function renderCharts(){
         r2txt = T('val.r', r.toFixed(2), pts.length);
       }
       chart('cVal', {type:'line', data:{labels, datasets:[
-        LN('Modelled depletion % (FAO-56)', modelled, '#f87171'),
-        LN('SMAP observed, normalised %', observed, '#38bdf8', {pointRadius:3, spanGaps:true, borderDash:[4,3]}),
-        LN('Stress threshold', new Array(N).fill(P_DEPLETE*100), '#4ade80', {borderDash:[6,4], borderWidth:1})
+        LN(T('ch','Modelled depletion % (FAO-56)'), modelled, '#f87171'),
+        LN(T('ch','SMAP observed, normalised %'), observed, '#38bdf8', {pointRadius:3, spanGaps:true, borderDash:[4,3]}),
+        LN(T('ch','Stress threshold'), new Array(N).fill(P_DEPLETE*100), '#4ade80', {borderDash:[6,4], borderWidth:1})
       ]}, options:{scales:{y:{min:0, max:100, grid:GRID, ticks:TICK}, x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
       if ($('valNote')) $('valNote').innerHTML =
         T('val.head') + r2txt + (S.smapFlagged ? T('val.caveat', fx(S.smapVWC,1)) : '');
     }
   }
   chart('cBal',   {type:'bar',  data:{labels:t(x,90), datasets:[
-    {label:'Rain mm', data:t(p.PRECTOTCORR,90), backgroundColor:'#38bdf8', borderWidth:0, order:2},
-    LN('Crop demand ETc mm', t(d.etc,90), '#f87171', {type:'line', order:1})]}});
+    {label:T('ch','Rain mm'), data:t(p.PRECTOTCORR,90), backgroundColor:'#38bdf8', borderWidth:0, order:2},
+    LN(T('ch','Crop demand ETc mm'), t(d.etc,90), '#f87171', {type:'line', order:1})]}});
   renderModis();
   pills();
 }
 function renderModis(){
   if (S.ndvi && S.ndvi.length){
+    if (S.ndviKeep != null && $('ndviNote'))
+      $('ndviNote').textContent = T('ndvi.note', S.ndviKeep, S.ndvi.length);
     const labels = S.ndvi.map(r => r.date);
     const mk = () => { const s = [LN('NDVI', S.ndvi.map(r => r.v), '#4ade80', {fill:true, pointRadius:2, spanGaps:true})];
       if (S.evi) s.push(LN('EVI', S.evi.map(r => r.v), '#a78bfa', {pointRadius:2, spanGaps:true})); return s; };
@@ -2337,8 +2372,8 @@ function renderModis(){
   }
   if (S.lstD && S.lstD.length){
     const labels = S.lstD.map(r => r.date);
-    const mk = () => { const s = [LN('LST day °C', S.lstD.map(r => r.v), '#f87171', {pointRadius:2, spanGaps:true})];
-      if (S.lstN) s.push(LN('LST night °C', S.lstN.map(r => r.v), '#38bdf8', {pointRadius:2, spanGaps:true})); return s; };
+    const mk = () => { const s = [LN(T('ch','LST day °C'), S.lstD.map(r => r.v), '#f87171', {pointRadius:2, spanGaps:true})];
+      if (S.lstN) s.push(LN(T('ch','LST night °C'), S.lstN.map(r => r.v), '#38bdf8', {pointRadius:2, spanGaps:true})); return s; };
     chart('cLst', {type:'line', data:{labels, datasets:mk()}});
     chart('cLst2', {type:'line', data:{labels, datasets:mk()}});
   }
@@ -2398,7 +2433,7 @@ function renderCompare(){
   const keys = [];
   S.plots.forEach(p => p.items.forEach(i => { if (!keys.includes(i.k)) keys.push(i.k); }));
   const cols = ['#4ade80','#38bdf8','#fbbf24','#a78bfa','#f87171','#e6edf3'];
-  chart('cCmp', {type:'bar', data:{labels:keys, datasets:S.plots.map((p, i) => ({
+  chart('cCmp', {type:'bar', data:{labels:keys.map(k => T('ch', k)), datasets:S.plots.map((p, i) => ({
     label: p.name, backgroundColor: cols[i % cols.length], borderWidth:0,
     data: keys.map(k => { const it = p.items.find(x => x.k === k); return it && it.s != null ? Math.round(it.s) : null; })
   }))}, options:{scales:{y:{min:0, max:100, grid:GRID, ticks:TICK}, x:{grid:GRID, ticks:TICK}}}});
@@ -2472,10 +2507,7 @@ async function run(){
         const lN = await modisBand('MOD11A2', 'LST_Night_1km', dL, Math.min(30, dL.length));
         const toC = r => ({date:r.date, v: r.v ? +(r.v - 273.15).toFixed(1) : null});
         S.lstD = lD.map(toC); S.lstN = lN.map(toC);
-        const keep = S.ndvi.filter(r => r.v != null).length;
-        $('ndviNote').textContent = 'MOD13Q1 250 m, cloud-screened with the pixel-reliability band: '
-          + keep + ' of ' + S.ndvi.length + ' composites had ≥5 clear pixels in the ±1 km window. '
-          + 'Gaps are cloudy periods, honestly left empty rather than interpolated.';
+        S.ndviKeep = S.ndvi.filter(r => r.v != null).length;
         renderModis(); pills(); renderDurian();
       }],
     ['SMAP', async () => { S.smap = await fetchSmap(); renderSmap(); renderCharts(); }],
@@ -2512,12 +2544,14 @@ log('boot ok · secureContext=' + window.isSecureContext
 /* Repaint the number-bearing panels when the language toggle flips, so the
    templated bodies (drainage verdict, SMAP caveat …) switch language live. */
 window.__tdRerender = function(){
+  try { farmSummary(); } catch(e){}
   if (!(S.derived || S.terr || S.soil || S.smap || S.fc || S.base)) return;
   try { renderSite(); } catch(e){}
   try { renderSmap(); } catch(e){}
-  try { if (S.derived){ renderDurian(); renderIrrigation(); } } catch(e){}
+  try { if (S.derived){ renderDurian(); renderIrrigation(); renderCharts(); } } catch(e){}
   try { if (S.fc) renderForecast(); } catch(e){}
   try { if (S.base) renderBaseline(); } catch(e){}
+  try { if (S.plots.length) renderCompare(); } catch(e){}
 };
 })();
 </script>

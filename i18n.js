@@ -18,7 +18,7 @@
   var observer = null, timer = null;
   var orig = new WeakMap();
 
-  var SKIP = { SCRIPT:1, STYLE:1, TEXTAREA:1, CANVAS:1, CODE:1, OPTION:1 };
+  var SKIP = { SCRIPT:1, STYLE:1, TEXTAREA:1, CANVAS:1, CODE:1 };
 
   function collect() {
     var tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
