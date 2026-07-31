@@ -665,7 +665,7 @@ var TPL = {
   },
   'drain.hollow': {
     en: function(ab,sp){ return 'Your point sits <b>'+ab+' m below</b> the ground around it, at <b>'+sp+'%</b> gradient. Water drains <i>towards</i> you and has nowhere to leave. This is the classic <i>Phytophthora palmivora</i> setup, and it outweighs every favourable weather number on the dashboard. Raised mounds (60–100 cm) and a real drainage network are not optional here.'; },
-    zh: function(ab,sp){ return '你所在的点比四周地面低 <b>'+ab+' 米</b>，坡度 <b>'+sp+'%</b>。水会<i>朝你</i>汇流且无处排出。这是典型的 <i>Phytophthora palmivora</i>（疫霉）温床，其危害超过面板上所有有利的气象数值。这里必须做高垄（60–100 厘米）和完善的排水系统，别无选择。'; }
+    zh: function(ab,sp){ return '你所在的点比四周地面低 <b>'+ab+' 米</b>，坡度 <b>'+sp+'%</b>。水会<i>朝你</i>汇流且无处排出。这是棕榈疫霉（<i>Phytophthora palmivora</i>，大马俗称「黑头病」）的典型温床，其危害超过面板上所有有利的气象数值。这里必须做高垄（60–100 厘米）和完善的排水系统，别无选择。'; }
   },
   'drain.flat': {
     en: function(sp){ return '<b>'+sp+'%</b> gradient with no local rise or hollow. Water will move slowly. Not fatal, but plant on mounds and cut drains. Walk the plot after heavy rain and see where puddles form — the DEM is 90 m resolution and cannot see a shallow depression the size of a tree.'; },
@@ -726,7 +726,7 @@ var TPL = {
   'kpi.trig': { en:function(d){return '→ trigger on '+d;}, zh:function(d){return '→ '+d+' 触发';} },
   'kpi.by':   { en:function(n,d){return '→ '+n+' d by '+d;}, zh:function(n,d){return '→ 至 '+d+' 达 '+n+' 天';} },
   'a.deficit':{ en:function(mm,l){return 'Crop demand beat rainfall by <b>'+mm+' mm</b> over 30 days — about <b>'+l+' L/tree/day</b> at your canopy size. See the Irrigation tab.';}, zh:function(mm,l){return '过去 30 天作物需水比降雨多 <b>'+mm+' 毫米</b>——按你的树冠约合每株每天 <b>'+l+' 升</b>。详见灌溉页。';} },
-  'a.flat':   { en:function(sp){return 'Slope is only <b>'+sp+'%</b>. Water will not shed. This is the classic <i>Phytophthora</i> setup: plant on raised mounds, cut drainage trenches, and never let water stand around the collar.';}, zh:function(sp){return '坡度只有 <b>'+sp+'%</b>，水排不走。这是典型的<i>疫霉</i>温床：起高垄种植，开挖排水沟，绝不让水积在根颈周围。';} },
+  'a.flat':   { en:function(sp){return 'Slope is only <b>'+sp+'%</b>. Water will not shed. This is the classic <i>Phytophthora</i> setup: plant on raised mounds, cut drainage trenches, and never let water stand around the collar.';}, zh:function(sp){return '坡度只有 <b>'+sp+'%</b>，水排不走。这是棕榈疫霉（<i>Phytophthora palmivora</i>，俗称「黑头病」）的典型温床：起高垄种植，开挖排水沟，绝不让水积在根颈周围。';} },
   'a.wlog':   { en:function(n){return 'Root-zone wetness above 0.90 saturation on <b>'+n+'</b> of 30 days.';}, zh:function(n){return '30 天中有 <b>'+n+'</b> 天根区湿度超过 0.90 饱和度。';} },
   'a.acid':   { en:function(ph){return 'pH <b>'+ph+'</b> is below the 5.5–6.5 durian likes. Aluminium toxicity locks up phosphorus. Lime it.';}, zh:function(ph){return 'pH <b>'+ph+'</b>，低于榴莲喜好的 5.5–6.5。铝毒会锁住磷。请施石灰。';} },
   'a.alk':    { en:function(ph){return 'pH <b>'+ph+'</b> — iron and zinc go unavailable. Expect interveinal chlorosis.';}, zh:function(ph){return 'pH <b>'+ph+'</b>——铁和锌将无法被吸收，会出现叶脉间失绿。';} },
@@ -735,7 +735,7 @@ var TPL = {
   't.willOpen':{ en:function(d){return 'Induction window will open on '+d;}, zh:function(d){return '催花窗口将于 '+d+' 开启';} },
   'a.willOpen':{ en:function(trig,day,dep){return 'Carrying the root-zone balance through the forecast, the trees reach <b>'+trig+' consecutive stress days</b> on <b>'+day+'</b> (depletion rising to '+dep+'%). <b>Stop irrigating now</b> if you want flowers — this is the decision point, and it will pass.';}, zh:function(trig,day,dep){return '将根区水分平衡沿预报推算，树木将在 <b>'+day+'</b> 达到<b>连续 '+trig+' 个胁迫日</b>（亏缺升至 '+dep+'%）。想要开花就<b>立即停止灌溉</b>——这是决策点，且稍纵即逝。';} },
   'a.building':{ en:function(dep,run,trig){return 'Depletion reaches <b>'+dep+'%</b> and <b>'+run+' stress days</b> by the end of the forecast — not the '+trig+' needed. A rain shelter over the root zone now could carry it across.';}, zh:function(dep,run,trig){return '到预报期末亏缺达 <b>'+dep+'%</b>、胁迫 <b>'+run+' 天</b>——还不到所需的 '+trig+' 天。现在给根区搭遮雨棚或许能撑过去。';} },
-  'a.fungal': { en:function(rh){return '30-day mean humidity <b>'+rh+'%</b>. <i>Phytophthora palmivora</i> and leaf blight move fast above ~88%. Prune for airflow.';}, zh:function(rh){return '30 天平均湿度 <b>'+rh+'%</b>。湿度超过约 88% 时<i>疫霉</i>和叶枯病蔓延很快。修剪以利通风。';} },
+  'a.fungal': { en:function(rh){return '30-day mean humidity <b>'+rh+'%</b>. <i>Phytophthora palmivora</i> and leaf blight move fast above ~88%. Prune for airflow.';}, zh:function(rh){return '30 天平均湿度 <b>'+rh+'%</b>。湿度超过约 88% 时棕榈疫霉（黑头病）和叶枯病蔓延很快。修剪以利通风。';} },
   'a.wind':   { en:function(v){return 'Peak gust <b>'+v+' m/s</b>. Durian limbs are brittle and heavy fruit snaps them — prop and windbreak.';}, zh:function(v){return '最大阵风 <b>'+v+' m/s</b>。榴莲枝条脆，重果易压断——请支撑并设防风带。';} },
 
   /* ── flowering panel ── */
@@ -763,7 +763,7 @@ var TPL = {
   /* ── forecast alerts ── */
   'fc.dry':   { en:function(x,tot,hit){return '<b>'+x+'</b> dry days forecast, taking the current spell to <b>'+tot+' days</b>. '+(hit?'That crosses the induction threshold — a deliberate choice point: irrigate to protect fruit, or withhold to force flowers.':'Not yet enough to trigger flowering.');}, zh:function(x,tot,hit){return '预报还有 <b>'+x+'</b> 个无雨日，当前干旱期将达 <b>'+tot+' 天</b>。'+(hit?'这将越过催花阈值——需要主动抉择：灌溉保果，还是停水催花。':'尚不足以触发开花。');} },
   'fc.heat':  { en:function(n){return '<b>'+n+'</b> days above 35 °C forecast. Irrigate at dawn, mulch, shade young trees. Flowers and pinhead fruit abort fast at these temperatures.';}, zh:function(n){return '预报有 <b>'+n+'</b> 天超过 35 °C。请清晨灌溉、覆盖保墒、为幼树遮荫。这种温度下花和幼果会迅速脱落。';} },
-  'fc.heavy': { en:function(mm,w){return '<b>'+mm+' mm</b> over 16 days, '+w+' days ≥10 mm. Clear drains before it arrives; saturated soil plus warm weather is peak <i>Phytophthora</i> weather.';}, zh:function(mm,w){return '16 天内 <b>'+mm+' 毫米</b>，其中 '+w+' 天 ≥10 毫米。雨来之前清理排水沟；土壤饱和加上温暖天气正是<i>疫霉</i>高发天气。';} },
+  'fc.heavy': { en:function(mm,w){return '<b>'+mm+' mm</b> over 16 days, '+w+' days ≥10 mm. Clear drains before it arrives; saturated soil plus warm weather is peak <i>Phytophthora</i> weather.';}, zh:function(mm,w){return '16 天内 <b>'+mm+' 毫米</b>，其中 '+w+' 天 ≥10 毫米。雨来之前清理排水沟；土壤饱和加上温暖天气正是棕榈疫霉（黑头病）高发天气。';} },
   'fc.little':{ en:function(mm){return 'Only <b>'+mm+' mm</b> in 16 days. Check the Irrigation tab unless you are inducing.';}, zh:function(mm){return '16 天仅 <b>'+mm+' 毫米</b>。若不是在催花，请查看灌溉页。';} },
 
   /* ── SMAP panel ── */

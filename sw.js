@@ -7,7 +7,7 @@
      with a cache fallback, so you always get fresh data when online but still see the last
      good pull when you are out in the field with no signal.
 */
-const VERSION = 'terradurian-v17';
+const VERSION = 'terradurian-v18';
 const SHELL = VERSION + '-shell';
 const DATA = VERSION + '-data';
 
