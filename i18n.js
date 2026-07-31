@@ -43,7 +43,7 @@
         return;
       }
       var raw = n.nodeValue;
-      var t = dict[raw.trim()];
+      var t = dict[raw.trim().replace(/\s+/g, ' ')];   // whitespace-tolerant match
       if (t == null) return;
       if (!orig.has(n)) orig.set(n, raw);
       var lead = (raw.match(/^\s*/) || [''])[0];
@@ -61,6 +61,9 @@
     var b = document.getElementById('langToggle');
     if (b) b.textContent = (l === 'en') ? '中文' : 'EN';
     translateAll();
+    // repaint number-bearing dynamic panels (drainage verdict, SMAP caveat, …)
+    // in the new language; the MutationObserver then re-translates their static labels.
+    if (window.__tdRerender) { try { window.__tdRerender(); } catch (e) {} }
   }
 
   function injectToggle() {
