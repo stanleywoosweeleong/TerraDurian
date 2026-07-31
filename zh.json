@@ -390,5 +390,9 @@
  "🔮 16-day forecast": "🔮 16 天预报",
  "Farm setup": "农场设置",
  "Save plot": "保存地块",
- "acres": "英亩"
+ "acres": "英亩",
+ "Copernicus GLO-90 sampled 3×3 via Open-Meteo, Horn's method.": "Copernicus GLO-90，经 Open-Meteo 3×3 采样，Horn 法。",
+ "Falls back to NASA SRTM 30 m via OpenTopoData where that host allows it.": "在 OpenTopoData 允许的情况下回退到 NASA SRTM 30 米。",
+ "Mostly no": "大多为否",
+ "SRTM 30 m (NASA) via OpenTopoData": "SRTM 30 米（NASA），经 OpenTopoData"
 }

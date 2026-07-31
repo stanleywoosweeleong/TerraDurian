@@ -348,7 +348,7 @@
 <section class="tab" id="tab-site">
   <div class="grid g3" style="margin-bottom:14px">
     <div class="card"><h3>⛰️ Elevation</h3><div class="big" id="sElev">–<span class="unit"> m</span></div><div class="src">NASA POWER site geometry</div></div>
-    <div class="card"><h3>📐 Slope</h3><div class="big" id="sSlope">–<span class="unit"> %</span></div><div class="src">SRTM 30 m, Horn 3×3</div></div>
+    <div class="card"><h3>📐 Slope</h3><div class="big" id="sSlope">–<span class="unit"> %</span></div><div class="src">Copernicus GLO-90, Horn 3×3</div></div>
     <div class="card"><h3>🧭 Aspect</h3><div class="big" id="sAspect">–</div><div class="src">Downhill direction</div></div>
     <div class="card"><h3>🧪 Soil pH</h3><div class="big" id="sPh">–</div><div class="src">SoilGrids 0–30 cm</div></div>
   </div>
@@ -522,7 +522,7 @@
         <tr><td>🌬️ MERRA-2</td><td>POWER: <code>T2M</code>, <code>RH2M</code>, <code>WS2M</code>, <code>WS10M_MAX</code>, <code>PS</code></td><td>Yes</td></tr>
         <tr><td>☀️ POWER API</td><td><code>power.larc.nasa.gov</code> daily point + 10-year baseline, community=AG</td><td>Yes</td></tr>
         <tr><td>⛰️ Elevation</td><td>POWER returns site elevation in the response geometry</td><td>Yes</td></tr>
-        <tr><td>📐 Slope / aspect</td><td>SRTM 30 m sampled 3×3 via OpenTopoData, Horn's method. <i>SRTM is a NASA mission; the API host is not.</i></td><td>Data yes, host no</td></tr>
+        <tr><td>📐 Slope / aspect</td><td>Copernicus GLO-90 sampled 3×3 via Open-Meteo, Horn's method. <i>Falls back to NASA SRTM 30 m via OpenTopoData where that host allows it.</i></td><td>Mostly no</td></tr>
         <tr><td>🧪 Soil pH / texture</td><td><b>ISRIC SoilGrids</b> 250 m, 0–30 cm</td><td><b>No</b></td></tr>
         <tr><td>🔮 16-day forecast</td><td><b>Open-Meteo</b> (ECMWF/GFS). POWER is a reanalysis and cannot forecast.</td><td><b>No</b></td></tr>
         <tr><td>🌎 Landsat 8/9 · 🛰️ VIIRS</td><td>GIBS WMTS tiles on the map</td><td>Yes</td></tr>
@@ -670,8 +670,8 @@ var TPL = {
     zh: function(c){ return '黏土含量为 <b>'+c+'%</b>。即使坡度不错也救不了黏土硬盘层——水会滞留其上。种植前可考虑深松破盘。'; }
   },
   'drain.noterr': {
-    en: function(err){ return (err ? 'Both DEM sources failed — '+err+'. ' : '') + 'The drainage score therefore falls back to MERRA-2 root-zone wetness — a ~50 km model average that cannot see your field. Treat the drainage number with real suspicion until this loads. Press <b>Fetch all data</b> again: OpenTopoData rate-limits to one request per second and often refuses a burst.'; },
-    zh: function(err){ return (err ? 'DEM 两个数据源都失败——'+err+'。' : '') + '因此排水评分回退到 MERRA-2 根区湿度——约 50 公里的模型平均值，看不到你的田块。在此数据成功加载前，请对排水数字保持高度怀疑。请再次点击<b>获取所有数据</b>：OpenTopoData 限制每秒一次请求，常会拒绝突发请求。'; }
+    en: function(err){ return (err ? 'Both DEM sources failed — '+err+'. ' : '') + 'The drainage score therefore falls back to MERRA-2 root-zone wetness — a ~50 km model average that cannot see your field. Treat the drainage number with real suspicion until this loads. Both hosts failing at once usually means a momentary network problem — press <b>Fetch all data</b> again.'; },
+    zh: function(err){ return (err ? 'DEM 两个数据源都失败——'+err+'。' : '') + '因此排水评分回退到 MERRA-2 根区湿度——约 50 公里的模型平均值，看不到你的田块。在此数据成功加载前，请对排水数字保持高度怀疑。两个数据源同时失败通常只是短暂的网络问题——请再次点击<b>获取所有数据</b>。'; }
   },
   'lf': {
     en: function(x){ return x; },
@@ -1308,27 +1308,29 @@ async function fetchSmap(){
 }
 
 /* ── Terrain: elevation grid → slope & aspect (Horn's method) ──
-   Preferred DEM is SRTM 30 m (a NASA mission) via OpenTopoData. That host rate-limits hard
-   (1 req/sec, 1000/day) and sometimes refuses browser origins, so we fall back to Copernicus
-   GLO-90 through Open-Meteo — the same host as the forecast, whose CORS we know works. */
+   Primary DEM is Copernicus GLO-90 through Open-Meteo — the same host as the forecast,
+   whose CORS reliably works from any origin. SRTM 30 m via OpenTopoData is the FALLBACK:
+   it is NASA-mission data and finer, but that host blocks many browser origins (no CORS
+   header for github.io) and rate-limits to 1 req/sec, so trying it first from a hosted
+   page guarantees a console error and a wasted round-trip on every fetch. */
 async function demGrid(pts){
   try {
-    const locs = pts.map(p => p.la.toFixed(6) + ',' + p.lo.toFixed(6)).join('|');
-    const j = await jfetch('https://api.opentopodata.org/v1/srtm30m?locations=' + locs, 12000);
-    const z = (j.results || []).map(v => v.elevation);
-    if (z.length === pts.length && !z.some(v => v == null))
-      return {z, src: 'SRTM 30 m (NASA) via OpenTopoData'};
-    throw new Error('gaps in the SRTM response');
+    const j2 = await jfetch('https://api.open-meteo.com/v1/elevation'
+      + '?latitude=' + pts.map(p => p.la.toFixed(6)).join(',')
+      + '&longitude=' + pts.map(p => p.lo.toFixed(6)).join(','), 15000);
+    const z2 = j2.elevation;
+    if (z2 && z2.length === pts.length && !z2.some(v => v == null))
+      return {z: z2, src: 'Copernicus GLO-90 via Open-Meteo (non-NASA)'};
+    throw new Error('gaps in the Copernicus response');
   } catch(e){
-    log('SRTM unavailable (' + e.message + ') — falling back to Copernicus GLO-90');
+    log('Copernicus DEM unavailable (' + e.message + ') — trying SRTM 30 m via OpenTopoData');
   }
-  const j2 = await jfetch('https://api.open-meteo.com/v1/elevation'
-    + '?latitude=' + pts.map(p => p.la.toFixed(6)).join(',')
-    + '&longitude=' + pts.map(p => p.lo.toFixed(6)).join(','), 15000);
-  const z2 = j2.elevation;
-  if (!z2 || z2.length !== pts.length || z2.some(v => v == null))
-    throw new Error('both SRTM and Copernicus DEMs failed');
-  return {z: z2, src: 'Copernicus GLO-90 via Open-Meteo (non-NASA)'};
+  const locs = pts.map(p => p.la.toFixed(6) + ',' + p.lo.toFixed(6)).join('|');
+  const j = await jfetch('https://api.opentopodata.org/v1/srtm30m?locations=' + locs, 12000);
+  const z = (j.results || []).map(v => v.elevation);
+  if (z.length !== pts.length || z.some(v => v == null))
+    throw new Error('both Copernicus and SRTM DEMs failed');
+  return {z, src: 'SRTM 30 m (NASA) via OpenTopoData'};
 }
 async function fetchTerrain(){
   const dLat = 90 / 111320;                                    // ~90 m in degrees latitude
