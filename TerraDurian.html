@@ -18,7 +18,7 @@
 <style>
   :root{
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2430; --line:#2b3542;
-    --txt:#e6edf3; --dim:#8b98a5; --accent:#4ade80; --accent2:#38bdf8;
+    --txt:#dcd6c8; --dim:#9a968b; --accent:#4ade80; --accent2:#38bdf8;
     --warn:#fbbf24; --bad:#f87171; --good:#4ade80; --purple:#a78bfa;
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
@@ -246,7 +246,7 @@
           <circle cx="60" cy="60" r="52" fill="none" stroke="#2b3542" stroke-width="12"/>
           <circle id="ringArc" cx="60" cy="60" r="52" fill="none" stroke="#4ade80" stroke-width="12"
                   stroke-linecap="round" stroke-dasharray="0 327" transform="rotate(-90 60 60)"/>
-          <text id="ringTxt" x="60" y="58" text-anchor="middle" font-size="27" font-weight="700" fill="#e6edf3">–</text>
+          <text id="ringTxt" x="60" y="58" text-anchor="middle" font-size="27" font-weight="700" fill="#dcd6c8">–</text>
           <text x="60" y="76" text-anchor="middle" font-size="10" fill="#8b98a5">/ 100</text>
         </svg>
         <div style="flex:1;min-width:230px">
@@ -838,7 +838,7 @@ var TPL = {
   'date': { en:function(dt){return dt.toDateString().slice(4);}, zh:function(dt){return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日';} },
   'wdate':{ en:function(dt){return dt.toDateString().slice(0,10);}, zh:function(dt){return (dt.getMonth()+1)+'月'+dt.getDate()+'日 '+T('wd',dt.getDay());} },
   'err': { en:function(s){return s;}, zh:function(s){ return ({
-      'answered, but with no pH or texture for this point — SoilGrids has gaps, and a coastal/hill pixel can fall in one. Use "Enter my own soil test".':'有响应，但该点没有 pH 或质地数据——SoilGrids 存在空缺，海岸/山地像元可能正落在空缺中。请使用「输入我的土壤检测」。'
+      'answered, but with no pH or texture for this point — SoilGrids has gaps, and a coastal/hill pixel can fall in one. Open Farm setup (top bar) and tick "Enter my own soil test".':'有响应，但该点没有 pH 或质地数据——SoilGrids 存在空缺，海岸/山地像元可能正落在空缺中。请点击顶栏的「🌳 农场设置」，勾选「输入我的土壤检测」，填入你的土壤化验值。'
     })[s]||s; } }
 };
 
@@ -1395,7 +1395,7 @@ async function fetchSoil(){
   if (out.phh2o == null && out.clay == null){
     log('SoilGrids parsed keys: ' + Object.keys(out).join(', ') + ' (none usable)');
     throw new Error('answered, but with no pH or texture for this point — SoilGrids has gaps, '
-      + 'and a coastal/hill pixel can fall in one. Use "Enter my own soil test".');
+      + 'and a coastal/hill pixel can fall in one. Open Farm setup (top bar) and tick "Enter my own soil test".');
   }
   out.texture = textureOf(out.sand, out.silt, out.clay);
   return out;
@@ -2301,7 +2301,7 @@ function renderCharts(){
   const p = S.power, d = S.derived, x = p.date, t = (a, n) => a.slice(-n);
   chart('cSolar', {type:'line', data:{labels:x, datasets:[LN(T('ch','Solar kWh/m²/d'), p.SOLAR_KWH, '#fbbf24', {fill:true})]}});
   chart('cTemp',  {type:'line', data:{labels:x, datasets:[
-    LN(T('ch','Tmax'), p.T2M_MAX, '#f87171'), LN(T('ch','Tmean'), p.T2M, '#e6edf3'), LN(T('ch','Tmin'), p.T2M_MIN, '#38bdf8')]}});
+    LN(T('ch','Tmax'), p.T2M_MAX, '#f87171'), LN(T('ch','Tmean'), p.T2M, '#dcd6c8'), LN(T('ch','Tmin'), p.T2M_MIN, '#38bdf8')]}});
   chart('cRain',  {type:'bar',  data:{labels:x, datasets:[{label:T('ch','mm/day'), data:p.PRECTOTCORR, backgroundColor:'#38bdf8', borderWidth:0}]}});
   chart('cSoil',  {type:'line', data:{labels:x, datasets:[
     LN(T('ch','Surface'), p.GWETTOP, '#38bdf8'), LN(T('ch','Root zone'), p.GWETROOT, '#4ade80'), LN(T('ch','Profile'), p.GWETPROF, '#a78bfa')]},
@@ -2432,7 +2432,7 @@ function renderCompare(){
   });
   const keys = [];
   S.plots.forEach(p => p.items.forEach(i => { if (!keys.includes(i.k)) keys.push(i.k); }));
-  const cols = ['#4ade80','#38bdf8','#fbbf24','#a78bfa','#f87171','#e6edf3'];
+  const cols = ['#4ade80','#38bdf8','#fbbf24','#a78bfa','#f87171','#dcd6c8'];
   chart('cCmp', {type:'bar', data:{labels:keys.map(k => T('ch', k)), datasets:S.plots.map((p, i) => ({
     label: p.name, backgroundColor: cols[i % cols.length], borderWidth:0,
     data: keys.map(k => { const it = p.items.find(x => x.k === k); return it && it.s != null ? Math.round(it.s) : null; })

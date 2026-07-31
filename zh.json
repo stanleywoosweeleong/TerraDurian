@@ -381,5 +381,13 @@
  "forecast · terrain · soil · MODIS · baseline…": "预报 · 地形 · 土壤 · MODIS · 基线…",
  "NASA POWER…": "NASA POWER…",
  "NASA Earth Science farm intelligence": "NASA 地球科学农场智能",
- "YOUR OWN SOIL TEST": "你自己的土壤检测"
+ "YOUR OWN SOIL TEST": "你自己的土壤检测",
+ "🌡️ MERRA-2 — Air temperature": "🌡️ MERRA-2 — 气温",
+ "💧 SMAP soil moisture": "💧 SMAP 土壤湿度",
+ "🌧️ GPM precipitation": "🌧️ GPM 降水",
+ "📐 Slope / aspect": "📐 坡度 / 坡向",
+ "🧪 Soil pH / texture": "🧪 土壤 pH / 质地",
+ "🔮 16-day forecast": "🔮 16 天预报",
+ "Farm setup": "农场设置",
+ "Save plot": "保存地块"
 }
