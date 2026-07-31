@@ -83,9 +83,13 @@
 
   function start() {
     injectToggle();
+    // Translate SYNCHRONOUSLY inside the observer callback: MutationObserver fires
+    // before the browser paints, so freshly rendered English is swapped to Chinese
+    // before it ever becomes visible — no flicker. (A debounce timer here would let
+    // a frame of English paint first.) translateAll() disconnects the observer while
+    // it edits, so it cannot re-trigger itself.
     observer = new MutationObserver(function () {
-      clearTimeout(timer);
-      timer = setTimeout(translateAll, 80);
+      if (lang === 'zh') translateAll();
     });
     if (lang === 'zh') translateAll();
     else observer.observe(document.body, { childList: true, subtree: true });

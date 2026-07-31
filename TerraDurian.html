@@ -206,7 +206,7 @@
   <label style="color:var(--accent)"><input type="checkbox" id="fAuto" name="fAuto" checked style="width:auto;vertical-align:-2px">
     from age</label>
   <label for="fEff">Irrigation eff.</label><input id="fEff" name="fEff" autocomplete="off" type="number" step="5" value="85"><span class="muted">%</span>
-  <label for="fArea">Area</label><input id="fArea" name="fArea" autocomplete="off" type="number" step="0.1" value="2"><span class="muted">ha</span>
+  <label for="fArea">Area</label><input id="fArea" name="fArea" autocomplete="off" type="number" step="0.5" value="5"><span class="muted">acres</span>
   <span class="muted" id="fSummary"></span>
   <span style="flex-basis:100%;height:0"></span>
   <label style="color:var(--accent)"><input type="checkbox" id="mSoilOn" name="mSoilOn" style="width:auto;vertical-align:-2px">
@@ -740,7 +740,7 @@ var TPL = {
   'ir.kcSrc':   { en:function(age,c,a){return 'Age '+age+' yr → canopy '+c+' m Ø → '+a+' m² of leaf. Age sets the canopy; the canopy sets the water.';}, zh:function(age,c,a){return '树龄 '+age+' 年 → 树冠直径 '+c+' 米 → 叶面积 '+a+' m²。树龄决定树冠，树冠决定用水。';} },
   'ir.yr':      { en:function(a){return a+' yr ';}, zh:function(a){return a+' 年 ';} },
   'ir.ageNote': { en:function(et0,sp,x){return 'At today\'s ET₀ of '+et0+' mm/day and no rain, at '+sp+' m spacing. Your row is highlighted. A mature tree drinks roughly <b>'+x+'×</b> what a 2-year-old does — not because it is older, but because it carries that much more leaf.';}, zh:function(et0,sp,x){return '按今日 ET₀ '+et0+' 毫米/天、无降雨、株距 '+sp+' 米计算。你的行已高亮。成年树的用水约为 2 年生幼树的 <b>'+x+' 倍</b>——不是因为它更老，而是因为它的叶子多那么多。';} },
-  'ir.block':   { en:function(t2,a,wk,dd2){return t2+' trees over '+a+' ha ≈ '+wk+' m³/week ('+dd2+' m³/day)';}, zh:function(t2,a,wk,dd2){return a+' 公顷 '+t2+' 株 ≈ 每周 '+wk+' m³（每天 '+dd2+' m³）';} },
+  'ir.block':   { en:function(t2,a,wk,dd2){return t2+' trees over '+a+' acres ≈ '+wk+' m³/week ('+dd2+' m³/day)';}, zh:function(t2,a,wk,dd2){return a+' 英亩 '+t2+' 株 ≈ 每周 '+wk+' m³（每天 '+dd2+' m³）';} },
 
   /* ── forecast alerts ── */
   'fc.dry':   { en:function(x,tot,hit){return '<b>'+x+'</b> dry days forecast, taking the current spell to <b>'+tot+' days</b>. '+(hit?'That crosses the induction threshold — a deliberate choice point: irrigate to protect fruit, or withhold to force flowers.':'Not yet enough to trigger flowering.');}, zh:function(x,tot,hit){return '预报还有 <b>'+x+'</b> 个无雨日，当前干旱期将达 <b>'+tot+' 天</b>。'+(hit?'这将越过催花阈值——需要主动抉择：灌溉保果，还是停水催花。':'尚不足以触发开花。');} },
@@ -831,8 +831,8 @@ var TPL = {
   'monS':{ en:function(i){return ['J','F','M','A','M','J','J','A','S','O','N','D'][i];}, zh:function(i){return ''+(i+1);} },
   'wd':  { en:function(i){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i];}, zh:function(i){return ['周日','周一','周二','周三','周四','周五','周六'][i];} },
   'asp': { en:function(a){return a;}, zh:function(a){ return ({N:'北',NE:'东北',E:'东',SE:'东南',S:'南',SW:'西南',W:'西',NW:'西北',flat:'平坦'})[a]||a; } },
-  'farm.sum': { en:function(t2,ha,st,ca,fc2,kc){return '≈ '+t2+' trees · '+ha+'/ha · '+st+' · canopy '+ca+' m² ('+fc2+'% ground cover) · Kcb '+kc;},
-                zh:function(t2,ha,st,ca,fc2,kc){return '≈ '+t2+' 株 · 每公顷 '+ha+' 株 · '+T('stage',st)+' · 树冠 '+ca+' m²（覆盖地面 '+fc2+'%）· Kcb '+kc;} },
+  'farm.sum': { en:function(t2,ac,st,ca,fc2,kc){return '≈ '+t2+' trees · '+ac+'/acre · '+st+' · canopy '+ca+' m² ('+fc2+'% ground cover) · Kcb '+kc;},
+                zh:function(t2,ac,st,ca,fc2,kc){return '≈ '+t2+' 株 · 每英亩 '+ac+' 株 · '+T('stage',st)+' · 树冠 '+ca+' m²（覆盖地面 '+fc2+'%）· Kcb '+kc;} },
   'ndvi.note': { en:function(k,n){return 'MOD13Q1 250 m, cloud-screened with the pixel-reliability band: '+k+' of '+n+' composites had ≥5 clear pixels in the ±1 km window. Gaps are cloudy periods, honestly left empty rather than interpolated.';},
                  zh:function(k,n){return 'MOD13Q1 250 米，经像元可靠性波段云筛选：'+n+' 个合成期中有 '+k+' 个在 ±1 公里窗口内有 ≥5 个晴空像元。空缺为多云时段，如实留空而非插值。';} },
   'date': { en:function(dt){return dt.toDateString().slice(4);}, zh:function(dt){return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日';} },
@@ -867,19 +867,23 @@ function farm(){
     canopy = Math.round(canopyFromAge(age, space) * 2) / 2;
     if ($('fCanopy')) $('fCanopy').value = canopy;
   }
-  const eff = Math.min(100, num('fEff', 85)) / 100, area = num('fArea', 2);
+  // Area is entered in ACRES (the unit Malaysian growers actually use);
+  // convert to hectares internally so the density and volume math is unchanged.
+  const eff = Math.min(100, num('fEff', 85)) / 100, area = num('fArea', 5);
+  const areaHa = area * 0.404686;
   const canopyArea = Math.PI * Math.pow(canopy / 2, 2);
   const treesPerHa = 10000 / (space * space);
+  const treesPerAc = treesPerHa * 0.404686;
   // basal crop coefficient per unit canopy — leaf density thickens a little with age
   const kc = age < 3 ? 0.85 : age < 8 ? 0.92 : 0.98;
   const fc = Math.min(1, canopyArea / (space * space));   // fraction of ground shaded
-  return {name: $('fName').value || 'Plot', space, canopy, age, eff, area, auto,
-          canopyArea, treesPerHa, trees: Math.round(treesPerHa * area),
+  return {name: $('fName').value || 'Plot', space, canopy, age, eff, area, areaHa, auto,
+          canopyArea, treesPerHa, treesPerAc, trees: Math.round(treesPerHa * areaHa),
           kc, fc, stage: stageOf(age)};
 }
 function farmSummary(){
   const f = farm();
-  $('fSummary').textContent = T('farm.sum', f.trees, Math.round(f.treesPerHa), f.stage,
+  $('fSummary').textContent = T('farm.sum', f.trees, Math.round(f.treesPerAc), f.stage,
     f.canopyArea.toFixed(0), Math.round(f.fc * 100), f.kc);
 }
 
@@ -2287,6 +2291,7 @@ function chart(id, cfg){
   if (S.charts[id]) S.charts[id].destroy();
   cfg.options = Object.assign({
     responsive:true, maintainAspectRatio:false,
+    animation:false,     // charts are destroyed/recreated on every data arrival — replaying the entry animation each time reads as flicker
     interaction:{mode:'index', intersect:false},
     plugins:{legend:{labels:{color:'#8b98a5', boxWidth:10, font:{size:10}}}},
     scales:{x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}, y:{grid:GRID, ticks:TICK}}
