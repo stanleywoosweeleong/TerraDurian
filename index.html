@@ -838,8 +838,12 @@ var TPL = {
   'date': { en:function(dt){return dt.toDateString().slice(4);}, zh:function(dt){return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日';} },
   'wdate':{ en:function(dt){return dt.toDateString().slice(0,10);}, zh:function(dt){return (dt.getMonth()+1)+'月'+dt.getDate()+'日 '+T('wd',dt.getDay());} },
   'err': { en:function(s){return s;}, zh:function(s){ return ({
-      'answered, but with no pH or texture for this point — SoilGrids has gaps, and a coastal/hill pixel can fall in one. Open Farm setup (top bar) and tick "Enter my own soil test".':'有响应，但该点没有 pH 或质地数据——SoilGrids 存在空缺，海岸/山地像元可能正落在空缺中。请点击顶栏的「🌳 农场设置」，勾选「输入我的土壤检测」，填入你的土壤化验值。'
-    })[s]||s; } }
+      'answered, but with no pH or texture for this point or within ~2 km — SoilGrids has gaps, and a coastal/hill pixel can fall in one. Open Farm setup (top bar) and tick "Enter my own soil test".':'有响应，但该点及周边约 2 公里内都没有 pH 或质地数据——SoilGrids 存在空缺，海岸/山地像元可能正落在空缺中。请点击顶栏的「🌳 农场设置」，勾选「输入我的土壤检测」，填入你的土壤化验值。'
+    })[s]||s; } },
+  'soil.approx': {
+    en: function(km){ return 'Your exact point is a gap in the SoilGrids map — these values come from the nearest valid pixel, ~'+km+' km away. Nearby pixels here agree with each other closely, so this is a fair estimate; a lab test is still better.'; },
+    zh: function(km){ return '你的精确位置在 SoilGrids 地图中是一处空缺——这些数值来自约 '+km+' 公里外最近的有效像元。周边像元的数值彼此非常接近，因此这是合理的估计；土壤化验仍然更好。'; }
+  }
 };
 
 /* ═════════ CONTROLS (wired first — they must survive any later failure) ═════════ */
@@ -1208,19 +1212,45 @@ async function fetchSmap(){
   const field = $('smapUrl');
   const wurl = (field ? field.value : DEFAULT_SMAP_URL).trim();
   if (wurl){
-    const q = wurl + (wurl.includes('?') ? '&' : '?') + 'lat=' + S.lat + '&lon=' + S.lon
-            + '&days=' + (+$('range').value) + '&max=30';
-    const w = await jfetch(q, 30000);
-    if (w && w.obs && w.obs.length){
-      const surf = w.obs.map(o => ({date:o.date, v:o.sm_surface, n:1, flagged:o.flagged, vwc:o.vwc}));
-      S.smapLag = w.lag_days || null;
-      S.smapQA = w.qa || ''; S.smapFlagged = w.obs.filter(o => o.flagged).length;
-      S.smapVWC = median(w.obs.map(o => o.vwc).filter(v => v != null));
-      log('SMAP via Cloudflare Worker — ' + surf.length + ' obs (' + w.product + ')');
-      return {prod: w.product + ' (Worker)', bSurf:'soil_moisture', bRoot:null, surf, root:null,
+    const sep = wurl.includes('?') ? '&' : '?';
+    const base = wurl + sep + 'lat=' + S.lat + '&lon=' + S.lon;
+    // Cloudflare's 50-subrequest cap is PER INVOCATION, so pagination beats one big call:
+    // slice the range into 90-day windows and fetch them in parallel — 4 windows × 25
+    // granules ≈ 100 observations/year instead of 18. Old workers ignore ?end= and lack
+    // the `window` marker in the response; detect that and fall back to one legacy call.
+    const range = +$('range').value;
+    const nWin = Math.min(8, Math.ceil(range / 90));
+    const winDays = Math.ceil(range / nWin);
+    const wins = [];
+    for (let i = 0; i < nWin; i++)
+      wins.push(new Date(Date.now() - i * winDays * 864e5).toISOString().slice(0, 10));
+    let results = await Promise.all(wins.map(endD =>
+      jfetch(base + '&days=' + winDays + '&max=25&end=' + endD, 30000).catch(() => null)));
+    const paged = results.some(w => w && w.window);
+    if (!paged){
+      log('SMAP worker: deployed version pre-dates pagination — single call (redeploy tools/smap-worker.js for ~5× more points)');
+      results = [await jfetch(base + '&days=' + range + '&max=30', 30000)];
+    }
+    const byDate = {};
+    let product = null, qa = '', lag = null;
+    results.forEach(w => {
+      if (!w) return;
+      if (w.error && !w.obs) { log('SMAP worker window: ' + w.error); return; }
+      product = w.product || product; qa = w.qa || qa;
+      if (w.lag_days != null) lag = (lag == null) ? w.lag_days : Math.min(lag, w.lag_days);
+      (w.obs || []).forEach(o => { byDate[o.date] = o; });
+    });
+    const merged = Object.keys(byDate).sort().map(d => byDate[d]);
+    if (merged.length){
+      const surf = merged.map(o => ({date:o.date, v:o.sm_surface, n:1, flagged:o.flagged, vwc:o.vwc}));
+      S.smapLag = lag;
+      S.smapQA = qa; S.smapFlagged = merged.filter(o => o.flagged).length;
+      S.smapVWC = median(merged.map(o => o.vwc).filter(v => v != null));
+      log('SMAP via Cloudflare Worker — ' + surf.length + ' obs across '
+          + (paged ? nWin + ' windows' : '1 call') + ' (' + product + ')');
+      return {prod: product + ' (Worker)', bSurf:'soil_moisture', bRoot:null, surf, root:null,
               latest: surf.filter(r => r.v != null).slice(-1)[0], latestRoot:null};
     }
-    if (w && w.error) log('SMAP worker: ' + w.error);
   }
   // 2. a local smap.json from fetch_smap.py (desktop power-user path)
   try {
@@ -1364,28 +1394,10 @@ async function fetchTerrain(){
 }
 
 /* ── Soil: ISRIC SoilGrids (explicitly non-NASA) ── */
-async function fetchSoil(){
-  const props = ['phh2o','clay','sand','silt','soc','bdod'];
-  const u = 'https://rest.isric.org/soilgrids/v2.0/properties/query?lon=' + S.lon + '&lat=' + S.lat
-          + props.map(p => '&property=' + p).join('')
-          + '&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean';
-  const alt = 'https://api.openepi.io/soil/property?lat=' + S.lat + '&lon=' + S.lon
-            + '&depths=0-5cm&depths=5-15cm&depths=15-30cm&values=mean'
-            + props.map(p2 => '&properties=' + p2).join('');
-  let j;
-  try { j = await jfetch(u, 20000); }                 // ISRIC direct: slow, 429s, sometimes no CORS
-  catch(e1){
-    log('SoilGrids direct failed (' + e1.message + ') — retrying, then trying OpenEPI');
-    await new Promise(r2 => setTimeout(r2, 2000));
-    try { j = await jfetch(u, 20000); }
-    catch(e2){ j = await jfetch(alt, 20000); }        // OpenEPI re-serves SoilGrids, CORS-friendly
-  }
+const SOIL_PROPS = ['phh2o','clay','sand','silt','soc','bdod'];
+function soilParse(j){
   const layers = (j.properties && j.properties.layers) || j.layers || [];
-  if (!layers.length){
-    log('SoilGrids response had no layers. Top-level keys: ' + Object.keys(j || {}).join(', '));
-    throw new Error('the server answered but returned no soil layers');
-  }
-  log('SoilGrids layer sample: ' + JSON.stringify(layers[0]).slice(0, 260));
+  if (!layers.length) return null;
   const out = {};
   layers.forEach(L2 => {
     const key = L2.name || L2.code || L2.property;            // ISRIC: name · OpenEPI: code
@@ -1398,9 +1410,40 @@ async function fetchSoil(){
       .filter(v => v != null).map(v => v / dfac);
     if (key && vals.length) out[key] = avg(vals);             // mean over 0-30 cm
   });
-  if (out.phh2o == null && out.clay == null){
-    log('SoilGrids parsed keys: ' + Object.keys(out).join(', ') + ' (none usable)');
-    throw new Error('answered, but with no pH or texture for this point — SoilGrids has gaps, '
+  return (out.phh2o == null && out.clay == null) ? null : out;
+}
+async function soilQuery(lat, lon){
+  const u = 'https://rest.isric.org/soilgrids/v2.0/properties/query?lon=' + lon + '&lat=' + lat
+          + SOIL_PROPS.map(p => '&property=' + p).join('')
+          + '&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean';
+  const alt = 'https://api.openepi.io/soil/property?lat=' + lat + '&lon=' + lon
+            + '&depths=0-5cm&depths=5-15cm&depths=15-30cm&values=mean'
+            + SOIL_PROPS.map(p2 => '&properties=' + p2).join('');
+  let j;
+  try { j = await jfetch(u, 20000); }                 // ISRIC direct: slow, 429s, sometimes no CORS
+  catch(e1){
+    log('SoilGrids direct failed (' + e1.message + ') — retrying, then trying OpenEPI');
+    await new Promise(r2 => setTimeout(r2, 2000));
+    try { j = await jfetch(u, 20000); }
+    catch(e2){ j = await jfetch(alt, 20000); }        // OpenEPI mirror (down as of mid-2026, kept in case it returns)
+  }
+  return soilParse(j);
+}
+async function fetchSoil(){
+  let out = await soilQuery(S.lat, S.lon);
+  if (!out){
+    // The exact 250 m pixel is a real gap in SoilGrids (verified: this happens on this very farm).
+    // Neighbouring pixels usually have data, so probe N/S/E/W ~2 km out and take the first hit.
+    log('SoilGrids: exact pixel is a data gap — probing 4 neighbours ~2 km away');
+    const d = 0.018;                                   // ≈2 km
+    const ring = [[S.lat + d, S.lon], [S.lat - d, S.lon], [S.lat, S.lon + d], [S.lat, S.lon - d]];
+    const hits = await Promise.allSettled(ring.map(p => soilQuery(p[0], p[1])));
+    for (const h of hits){
+      if (h.status === 'fulfilled' && h.value){ out = h.value; out.approxKm = 2; break; }
+    }
+  }
+  if (!out){
+    throw new Error('answered, but with no pH or texture for this point or within ~2 km — SoilGrids has gaps, '
       + 'and a coastal/hill pixel can fall in one. Open Farm setup (top bar) and tick "Enter my own soil test".');
   }
   out.texture = textureOf(out.sand, out.silt, out.clay);
@@ -2169,6 +2212,7 @@ function renderSite(){
     const phNote = so.phh2o == null ? '' : so.phh2o < 5.5 ? 'below optimum — lime'
                  : so.phh2o > 6.5 ? 'above optimum' : 'in the 5.5–6.5 sweet spot';
     $('sSoilTbl').innerHTML = '<tbody>'
+      + (so.approxKm ? '<tr><td colspan="3" class="muted" style="font-size:11px">' + T('soil.approx', so.approxKm) + '</td></tr>' : '')
       + row('pH (H₂O)', fx(so.phh2o,1), '', phNote)
       + row('Texture', so.texture ? T('tex', so.texture) : '–', '', (so.clay >= 40 ? 'holds water — drainage risk' : 'workable'))
       + row('Clay', fx(so.clay,0), ' %', so.clay >= 40 ? 'heavy' : '')
