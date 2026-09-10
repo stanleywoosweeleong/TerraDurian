@@ -7,7 +7,7 @@
      with a cache fallback, so you always get fresh data when online but still see the last
      good pull when you are out in the field with no signal.
 */
-const VERSION = 'terradurian-v18';
+const VERSION = 'terradurian-v19';
 const SHELL = VERSION + '-shell';
 const DATA = VERSION + '-data';
 
@@ -36,7 +36,7 @@ const DATA_HOSTS = [
   'rest.isric.org',
   'api.openepi.io',
   'gibs.earthdata.nasa.gov',
-  'basemaps.cartocdn.com'
+  'services.arcgisonline.com'
 ];
 
 self.addEventListener('install', event => {

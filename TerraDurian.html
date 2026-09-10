@@ -1060,8 +1060,20 @@ function probeLayers(){
 guard('map', () => {
   if (typeof L === 'undefined') throw new Error('Leaflet failed to load from unpkg.');
   S.map = L.map('map', {center:[S.lat, S.lon], zoom:11, worldCopyJump:true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    {maxZoom:19, attribution:'© OpenStreetMap © CARTO'}).addTo(S.map);
+  /* Basemap: Esri dark canvas, no API key. (CARTO's public tiles started returning an
+     "API KEY REQUIRED" watermark baked into the image, so they had to go.) Esri splits
+     it into a label-free base and a transparent reference layer; we put the labels in
+     their own pane ABOVE the GIBS imagery, so place names and FELDA/kampung names stay
+     readable even with a satellite layer switched on. */
+  const ESRI = 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/';
+  const ESRI_ATTR = 'Tiles © Esri — Esri, DeLorme, HERE, © OpenStreetMap contributors';
+  L.tileLayer(ESRI + 'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:19, maxNativeZoom:16, attribution: ESRI_ATTR}).addTo(S.map);
+  S.map.createPane('labels');
+  S.map.getPane('labels').style.zIndex = 450;                  // above tiles (200), below markers (600)
+  S.map.getPane('labels').style.pointerEvents = 'none';        // clicks still set the pin
+  L.tileLayer(ESRI + 'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:19, maxNativeZoom:16, pane:'labels', opacity:0.9}).addTo(S.map);
   S.marker = L.marker([S.lat, S.lon], {draggable:true}).addTo(S.map);
   S.map.on('click', e => setPoint(e.latlng.lat, e.latlng.lng, false));
   S.marker.on('dragend', e => { const p = e.target.getLatLng(); setPoint(p.lat, p.lng, false); });
