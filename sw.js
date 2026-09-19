@@ -1,13 +1,16 @@
 /* TerraDurian service worker — makes the app installable and offline-capable.
 
    Strategy:
-   - APP SHELL (the HTML, icons, the two CDN libraries): cache-first, so the app opens
-     instantly and works with no connection.
+   - PAGE LOADS (the HTML itself): network-first with a 3 s timeout, then cache. A stale
+     cached page used to pin the app to an old build after a deploy; this prevents that
+     while still opening offline.
+   - OTHER SHELL ASSETS (icons, i18n.js, zh.json, the two CDN libraries):
+     stale-while-revalidate — instant from cache, refreshed in the background.
    - DATA APIs (NASA POWER, Open-Meteo, ORNL, GIBS tiles, your SMAP worker): network-first
      with a cache fallback, so you always get fresh data when online but still see the last
      good pull when you are out in the field with no signal.
 */
-const VERSION = 'terradurian-v19';
+const VERSION = 'terradurian-v20';
 const SHELL = VERSION + '-shell';
 const DATA = VERSION + '-data';
 
@@ -77,17 +80,39 @@ self.addEventListener('fetch', event => {
         return res;
       }).catch(() => caches.match(req))
     );
-  } else {
-    // shell: cache-first
-    event.respondWith(
-      caches.match(req).then(hit => hit || fetch(req).then(res => {
-        if (res && res.ok && (url.origin === self.location.origin
-              || url.hostname.endsWith('unpkg.com') || url.hostname.endsWith('cloudflare.com'))) {
-          const copy = res.clone();
-          caches.open(SHELL).then(c => c.put(req, copy));
-        }
-        return res;
-      }))
-    );
+    return;
   }
+
+  const cacheable = res => res && res.ok && (url.origin === self.location.origin
+    || url.hostname.endsWith('unpkg.com') || url.hostname.endsWith('cloudflare.com'));
+
+  // PAGE LOADS: network-first. The HTML must never be stale — a cached page can pin the
+  // app to an old build (old basemap, old text) long after a deploy. 3 s is plenty on a
+  // field connection; if the network is slower or absent we fall back to the cache, so
+  // offline still works.
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      Promise.race([
+        fetch(req),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('slow')), 3000))
+      ]).then(res => {
+        if (cacheable(res)) { const copy = res.clone(); caches.open(SHELL).then(c => c.put(req, copy)); }
+        return res;
+      }).catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // OTHER SHELL ASSETS (scripts, icons, zh.json, CDN libs): stale-while-revalidate —
+  // serve the cached copy instantly, then quietly refresh it for next time. Fast start,
+  // but a deploy is picked up on the following load instead of never.
+  event.respondWith(
+    caches.match(req).then(hit => {
+      const net = fetch(req).then(res => {
+        if (cacheable(res)) { const copy = res.clone(); caches.open(SHELL).then(c => c.put(req, copy)); }
+        return res;
+      }).catch(() => hit);
+      return hit || net;
+    })
+  );
 });
