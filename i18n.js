@@ -13,7 +13,8 @@
 (function () {
   'use strict';
   var LS = 'td_lang';
-  var lang = localStorage.getItem(LS) || 'en';
+  var lang = 'en';
+  try { lang = localStorage.getItem(LS) || 'en'; } catch (e) {}   // storage can be blocked
   var dict = {};
   var observer = null, timer = null;
   var orig = new WeakMap();
