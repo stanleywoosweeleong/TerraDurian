@@ -1135,7 +1135,11 @@ async function jfetch(url, ms){
     throw new Error('blocked — CORS, offline, or the host is down');
   }
   clearTimeout(to);
-  if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (r.statusText || ''));
+  if (!r.ok){
+    let why = '';
+    try { const b = await r.json(); why = String(b.reason || b.error || b.message || '').slice(0, 160); } catch(e){}
+    throw new Error('HTTP ' + r.status + (why && why !== 'true' ? ' — ' + why : ' ' + (r.statusText || '')));
+  }
   return r.json();
 }
 const P_PARAMS = ['T2M','T2M_MAX','T2M_MIN','RH2M','PRECTOTCORR','ALLSKY_SFC_SW_DWN',
@@ -1282,9 +1286,10 @@ async function fetchSmap(){
     const wins = [];
     for (let i = 0; i < nWin; i++)
       wins.push(new Date(Date.now() - i * winDays * 864e5).toISOString().slice(0, 10));
+    let werr = '';
     let results = await Promise.all(wins.map(endD =>
-      jfetch(base + '&days=' + winDays + '&max=25&end=' + endD, 30000).catch(() => null)));
-    if (results.every(w => !w)) throw new Error('no response from the worker');
+      jfetch(base + '&days=' + winDays + '&max=25&end=' + endD, 30000).catch(e => { werr = e.message; return null; })));
+    if (results.every(w => !w)) throw new Error(werr || 'no response from the worker');
     const paged = results.some(w => w && w.window);
     if (!paged){
       log('SMAP worker: deployed version pre-dates pagination — single call (redeploy tools/smap-worker.js for ~5× more points)');
@@ -1312,6 +1317,7 @@ async function fetchSmap(){
     }
     log('SMAP worker returned no observations — trying local smap.json, then ORNL');
   } catch(e){
+    S.smapWorkerErr = e.message;                     // shown in the SMAP panel if the fallbacks fail too
     log('SMAP worker failed (' + e.message + ') — trying local smap.json, then ORNL');
   }
   // 2. a local smap.json from fetch_smap.py (desktop power-user path)
@@ -1553,8 +1559,15 @@ async function fetchForecast(){
   const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + Q.lat + '&longitude=' + Q.lon
     + '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,'
     + 'relative_humidity_2m_mean,shortwave_radiation_sum,wind_speed_10m_max,et0_fao_evapotranspiration'
-    + '&forecast_days=16&past_days=7&timezone=auto';
-  const j = await jfetch(u, 15000);
+    + '&forecast_days=16&timezone=auto';
+  // Ask for the last 7 days as well. If that request is refused for any reason, fall back to
+  // the plain 16-day request — the forecast then still loads, only without the bridge.
+  let j;
+  try { j = await jfetch(u + '&past_days=7', 15000); }
+  catch(e){
+    log('forecast with past days failed (' + e.message + ') — retrying the plain forecast');
+    j = await jfetch(u, 15000);
+  }
   const d = j.daily;
   if (!d || !d.time) throw new Error('Open-Meteo returned no daily block');
   // POWER lags ~3 days. The past_days rows fill that gap so the forward projection starts
@@ -2667,7 +2680,7 @@ async function runOnce(){
   const manualSoil = (S.soil && S.soil.manual) ? S.soil : null;   // a typed-in soil test outlives a re-fetch
   S.ndvi = S.evi = S.lstD = S.lstN = S.terr = S.fc = S.fcPast = S.base = S.baseRaw = S.smap = S.era = null;
   S.soil = manualSoil; S.soilGrid = null;
-  S.smapLag = S.smapQA = S.smapFlagged = S.smapVWC = S.ornlProducts = S.ndviKeep = null;
+  S.smapLag = S.smapQA = S.smapFlagged = S.smapVWC = S.ornlProducts = S.ndviKeep = S.smapWorkerErr = null;
   setStatus('NASA POWER…', true);
   try {
     S.power = await fetchPower(+$('range').value);
@@ -2722,7 +2735,7 @@ async function runOnce(){
   const results = await Promise.all(jobs.map(async ([name, fn]) => {
     try { await fn(); log(name + ' ok'); return null; }
     catch(e){
-      S.errs[name] = e.message;
+      S.errs[name] = (name === 'SMAP' && S.smapWorkerErr ? 'SMAP worker: ' + S.smapWorkerErr + ' · then ORNL: ' : '') + e.message;
       log(name + ' unavailable: ' + e.message);
       renderSite(); renderSmap();                     // show the reason now, not after everything else
       return name;
