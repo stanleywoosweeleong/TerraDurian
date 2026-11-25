@@ -13,7 +13,7 @@
      the dates made relative (see dataKey), so yesterday's pull answers today's request
      offline, and each day's pull replaces the previous one instead of piling up.
 */
-const VERSION = 'terradurian-v21';
+const VERSION = 'terradurian-v22';
 const SHELL = VERSION + '-shell';
 const DATA = VERSION + '-data';
 

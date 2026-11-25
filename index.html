@@ -12,9 +12,12 @@
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./icon-192.png">
 <title>TerraDurian — NASA Earth Science Farm Intelligence</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+        integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous"></script>
 <style>
   :root{
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2430; --line:#2b3542;
@@ -642,6 +645,7 @@ const S = { lat:4.5, lon:101.9, power:null, base:null, ndvi:null, evi:null, lstD
 // The point the data on screen was fetched for. Frozen at the start of each run, so moving
 // the pin while requests are in flight cannot mix two locations into one dashboard.
 const Q = {lat:S.lat, lon:S.lon};
+let running = false, rerun = false;                 // see run()
 
 const fx  = (v, n) => (v == null || !isFinite(v)) ? '–' : (+v).toFixed(n);
 const col = s => s >= 75 ? '#4ade80' : s >= 50 ? '#fbbf24' : '#f87171';
@@ -878,6 +882,8 @@ function setPoint(lat, lon, fly){
                          + Math.abs(S.lon).toFixed(3) + '°' + (S.lon >= 0 ? 'E' : 'W');
   if (S.marker) S.marker.setLatLng([S.lat, S.lon]);
   if (fly && S.map) S.map.setView([S.lat, S.lon], Math.max(S.map.getZoom(), 11));
+  if (S.derived && !running && (S.lat !== Q.lat || S.lon !== Q.lon))
+    setStatus('pin moved — press Fetch all data to update');
 }
 /* Water use scales with the leaf area a tree actually carries, and age is simply the best
    proxy for that. So AGE → CANOPY DIAMETER → CANOPY AREA → litres. Kcb here is a coefficient
@@ -945,11 +951,11 @@ guard('controls', () => {
   $('impBtn').onclick = () => $('impFile').click();
   $('impFile').onchange = importJson;
   ['fName','fSpace','fCanopy','fAge','fEff','fArea'].forEach(id => {
-    $(id).oninput = () => { farmSummary(); if (S.derived) { renderIrrigation(); renderDurian(); } };
+    $(id).oninput = () => { farmSummary(); soilChanged(true); };   // Kc feeds the baseline as well as the live balance
   });
   $('fAuto').onchange = () => {
     $('fCanopy').disabled = $('fAuto').checked;
-    farmSummary(); if (S.derived){ renderIrrigation(); renderDurian(); }
+    farmSummary(); soilChanged(true);
   };
   $('fCanopy').disabled = true;
   const applyManualSoil = () => {
@@ -957,7 +963,7 @@ guard('controls', () => {
     ['mPh','mClay','mSand'].forEach(id => $(id).disabled = !on);
     if (on){
       const ph = parseFloat($('mPh').value), clay = parseFloat($('mClay').value), sand = parseFloat($('mSand').value);
-      if (isFinite(clay) && isFinite(sand)){               // ignore half-typed values
+      if (isFinite(clay) && isFinite(sand) && clay >= 0 && sand >= 0 && clay + sand <= 100){   // ignore half-typed or impossible values
         const silt = Math.max(0, 100 - clay - sand);
         S.soil = {phh2o: isFinite(ph) ? ph : null, clay:clay, sand:sand, silt:silt, soc:null, bdod:null,
                   texture: textureOf(sand, silt, clay), manual: true};
@@ -1845,13 +1851,14 @@ function baseline(b){
   };
 }
 
-/* Soil texture sets TAW, and TAW drives the whole stress model — so whenever the soil
-   changes (SoilGrids arrives, a manual test is typed in or switched off) everything that
-   depends on it is recomputed, instead of depending on which request happened to land last. */
-function soilChanged(){
+/* Soil texture sets TAW and the farm inputs set Kc; together they drive the whole stress
+   model. So whenever either changes (SoilGrids arrives, a manual test is typed in or switched
+   off, tree age is edited) everything that depends on them is recomputed — live balance and
+   10-year baseline alike — instead of depending on which request happened to land last. */
+function soilChanged(farmOnly){
   if (S.power) S.derived = derive(S.power);
   if (S.baseRaw){ S.base = baseline(S.baseRaw); renderBaseline(); }
-  renderSite();
+  if (!farmOnly) renderSite();                     // the site panel does not depend on farm inputs
   if (S.derived){ renderDurian(); renderIrrigation(); renderCharts(); }
 }
 
@@ -2123,7 +2130,6 @@ function renderIrrigation(){
     const ca = Math.PI * Math.pow(c/2, 2);
     const k = a < 3 ? 0.85 : a < 8 ? 0.92 : 0.98;
     const L = et0now * k * ca / f.eff;
-    const hi = a === f.age || (a <= f.age && a === ages[ages.length-1]);
     return '<tr' + (Math.abs(a - f.age) < 1.5 ? ' style="background:#1c2430"' : '') + '>'
       + '<td>' + T('ir.yr', a) + '<span class="muted">' + T('stage', stageOf(a)) + '</span></td>'
       + '<td class="num">' + c.toFixed(1) + ' m</td>'
@@ -2346,6 +2352,10 @@ function renderSite(){
 /* ═════════ RENDER — BASELINE ═════════ */
 function renderBaseline(){
   const b = S.base; if (!b) return;
+  if (b.rainAnomPct == null){                      // no complete month in the record — nothing honest to show
+    $('bAnom').innerHTML = '<div class="muted">—</div>'; $('bInduct').innerHTML = '<div class="muted">—</div>';
+    return;
+  }
   const rp = b.rainAnomPct;
   let ta = b.tAnom;
   if (ta != null && Math.abs(ta) < 0.005) ta = 0;   // avoid printing '-0.00'
@@ -2562,7 +2572,7 @@ function savePlot(){
   S.plots.push({name: d.farm.name, lat: Q.lat, lon: Q.lon, total: sc.total,
     items: sc.items.map(i => ({k:i.k, s:i.s})),
     rain: d.rainAnnual, tMean: d.tMean, bestDry: d.bestDry,
-    slope: S.terr ? S.terr.slopePct : null, elev: (S.terr && S.terr.elevDem) || d.elev,
+    slope: S.terr ? S.terr.slopePct : null, elev: (S.terr && S.terr.elevDem != null) ? S.terr.elevDem : d.elev,
     ph: S.soil ? S.soil.phh2o : null, texture: S.soil ? S.soil.texture : null,
     trees: d.farm.trees, litres: d.litres30});
   renderCompare();
@@ -2643,7 +2653,6 @@ function exportCsv(){
 /* ═════════ ORCHESTRATE ═════════ */
 // One run at a time. A request that arrives mid-run (GPS fix, a second click) is queued and
 // starts when the current run has finished, against the then-current pin.
-let running = false, rerun = false;
 async function run(){
   if (running){ rerun = true; return; }
   running = true;
@@ -2664,8 +2673,10 @@ async function runOnce(){
     S.power = await fetchPower(+$('range').value);
     S.derived = derive(S.power);
     log('POWER ok — ' + S.power.date.length + ' days, elevation ' + fx(S.power.elev, 0) + ' m');
-    renderDurian(); renderCharts(); renderIrrigation(); renderSite();
     $('csv').disabled = $('saveBtn').disabled = $('printBtn').disabled = false;
+    // Rendering is reported under its own name: a drawing problem (e.g. Chart.js blocked)
+    // must not be announced as "POWER failed" when the data arrived fine.
+    guard('render', () => { renderDurian(); renderIrrigation(); renderSite(); renderCharts(); });
   } catch(e){
     fail('POWER', e);
     setStatus('POWER failed');

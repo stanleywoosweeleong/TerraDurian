@@ -22,7 +22,7 @@ The page, `i18n.js` and `zh.json` are fetched network-first, so returning visito
 a new deploy on their next online load without any extra step. Icons and the two CDN
 libraries are served from cache and refreshed in the background.
 
-Bump the version string in `sw.js` (e.g. `terradurian-v21` → `-v22`) when you want to
+Bump the version string in `sw.js` (e.g. `terradurian-v22` → `-v23`) when you want to
 throw away everything cached on visitors' devices — for example after changing how
 data responses are cached.
 
