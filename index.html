@@ -1166,8 +1166,8 @@ var TPL = {
       return s; } },
   'where': { en:function(s){return s;}, zh:function(s){ return ({Import:'导入', Uncaught:'未捕获的错误', Promise:'异步错误', render:'渲染', controls:'控件', map:'地图', POWER:'POWER'})[s] || s; } },
   'st.powerkept': { en:function(la,lo){return 'POWER failed — still showing '+la+', '+lo;}, zh:function(la,lo){return 'POWER 获取失败——仍显示 '+la+', '+lo+' 的数据';} },
-  'w.gap': { en:function(n){return '⚠ '+n+' day'+(n===1?'':'s')+' between the last observed day and the forecast have no data, so the projection skips them. Fetch again when the sources are reachable.';},
-             zh:function(n){return '⚠ 最近观测日与预报之间有 '+n+' 天没有数据，推算跳过了这些天。数据源恢复后请重新获取。';} },
+  'w.gap': { en:function(n){return '⚠ '+n+' day'+(n===1?'':'s')+' between the last observed day and today have no data. The count of consecutive stress days restarts after them, and the depletion shown is an estimate. Fetch again when the sources are reachable.';},
+             zh:function(n){return '⚠ 最近观测日到今天之间有 '+n+' 天没有数据。连续胁迫天数在这些天之后重新计数，显示的亏缺为估计值。数据源恢复后请重新获取。';} },
   'a.chronic': { en:function(dep,run,trig,max){return 'Root zone is <b>'+dep+'% depleted</b> and has been past the stress threshold for <b>'+run+' consecutive days</b>. An induction window is roughly '+trig+'–'+max+' days of stress; this long is a standing deficit that costs growth and fruit. Check that Farm setup matches your trees and soil, then irrigate.';},
                  zh:function(dep,run,trig,max){return '根区已亏缺 <b>'+dep+'%</b>，且已连续 <b>'+run+' 天</b>超过胁迫阈值。催花窗口大约是 '+trig+'–'+max+' 天的胁迫；持续这么久已属长期缺水，会影响生长和结果。请确认农场设置与你的树和土壤相符，然后灌溉。';} },
   'fl.cTitle': { en:function(n){return 'Stressed for '+n+' days — past any induction window';}, zh:function(n){return '已胁迫 '+n+' 天——早已超过催花窗口';} },
@@ -1338,7 +1338,7 @@ var TPL_MS = {
   'fc.partialT': function(){ return 'Ramalan tidak lengkap'; },
   'fc.partial': function(n,t){ return '<b>'+n+'</b> daripada '+t+' hari tiba tanpa nilai hujan. Jumlah dan nasihat tempoh kering tidak diberikan untuk hari yang tiada data.'; },
   'st.powerkept': function(la,lo){ return 'POWER gagal — masih memaparkan '+la+', '+lo; },
-  'w.gap': function(n){ return '⚠ '+n+' hari antara hari cerapan terakhir dan ramalan tiada data, jadi unjuran melangkaunya. Ambil semula apabila sumber boleh dihubungi.'; },
+  'w.gap': function(n){ return '⚠ '+n+' hari antara hari cerapan terakhir dan hari ini tiada data. Kiraan hari tegasan berturut-turut bermula semula selepasnya, dan susutan yang dipaparkan ialah anggaran. Ambil semula apabila sumber boleh dihubungi.'; },
   'a.chronic': function(dep,run,trig,max){ return 'Zon akar <b>susut '+dep+'%</b> dan telah melepasi ambang tegasan selama <b>'+run+' hari berturut-turut</b>. Tetingkap aruhan ialah kira-kira '+trig+'–'+max+' hari tegasan; selama ini ialah defisit berpanjangan yang menjejaskan pertumbuhan dan buah. Pastikan Tetapan kebun sepadan dengan pokok dan tanah anda, kemudian siram.'; },
   'fl.cTitle': function(n){ return 'Dalam tegasan selama '+n+' hari — sudah melepasi mana-mana tetingkap aruhan'; },
 
@@ -2705,19 +2705,28 @@ function knownAhead(){                       // the leading run of usable foreca
   for (let i = 0; S.fc && i < S.fc.length && known(S.fc[i]); i++) out.push(S.fc[i]);
   return out;
 }
-// Days between the last observed POWER day and today, from Open-Meteo's recent past.
+/* The days between the last observed POWER day and today, in calendar order, one entry per
+   day: {date, row} where row is that day's Open-Meteo values, or null if the day is missing
+   or its rain / ET₀ is unknown.
+   Every KNOWN day is kept and applied — a 100 mm storm three days ago must count even if
+   the day after it is missing. An UNKNOWN day is reported to the caller, which must not
+   carry a run of consecutive stress (or dry) days across it: the run is only "consecutive"
+   if every day in it is known. */
 function bridgeDays(after){
-  if (!S.fcPast || !after) return [];
-  // only the unbroken stretch of known days immediately before today; anything earlier than a
-  // hole is dropped, and the days it leaves uncovered are counted as a gap by the callers
-  const rows = S.fcPast.filter(x => x.date > after);
-  let i = rows.length; while (i > 0 && known(rows[i - 1])) i--;
-  return rows.slice(i);
+  if (!after || !S.fc || !S.fc.length) return [];
+  const byDate = {};
+  (S.fcPast || []).forEach(x => { if (known(x)) byDate[x.date] = x; });
+  const out = [], n = Math.min(400, dayDiff(after, S.fc[0].date) - 1);       // S.fc[0] is today
+  for (let k = 1; k <= n; k++){
+    const date = new Date(Date.parse(after + 'T00:00:00Z') + k * 864e5).toISOString().slice(0, 10);
+    out.push({date, row: byDate[date] || null});
+  }
+  return out;
 }
 function forwardDry(){                       // extend the current dry spell using the forecast
   if (!S.fc || !S.derived) return null;
   let spell = S.derived.dry;
-  bridgeDays(S.derived.dryDate).forEach(x => { if (x.rain < 1) spell++; else spell = 0; });
+  bridgeDays(S.derived.dryDate).forEach(b => { if (b.row && b.row.rain < 1) spell++; else spell = 0; });   // rain OR an unknown day ends the spell
   const ahead = knownAhead();
   let d = 0;
   for (let i = 0; i < ahead.length; i++){
@@ -2748,12 +2757,11 @@ function forwardStress(){
     if (stressed) run++; else run = 0;
     return stressed;
   };
-  // Days with no data between the last computed day and the first day we can step through.
-  // The past_days bridge covers a week; an old saved POWER copy, or a forecast that came
-  // back without past days, leaves a hole — reported, never silently skipped.
-  const br = bridgeDays(d.wbDate);
-  const gap = Math.max(0, dayDiff(d.wbDate, (br[0] || ahead[0]).date) - 1);
-  br.forEach(step);
+  // Walk the lag day by day. Known days move the balance. A day with no data cannot: the
+  // depletion is carried over unchanged (and the hole is reported), but the count of
+  // CONSECUTIVE stress days restarts — nine confirmed days plus an unknown one is not ten.
+  let gap = 0;
+  bridgeDays(d.wbDate).forEach(b => { if (b.row) step(b.row); else { gap++; run = 0; } });
   const depToday = Dr / taw, runToday = run, ksToday = ksOf();
   const path = [];
   let hitDay = null;
@@ -2939,7 +2947,7 @@ function renderIrrigation(){
   let today, tSrc, week = null;
   const ahead = knownAhead();
   if (ahead.length){
-    bridgeDays(dd.wbDate).forEach(irrStep);
+    bridgeDays(dd.wbDate).forEach(b => { if (b.row) irrStep(b.row); });      // known days only; unknown ones leave the store as it was
     week = ahead.slice(0, 7).map(irrStep);
     today = week[0].need;
     tSrc = T('ir.todaySrc', fx(week[0].etc,1), fx(week[0].x.rain,1), fx(f.canopyArea,0), Math.round(f.eff*100));

@@ -147,7 +147,7 @@ function dateOf(e) { const t = e.time_start || e.updated || ''; return t ? t.sli
 // is 0–1, vegetation water content usually above 1) is wrong over sparse vegetation, where
 // vegetation water content is itself below 1 and would be reported as soil moisture.
 // If the names cannot be read (an unexpected response shape), the size rule is the fallback,
-// but a pair in which BOTH numbers could be soil moisture is rejected rather than guessed.
+// and it accepts a reading only when the pair itself proves which value is which.
 const WANT = ['soil_moisture', 'vegetation_water_content', 'soil_moisture_pm', 'vegetation_water_content_pm'];
 function dmrOrder(buf, dataStart) {
   // the DMR is plain XML; latin1 keeps byte positions and never throws on the binary tail
@@ -173,11 +173,15 @@ function readDap(buf, nVars) {
     const pair = (smName, vwcName) => smOk(val(smName)) ? { sm: val(smName), vwc: vwcOk(val(vwcName)) ? val(vwcName) : null } : null;
     r = pair('soil_moisture', 'vegetation_water_content') || pair('soil_moisture_pm', 'vegetation_water_content_pm');   // AM preferred
   } else {
+    // Without names, a value can only be called soil moisture if its partner PROVES which is
+    // which: one number in the soil-moisture range and the other above 1, where only
+    // vegetation water content can be. Anything else is refused — in particular a lone value
+    // under 1 beside a fill value, which may be vegetation water with the soil moisture missing.
     const pick = (a, b) => {                            // one AM/PM pair by size -> {sm, vwc} or null
-      const x = v(a), y = v(b);
-      if (smOk(x) && smOk(y)) return null;              // ambiguous: either could be soil moisture — do not guess
-      const sm = smOk(x) ? x : smOk(y) ? y : null, other = smOk(x) ? y : x;
-      return sm != null ? { sm, vwc: (other > 1 && other < 100) ? other : null } : null;
+      const x = v(a), y = v(b), isVwc = n => n > 1 && n < 100;
+      if (smOk(x) && isVwc(y)) return { sm: x, vwc: y };
+      if (smOk(y) && isVwc(x)) return { sm: y, vwc: x };
+      return null;
     };
     r = pick(0, 1) || pick(2, 3);
   }
