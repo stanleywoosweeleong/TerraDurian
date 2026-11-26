@@ -834,6 +834,7 @@ var TPL = {
   'pill.rh':  { en:function(rh,w){return rh+'% RH · peak '+w+' m/s';}, zh:function(rh,w){return '湿度 '+rh+'% · 峰值 '+w+' m/s';} },
   'pill.lst': { en:function(v){return v+' °C day';}, zh:function(v){return '白天 '+v+' °C';} },
   'pill.na':  { en:function(){return 'unavailable';}, zh:function(){return '不可用';} },
+  'pill.loading':{ en:function(){return 'loading…';}, zh:function(){return '加载中…';} },
   'st.failed':{ en:function(list){return 'loaded · failed: '+list;}, zh:function(list){return '已加载 · 失败：'+list;} },
 
   /* ── chart labels & axis titles (Chart.js draws on canvas, so these must be fed in localized) ── */
@@ -2572,14 +2573,15 @@ function pills(){
   const tw = d.tws[d.tws.length-1];
   set('pTws',   (tw >= 0 ? '+' : '') + fx(tw,0) + ' mm', tw < -150 ? 'bad' : '');
   const sm = S.smap && S.smap.latest;
-  set('pSmap', sm ? fx(sm.v,3) + ' m³/m³' : T('pill.na'),
+  const na = job => (S.pending && S.pending.has(job)) ? T('pill.loading') : T('pill.na');
+  set('pSmap', sm ? fx(sm.v,3) + ' m³/m³' : na('SMAP'),
       sm ? (sm.v > 0.35 ? 'bad' : sm.v < 0.12 ? 'warn' : 'good') : '');
   if (S.smap && $('smapSrc')) $('smapSrc').textContent = S.smap.prod + ' · ' + S.smap.bSurf
     + (S.smap.bRoot ? ' + ' + S.smap.bRoot : '') + ' · 9 km';
   const nv = S.ndvi && S.ndvi.filter(r => r.v != null).slice(-1)[0];
-  set('pNdvi',  nv ? 'NDVI ' + fx(nv.v,2) : T('pill.na'), nv ? (nv.v >= .7 ? 'good' : nv.v >= .5 ? 'warn' : 'bad') : '');
+  set('pNdvi',  nv ? 'NDVI ' + fx(nv.v,2) : na('MODIS'), nv ? (nv.v >= .7 ? 'good' : nv.v >= .5 ? 'warn' : 'bad') : '');
   const lv = S.lstD && S.lstD.filter(r => r.v != null).slice(-1)[0];
-  set('pLst',   lv ? T('pill.lst', fx(lv.v,1)) : T('pill.na'), lv ? (lv.v > 40 ? 'bad' : 'good') : '');
+  set('pLst',   lv ? T('pill.lst', fx(lv.v,1)) : na('MODIS'), lv ? (lv.v > 40 ? 'bad' : 'good') : '');
 }
 
 /* ═════════ COMPARE / EXPORT ═════════ */
@@ -2717,15 +2719,30 @@ async function runOnce(){
         if (!(S.soil && S.soil.manual)){ S.soil = so; soilChanged(); }   // ticked while we were waiting?
       }],
     ['MODIS',    async () => {
-        const dN = await modisDates('MOD13Q1'), dL = await modisDates('MOD11A2');
-        S.ndvi = await modisBand('MOD13Q1', '250m_16_days_NDVI', dN, Math.min(24, dN.length), '250m_16_days_pixel_reliability');
-        S.evi  = await modisBand('MOD13Q1', '250m_16_days_EVI',  dN, Math.min(24, dN.length), '250m_16_days_pixel_reliability');
-        const lD = await modisBand('MOD11A2', 'LST_Day_1km',   dL, Math.min(30, dL.length));
-        const lN = await modisBand('MOD11A2', 'LST_Night_1km', dL, Math.min(30, dL.length));
-        const toC = r => ({date:r.date, v: r.v ? +(r.v - 273.15).toFixed(1) : null});
-        S.lstD = lD.map(toC); S.lstN = lN.map(toC);
-        S.ndviKeep = S.ndvi.filter(r => r.v != null).length;
-        renderModis(); pills(); renderDurian();
+        // The vegetation and temperature products are independent, and so are their bands, so
+        // they are pulled side by side — one after another this was ~17 round-trips in a row
+        // and by far the slowest part of a Fetch. Each half paints as soon as it lands.
+        const veg = (async () => {
+          const dN = await modisDates('MOD13Q1'), n = Math.min(24, dN.length);
+          const [nd, ev] = await Promise.all([
+            modisBand('MOD13Q1', '250m_16_days_NDVI', dN, n, '250m_16_days_pixel_reliability'),
+            modisBand('MOD13Q1', '250m_16_days_EVI',  dN, n, '250m_16_days_pixel_reliability')]);
+          S.ndvi = nd; S.evi = ev;
+          S.ndviKeep = S.ndvi.filter(r => r.v != null).length;
+          renderModis(); pills(); renderDurian();
+        })();
+        const lst = (async () => {
+          const dL = await modisDates('MOD11A2'), n = Math.min(30, dL.length);
+          const [lD, lN] = await Promise.all([
+            modisBand('MOD11A2', 'LST_Day_1km',   dL, n),
+            modisBand('MOD11A2', 'LST_Night_1km', dL, n)]);
+          const toC = r => ({date:r.date, v: r.v ? +(r.v - 273.15).toFixed(1) : null});
+          S.lstD = lD.map(toC); S.lstN = lN.map(toC);
+          renderModis(); pills();
+        })();
+        const done = await Promise.allSettled([veg, lst]);     // one half failing must not hide the other
+        const bad = done.filter(x => x.status === 'rejected');
+        if (bad.length) throw bad[0].reason;
       }],
     ['SMAP', async () => { S.smap = await fetchSmap(); renderSmap(); renderCharts(); }],
     ['baseline', async () => {
@@ -2737,9 +2754,12 @@ async function runOnce(){
   ];
   setStatus('forecast · terrain · soil · MODIS · baseline…', true);
   S.errs = {};
+  S.pending = new Set(jobs.map(j => j[0]));          // still in flight → pills say "loading…", not "unavailable"
+  pills();
   const results = await Promise.all(jobs.map(async ([name, fn]) => {
-    try { await fn(); log(name + ' ok'); return null; }
+    try { await fn(); S.pending.delete(name); pills(); log(name + ' ok'); return null; }
     catch(e){
+      S.pending.delete(name); pills();
       S.errs[name] = (name === 'SMAP' && S.smapWorkerErr ? 'SMAP worker: ' + S.smapWorkerErr + ' · then ORNL: ' : '') + e.message;
       log(name + ' unavailable: ' + e.message);
       renderSite(); renderSmap();                     // show the reason now, not after everything else
