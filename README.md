@@ -3,12 +3,12 @@
 An installable web app (PWA) that reads a durian farm from orbit: soil moisture,
 flowering induction, irrigation, terrain, soil, and a 16-day forecast — built on open
 NASA data (POWER, MODIS, GIBS), ERA5-Land, and live SMAP via a Cloudflare Worker.
-Bilingual English / 简体中文.
+Three languages: English / 简体中文 / Bahasa Melayu.
 
 ## Deploy on GitHub Pages
 1. Put every file in this repository into your repo root.
    Required for the website:
-     index.html   manifest.webmanifest   sw.js   i18n.js   zh.json
+     index.html   manifest.webmanifest   sw.js   i18n.js   zh.json   ms.json
      icon-192.png   icon-512.png
      icon-192-maskable.png   icon-512-maskable.png   apple-touch-icon.png
    `TerraDurian.html` is only a redirect to `index.html`, kept so old links still work.
@@ -18,11 +18,11 @@ Bilingual English / 简体中文.
 GitHub Pages already serves over HTTPS, which the PWA (install + offline) needs.
 
 ## Updating later
-The page, `i18n.js` and `zh.json` are fetched network-first, so returning visitors get
+The page, `i18n.js`, `zh.json` and `ms.json` are fetched network-first, so returning visitors get
 a new deploy on their next online load without any extra step. Icons and the two CDN
 libraries are served from cache and refreshed in the background.
 
-Bump the version string in `sw.js` (e.g. `terradurian-v28` → `-v29`) when you want to
+Bump the version string in `sw.js` (e.g. `terradurian-v29` → `-v30`) when you want to
 throw away everything cached on visitors' devices — for example after changing how
 data responses are cached.
 
@@ -50,6 +50,12 @@ separate Earthdata account made only for this Worker (it must accept the NSIDC D
 
 The desktop helpers (`fetch_smap.py`, `diagnose_smap.py`, `Get SMAP data.bat`) are not
 included in this repository.
+
+## Languages
+English is the source text. `zh.json` and `ms.json` map each fixed English string to its
+translation; sentences that carry live numbers are per-language templates in `index.html`
+(`TPL`, with Malay in `TPL_MS`). To correct a translation, edit the matching entry there.
+The Fetch log is always in English — it is a diagnostic record.
 
 ## Notes
 - Soil (ISRIC SoilGrids) and the forecast (Open-Meteo) are non-NASA sources, badged

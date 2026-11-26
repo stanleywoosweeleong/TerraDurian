@@ -665,10 +665,11 @@ const median = a => {
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 /* ── language-aware templates for number-bearing dynamic strings ──
-   The app owns the numbers; each template supplies English AND Chinese, so a
-   sentence with an interpolated value translates as a whole (Chinese word order
-   differs from English, so fragment-by-fragment swapping cannot work here). */
-function tr(s){ return (TDLANG() === 'zh' && window.__tdDict && window.__tdDict[s]) || s; }
+   The app owns the numbers; each template supplies English and Chinese here, and Malay
+   in the TPL_MS block below, so a sentence with an interpolated value translates as a
+   whole (word order differs between languages, so fragment-by-fragment swapping cannot
+   work here). A template with no entry for the chosen language falls back to English. */
+function tr(s){ return (TDLANG() !== 'en' && window.__tdDict && window.__tdDict[s]) || s; }
 function TDLANG(){ try { return localStorage.getItem('td_lang') || 'en'; } catch(e){ return 'en'; } }
 function T(key){
   var a = [].slice.call(arguments, 1), e = TPL[key];
@@ -922,12 +923,205 @@ var TPL = {
   'tile.avail': { en:function(ok,n,d){return ok+' of '+n+' layers available on '+d;}, zh:function(ok,n,d){return d+'：'+n+' 个图层中有 '+ok+' 个可用';} },
   'tile.switched':{ en:function(n){return ' · switched to '+n;}, zh:function(n){return ' · 已切换到 '+n;} },
   'u.satfrac':  { en:function(){return ' sat. frac.';}, zh:function(){return '（饱和度）';} },
+  'centre':     { en:function(){return 'centre';}, zh:function(){return '中心';} },
   'u.9km':      { en:function(){return '9 km';}, zh:function(){return '9 公里';} },
   'soil.approx': {
     en: function(km){ return 'Your exact point is a gap in the SoilGrids map — these values come from the nearest valid pixel, ~'+km+' km away. Nearby pixels here agree with each other closely, so this is a fair estimate; a lab test is still better.'; },
     zh: function(km){ return '你的精确位置在 SoilGrids 地图中是一处空缺——这些数值来自约 '+km+' 公里外最近的有效像元。周边像元的数值彼此非常接近，因此这是合理的估计；土壤化验仍然更好。'; }
   }
 };
+
+/* ── Bahasa Melayu ──
+   The Malay wording for every template above, kept in one block so it can be read and
+   corrected as a whole. Attached to TPL just below; a key missing here falls back to English. */
+var TPL_MS = {
+  'drain.knoll': function(sp,tpi){ return 'Kecerunan hanya <b>'+sp+'%</b>, tetapi titik anda terletak <b>'+tpi+' m lebih tinggi daripada tanah di sekelilingnya</b> — satu titik tinggi setempat. Air mengalir ke semua arah dan tidak berkumpul, jadi ini <i>bukan</i> perangkap dasar rata yang membunuh durian. Tanah cembung yang meninggi antara tapak terbaik untuk menanam. Pastikan puncaknya tidak terhalang dan jangan benarkan sesiapa membina jalan atau batas yang mengempang bahagian bawah cerun.'; },
+  'drain.hollow': function(ab,sp){ return 'Titik anda terletak <b>'+ab+' m lebih rendah</b> daripada tanah di sekelilingnya, pada kecerunan <b>'+sp+'%</b>. Air mengalir <i>ke arah</i> anda dan tiada jalan keluar. Inilah keadaan klasik untuk <i>Phytophthora palmivora</i> (kanser batang dan reput akar), dan ia mengatasi setiap angka cuaca yang baik pada papan pemuka. Busut tinggi (60–100 cm) dan rangkaian saliran yang sebenar adalah wajib di sini.'; },
+  'drain.flat': function(sp){ return 'Kecerunan <b>'+sp+'%</b> tanpa tanah tinggi atau lekuk setempat. Air akan bergerak perlahan. Tidak membawa maut, tetapi tanamlah di atas busut dan gali parit. Jalan di plot selepas hujan lebat dan lihat di mana lopak terbentuk — DEM beresolusi 90 m dan tidak dapat melihat lekukan cetek sebesar sebatang pokok.'; },
+  'drain.ideal': function(sp,asp){ return 'Cerun <b>'+sp+'%</b> mengalirkan air tanpa menghakis. Inilah tanah yang durian mahukan, dan sebab dusun tradisional terletak di lereng bukit. Aspek '+asp+'.'; },
+  'drain.steep': function(sp){ return '<b>'+sp+'%</b>. Saliran sangat baik, tetapi jangkakan kehilangan tanah atas dan laluan jentera yang sukar. Buat teres, dan kekalkan tanaman penutup bumi yang hidup.'; },
+  'drain.vsteep': function(sp){ return '<b>'+sp+'%</b> — risiko hakisan teruk, berbahaya semasa menuai, dan baja hanyut sebelum sempat digunakan pokok.'; },
+  'drain.clay': function(c){ return 'Tanah liat <b>'+c+'%</b>. Cerun yang baik pun tidak dapat menyelamatkan lapisan keras tanah liat — air bertakung di atasnya. Pertimbangkan pembajakan dalam sebelum menanam.'; },
+  'drain.noterr': function(err){ return (err ? 'Kedua-dua sumber DEM gagal — '+err+'. ' : '') + 'Oleh itu skor saliran beralih kepada kelembapan zon akar MERRA-2 — purata model ~50 km yang tidak dapat melihat kebun anda. Ragui angka saliran ini sehingga data dimuatkan. Kedua-dua hos gagal serentak biasanya bermakna masalah rangkaian seketika — tekan <b>Ambil semua data</b> sekali lagi.'; },
+  'lf': function(x){ return ({knoll:'bonggol',hollow:'lekuk',planar:'satah rata',flat:'rata'})[x] || x; },
+  'smap.caveatTitle': function(p){ return 'NASA menandakan '+p+'% bacaan ini sebagai tidak boleh dipercayai'; },
+  'smap.caveatBody': function(vwc,ratio){ return 'Kandungan air tumbuhan di atas kebun anda ialah <b>'+vwc+' kg/m²</b>. Bacaan jalur-L SMAP dipercayai di bawah kira-kira <b>5 kg/m²</b>; melebihi nilai itu ia tidak dapat memisahkan pancaran tanah daripada pancaran kanopi dengan bersih. Kanopi durian anda yang tertutup adalah kira-kira <b>'+ratio+'×</b> melebihi had itu.<br><br><b>Jadi bacalah angka ini sebagai trend, bukan ukuran.</b> Nilai mutlak (~0.28 m³/m³) membawa ketidakpastian yang nyata — besar kemungkinan ±0.06 atau lebih teruk. Yang mungkin masih boleh dipercayai ialah <i>bentuknya</i>: sama ada tanah sedang mengering atau membasah, dan lebih kurang bila. Itulah yang diperlukan oleh pengesahan model, jadi perbandingan ini masih berbaloi dibuat — tetapi korelasi yang lemah adalah kabur maknanya. Ia mungkin bermakna imbangan air saya salah, atau sekadar SMAP terlalu hingar di sini untuk menilainya. Korelasi yang <b>baik</b> benar-benar bermaklumat; korelasi yang buruk bukan bukti kesalahan.'; },
+  'stage': function(s){ return ({seedling:'anak benih',juvenile:'juvenil',establishing:'sedang mantap',bearing:'berbuah',mature:'matang'})[s] || s; },
+  'tex': function(s){ return ({'clay':'tanah liat','sandy clay':'tanah liat berpasir','silty clay':'tanah liat berkelodak','clay loam':'lom tanah liat','sandy clay loam':'lom tanah liat berpasir','silty clay loam':'lom tanah liat berkelodak','loam':'lom','sandy loam':'lom berpasir','silt loam':'lom berkelodak','silt':'kelodak','loamy sand':'pasir berlom','sand':'pasir'})[String(s).toLowerCase()] || s; },
+  'mon': function(m){ return ['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogo','Sep','Okt','Nov','Dis'][m]; },
+  'dsname': function(s){ return ({forecast:'ramalan',terrain:'rupa bumi',soil:'tanah',baseline:'garis dasar iklim','ERA5-Land soil':'tanah ERA5-Land'})[s] || s; },
+
+  'sc.mean': function(v){ return 'purata '+v+' °C'; },
+  'sc.heat': function(n){ return n+' hari >35 °C dalam 30 hari'; },
+  'sc.rain': function(v,x){ return v+' mm/tahun'+(x?' (diekstrapolasi — guna 12 bulan)':''); },
+  'sc.dry': function(n){ return 'tempoh kering terpanjang '+n+' hari'; },
+  'sc.wind': function(v){ return 'puncak '+v+' m/s'; },
+  'sc.drain': function(sp,lf,wl,clay){ return 'cerun '+sp+'%, '+T('lf',lf)+', '+wl+' hari bertakung air'+(clay?', tanah liat berat':''); },
+  'sc.drainM': function(n){ return n+' hari zon akar >0.90 tepu — tiada data cerun'; },
+  'sc.ph': function(v,t2){ return 'pH '+v+(t2?' · '+T('tex',t2):''); },
+
+  'kpi.note': function(n,d0,d1,m){ return n+' faktor, '+d0+' → '+d1+'. ET₀ dengan kaedah '+m+'.'; },
+  'kpi.ks': function(k,s){ return 'Ks '+k+(s?' — <span style="color:var(--warn)">dalam tegasan</span>':' — selesa'); },
+  'kpi.trig': function(d){ return '→ tercetus pada '+d; },
+  'kpi.by': function(n,d){ return '→ '+n+' hari menjelang '+d; },
+  'a.deficit': function(mm,l){ return 'Keperluan tanaman melebihi hujan sebanyak <b>'+mm+' mm</b> dalam 30 hari — kira-kira <b>'+l+' L/pokok/hari</b> pada saiz kanopi anda. Lihat tab Pengairan.'; },
+  'a.flat': function(sp){ return 'Cerun hanya <b>'+sp+'%</b>. Air tidak akan mengalir keluar. Inilah keadaan klasik untuk <i>Phytophthora</i> (kanser batang dan reput akar): tanam di atas busut tinggi, gali parit saliran, dan jangan sekali-kali biarkan air bertakung di pangkal pokok.'; },
+  'a.wlog': function(n){ return 'Kelembapan zon akar melebihi 0.90 tepu pada <b>'+n+'</b> daripada 30 hari.'; },
+  'a.acid': function(ph){ return 'pH <b>'+ph+'</b> berada di bawah julat 5.5–6.5 yang disukai durian. Ketoksikan aluminium mengunci fosforus. Taburkan kapur.'; },
+  'a.alk': function(ph){ return 'pH <b>'+ph+'</b> — besi dan zink menjadi tidak tersedia. Jangkakan klorosis di antara urat daun.'; },
+  'a.heat': function(n){ return '<b>'+n+'</b> hari melebihi 35 °C dalam bulan lepas. Jangkakan bunga gugur dan buah luruh.'; },
+  'a.open': function(dep,ks,run){ return 'Zon akar <b>susut '+dep+'%</b> (Ks '+ks+') dan telah melepasi ambang tegasan selama <b>'+run+' hari berturut-turut</b>. Inilah isyarat yang diperlukan durian. <b>Jangan siram</b> sehingga putik bunga kelihatan.'; },
+  't.willOpen': function(d){ return 'Tetingkap aruhan akan terbuka pada '+d; },
+  'a.willOpen': function(trig,day,dep){ return 'Dengan membawa imbangan zon akar melalui ramalan, pokok mencapai <b>'+trig+' hari tegasan berturut-turut</b> pada <b>'+day+'</b> (susutan meningkat ke '+dep+'%). <b>Hentikan pengairan sekarang</b> jika anda mahukan bunga — inilah titik keputusan, dan ia akan berlalu.'; },
+  'a.building': function(dep,run,trig){ return 'Susutan mencapai <b>'+dep+'%</b> dan <b>'+run+' hari tegasan</b> menjelang akhir ramalan — belum cukup '+trig+' hari yang diperlukan. Bumbung pelindung hujan di atas zon akar sekarang mungkin dapat membawanya melepasi ambang.'; },
+  'a.fungal': function(rh){ return 'Purata kelembapan 30 hari <b>'+rh+'%</b>. <i>Phytophthora palmivora</i> dan hawar daun merebak pantas di atas ~88%. Cantas untuk pengudaraan.'; },
+  'a.wind': function(v){ return 'Tiupan puncak <b>'+v+' m/s</b>. Dahan durian rapuh dan buah yang berat mematahkannya — beri sokongan dan penahan angin.'; },
+
+  'fl.uTitle': function(d){ return 'Aruhan sedang berlangsung — hari ke-'+d+' tegasan air sebenar'; },
+  'fl.uBody': function(dep,g,dev,lo,hi){ return 'Zon akar <b>susut '+dep+'%</b>. Bunga mekar dalam kira-kira 3–5 minggu; pada <b>'+g+' GDD/hari</b> buah matang dalam kira-kira <b>'+dev+' hari</b>, iaitu sekitar <b>'+lo+'</b> – <b>'+hi+'</b>.'; },
+  'fl.lTitle': function(d){ return 'Kejadian tegasan sebenar yang terakhir berakhir pada '+d; },
+  'fl.lBody': function(since,lo,hi,cur){ return since+' hari lalu — pokok benar-benar mengering ketika itu, walaupun ada hujan. Jika ia menghasilkan bunga, tuaian dijangka sekitar <b>'+lo+'</b> – <b>'+hi+'</b>. '+(cur?'Masih di hadapan atau sedang berlangsung — sediakan pekerja dan pembeli.':'Tetingkap itu sudah berlalu.'); },
+  'fl.none': function(best,bestDry,trig){ return 'Tempoh tegasan sebenar terpanjang: <b>'+best+' hari</b> (berbanding '+bestDry+' hari tanpa hujan), kurang daripada '+trig+' hari yang diperlukan durian. Semak tab Garis dasar iklim — rekod 10 tahun itulah yang penting, bukan satu tahun.'; },
+  'w.taw': function(v){ return v+' % daripada TAW'; },
+  'w.ksrow': function(v,lim){ return v+(lim?' (transpirasi terhad)':' (tanpa tegasan)'); },
+  'w.trig': function(d){ return ' → tercetus '+d; },
+  'w.fcst': function(n){ return ' → '+n+' hari (ramalan)'; },
+  'd.days': function(v){ return v+' hari'; },
+  'w.gdd': function(g){ return g+' GDD/hari (asas 10 °C)'; },
+
+  'ir.todaySrc': function(etc,rain,area,eff){ return 'hari ini: ETc '+etc+' mm − 80% daripada hujan '+rain+' mm, × kanopi '+area+' m² ÷ kecekapan '+eff+'% (ramalan)'; },
+  'ir.lastSrc': function(d){ return 'hari cerapan terakhir ('+d+') — POWER lewat ~3 hari'; },
+  'ir.kcUnit': function(st){ return 'Kcb · '+T('stage',st); },
+  'ir.kcSrc': function(age,c,a){ return 'Umur '+age+' tahun → kanopi Ø '+c+' m → '+a+' m² daun. Umur menentukan kanopi; kanopi menentukan air.'; },
+  'ir.yr': function(a){ return a+' thn '; },
+  'ir.ageNote': function(et0,sp,x){ return 'Pada ET₀ hari ini '+et0+' mm/hari dan tanpa hujan, dengan jarak tanaman '+sp+' m. Baris anda diserlahkan. Pokok matang meminum kira-kira <b>'+x+'×</b> berbanding pokok berumur 2 tahun — bukan kerana ia lebih tua, tetapi kerana daunnya sebanyak itu lebih lebat.'; },
+  'ir.block': function(t2,a,wk,dd2){ return t2+' pokok di atas '+a+' ekar ≈ '+wk+' m³/minggu ('+dd2+' m³/hari)'; },
+
+  'fc.dry': function(x,tot,hit){ return '<b>'+x+'</b> hari kering diramalkan, menjadikan tempoh kering semasa <b>'+tot+' hari</b>. '+(hit?'Itu melepasi ambang aruhan — satu titik pilihan yang disengajakan: siram untuk melindungi buah, atau tahan air untuk memaksa bunga.':'Belum cukup untuk mencetuskan pembungaan.'); },
+  'fc.heat': function(n){ return '<b>'+n+'</b> hari melebihi 35 °C diramalkan. Siram waktu subuh, beri sungkupan, teduhkan pokok muda. Bunga dan putik buah gugur dengan cepat pada suhu ini.'; },
+  'fc.heavy': function(mm,w){ return '<b>'+mm+' mm</b> dalam 16 hari, '+w+' hari ≥10 mm. Bersihkan parit sebelum hujan tiba; tanah tepu ditambah cuaca panas ialah cuaca kemuncak <i>Phytophthora</i>.'; },
+  'fc.little': function(mm){ return 'Hanya <b>'+mm+' mm</b> dalam 16 hari. Semak tab Pengairan kecuali anda sedang mengaruh bunga.'; },
+
+  'smap.title': function(p){ return 'SMAP sebenar: '+p+' pada 9 km'; },
+  'smap.real': function(kind,lag){
+      var src = kind==='worker' ? 'Ia sampai ke pelayar anda melalui Cloudflare Worker yang membaca perkhidmatan OPeNDAP NASA dan memotong hanya sel grid 9 km anda — tiada log masuk diperlukan pada peranti ini, dan berfungsi pada telefon.'
+              : kind==='script' ? 'Ia ditarik daripada NASA Earthdata oleh skrip fetch_smap.py dan dibaca daripada fail smap.json tempatan.'
+              : 'Ia dibekalkan oleh ORNL DAAC melalui titik akhir tanpa kunci yang sama seperti MODIS.';
+      return 'Inilah radiometer jalur-L sebenar yang mengukur tanah anda, bukan model permukaan darat. '+src
+        +' Unitnya kandungan air isi padu (m³ air bagi setiap m³ tanah) — sekitar 0.10 adalah kering, 0.40 adalah tepu bagi kebanyakan tanah.'
+        +(lag ? '<br><br><b>Kelewatan:</b> Arkib SMAP NASA ketinggalan kira-kira <b>'+lag+' hari</b> di belakang hari ini (masa pemprosesan satelit). Hampir semasa, tetapi tidak serta-merta — sangat baik untuk <b>mengesahkan model</b> dan membaca musim lalu; untuk pengairan hari ini, tanah ERA5-Land / POWER dan ramalan yang diutamakan.' : ''); },
+  'smap.foot': function(p){ return p+' ialah produk permukaan: SMAP mengukur ~5 cm tanah teratas secara langsung. Lembapan zon akar yang lebih dalam memerlukan produk asimilasi L4, yang bukan dipaparkan di sini.'; },
+  'smap.surfRow': function(b){ return 'Permukaan SMAP ('+b+')'; },
+  'smap.rootRow': function(b){ return 'Zon akar SMAP ('+b+')'; },
+  'smap.proxyRow': function(){ return 'Proksi MERRA-2 (GWETROOT)'; },
+  'smap.proxyNote': function(){ return 'model, ~50 km'; },
+  'smap.fileWarn': function(){ return '<b>Anda sedang menjalankan aplikasi daripada file://</b><small>Kebanyakan API menolak asal <code>null</code> yang dihantar oleh <code>file://</code>. Sebaliknya, hidangkan halaman ini melalui pelayan:<br><code>python3 -m http.server 8000</code> → <code>http://localhost:8000/</code><br>Tanah dan SMAP kedua-duanya gagal sedangkan Open-Meteo berfungsi adalah tanda tepat masalah ini. Cuba localhost dahulu sebelum membuat kesimpulan bahawa SMAP tidak tersedia.</small>'; },
+  'smap.unavail': function(err,cat,lat,lon){
+      return (err ? '<span class="err">'+err+'</span><br><br>' : '')
+        +(cat ? 'ORNL menjawab, dan katalognya ialah:<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>Jika SMAP memang tiada dalam senarai itu, mencuba berulang kali tidak akan membantu — ia tidak dibekalkan di sini.<br><br>'
+              : 'ORNL langsung tidak memulangkan katalog, jadi kita tidak tahu sama ada ia membawa SMAP.<br><br>')
+        +'Beralih kepada <b>POWER GWETTOP/GWETROOT</b> — kelembapan model darat MERRA-2 pada ~50 km. Itu sebuah <i>model</i>, bukan ukuran, dan 5× lebih kasar daripada SMAP. Proksi yang boleh digunakan, tetapi tidak pernah sekali pun mencerap kebun anda.<br><br>'
+        +'<b>Laluan yang boleh diharap:</b> jalankan <code>fetch_smap.py</code> (dalam folder <code>tools/</code> projek). Ia log masuk ke <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a> — percuma — menarik granul SPL3SMP_E yang tulen di sebelah pelayan, di mana sekatan CORS Earthdata tidak terpakai, dan menulis <code>smap.json</code> di sebelah halaman ini. Aplikasi ini mencari fail itu dahulu dan akan menggunakannya secara automatik pada pengambilan seterusnya.<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; },
+
+  'bl.anomT': function(wet,p){ return (wet?'Lebih basah':'Lebih kering')+' daripada normal sebanyak '+p+'%'; },
+  'bl.anomB': function(cur,nor,ta,nt){ return '12 bulan lepas mencatat <b>'+cur+' mm</b> berbanding normal 10 tahun <b>'+nor+' mm</b>. Suhu berbeza <b>'+ta+' °C</b> berbanding purata 10 tahun '+nt+' °C.'; },
+  'bl.winT': function(m){ return 'Tetingkap aruhan anda: '+m; },
+  'bl.win': function(trig,mon,pct,mean){ return 'Berdasarkan imbangan air zon akar, pokok mencapai <b>'+trig+'+ hari tegasan air sebenar berturut-turut</b> bermula pada bulan <b>'+mon+'</b> dalam <b>'+pct+'% daripada 10 tahun lepas</b> (purata tempoh tegasan terpanjang '+mean+' hari). Hentikan pengairan menjelang bulan ini dan biarkan air zon akar menyusut.'; },
+  'bl.nowinT': function(){ return 'Tiada tetingkap aruhan semula jadi yang boleh diharap — walaupun dengan model tegasan'; },
+  'bl.nowin': function(trig,mon,pct,mean){ return 'Tiada bulan yang mencapai '+trig+'+ hari tegasan berturut-turut dalam 30% tahun. Yang terbaik ialah <b>'+mon+'</b> pada <b>'+pct+'%</b> (purata tempoh terpanjang '+mean+' hari). Pembungaan akan kekal tidak menentu melainkan anda memaksanya.'; },
+  'bl.foot': function(pd,trig,taw){ return '<b>Tahun dgn 10 hari TEGASAN</b> ialah angka yang penting: tahun apabila zon akar benar-benar kekal melepasi susutan '+pd+'% selama '+trig+'+ hari berturut-turut (TAW '+taw+' mm). Lajur <b>petua hujan lama</b> mengira hari tanpa hujan berturut-turut — ia kembali ke sifar dengan 1 mm gerimis, yang langsung tidak dirasai pokok. Apabila Δ positif, petua mudah itu <b>menyembunyikan tetingkap sebenar daripada anda</b>.'; },
+  'bl.heatLeg': function(y0,y1,g,st){ return 'Baris = '+y0+' → '+y1+' (atas ke bawah). <b style="color:var(--good)">'+g+' sel hijau</b> — bulan yang mencapai pencetus 10 hari. '+(st?'Ini ialah <b>imbangan air zon akar</b>: hari berturut-turut pokok benar-benar melepasi ambang tegasan.':'Ini ialah <b>petua mudah</b>: hari berturut-turut dengan hujan di bawah 1 mm. Sebarang gerimis mengembalikannya ke sifar.'); },
+
+  'val.noov': function(a,b,c,dd2){ return 'Tiada hari yang bertindih. SMAP meliputi '+a+' hingga '+b+', manakala tetingkap model ialah '+c+' hingga '+dd2+'. Ambil SMAP untuk tempoh yang benar-benar diliputi papan pemuka — skrip kini bekerja ke belakang dari hari ini, jadi jalankan semula sahaja.'; },
+  'val.r': function(r,n){ return 'korelasi r = <b>'+r+'</b> merentas '+n+' hari bertindih — '+(+r>0.6?'model menjejaki instrumen sebenar dengan baik.':+r>0.3?'persetujuan sederhana; anggap model sebagai petunjuk sahaja.':'persetujuan lemah — <b>percayai SMAP berbanding model saya di sini</b>.'); },
+  'val.head': function(){ return 'Merah = model FAO-56 saya. Biru = SMAP sebenar (diskala semula mengikut julat basah/keringnya). '; },
+  'val.caveat': function(vwc){ return '<br><br><b>Kaveat yang berlaku dua hala:</b> NASA menandakan kebanyakan bacaan SMAP ini sebagai tidak boleh dipercayai kerana kanopi anda (VWC '+vwc+' kg/m²) jauh melebihi had ~5 kg/m² untuk bacaan jalur-L yang bersih. Oleh itu korelasi yang <b>tinggi</b> ialah bukti kukuh bahawa model itu betul — dua kaedah bebas yang hingar tetapi bersetuju sukar dipalsukan. Korelasi yang <b>rendah</b> tidak membuktikan banyak: mungkin model saya, atau mungkin SMAP sukar melihat tanah anda sama sekali. Jangan buang imbangan air hanya kerana skor yang buruk di sini.'; },
+
+  'site.soilfail': function(err){ return 'Carian tanah gagal'+(err?': '+err:''); },
+  'pill.mean': function(v){ return 'purata '+v+' °C'; },
+  'pill.root': function(v){ return v+' tepu akar'; },
+  'pill.rh': function(rh,w){ return rh+'% RH · puncak '+w+' m/s'; },
+  'pill.lst': function(v){ return v+' °C siang'; },
+  'pill.na': function(){ return 'tidak tersedia'; },
+  'pill.loading': function(){ return 'memuatkan…'; },
+  'saved.badge': function(w){ return 'salinan tersimpan · '+w; },
+  'saved.tip': function(){ return 'Sumber tidak menjawab kali ini, jadi panel ini memaparkan salinan terakhir yang disimpan pada peranti ini.'; },
+  'saved.when': function(dt){ return dt.getDate()+' '+T('mon',dt.getMonth())+', '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0'); },
+  'st.ok': function(){ return 'semua set data dimuatkan'; },
+  'st.saved': function(list){ return ' · salinan tersimpan: '+list; },
+  'st.failed': function(list){ return 'dimuatkan · gagal: '+list; },
+  'st.located': function(n){ return 'lokasi dikesan ±'+n+' m'; },
+
+  'ch': function(s){ return ({
+      'Rainfall-model depletion %':'Susutan model hujan %','ERA5-Land 9 km (independent)':'ERA5-Land 9 km (bebas)',
+      'Forecast':'Ramalan','Stress threshold (RAW)':'Ambang tegasan (RAW)','Stress threshold':'Ambang tegasan',
+      '% of available water used':'% air tersedia yang digunakan','Rain mm':'Hujan mm','Crop demand ETc mm':'Keperluan tanaman ETc mm',
+      'L/tree/day needed':'L/pokok/hari diperlukan','Tmax °C':'Tmaks °C','Tmin °C':'Tmin °C',
+      'Tmax':'Tmaks','Tmean':'Tpurata','Tmin':'Tmin','mm/day':'mm/hari',
+      'Solar kWh/m²/d':'Suria kWh/m²/hari','Surface':'Permukaan','Root zone':'Zon akar','Profile':'Profil',
+      'Cumulative P−ETc anomaly (mm)':'Anomali kumulatif P−ETc (mm)',
+      'SMAP surface m³/m³':'Permukaan SMAP m³/m³','SMAP root zone m³/m³':'Zon akar SMAP m³/m³',
+      'Modelled depletion % (FAO-56)':'Susutan model % (FAO-56)','SMAP observed, normalised %':'SMAP dicerap, dinormalkan %',
+      'LST day °C':'LST siang °C','LST night °C':'LST malam °C',
+      'West → East':'Barat → Timur','South → North':'Selatan → Utara',
+      'Last 12 months mm':'12 bulan lepas mm','10-yr normal mm':'Normal 10 tahun mm',
+      'Dry days (<1 mm), 10-yr mean':'Hari kering (<1 mm), purata 10 tahun',
+      'RH2M %':'RH2M %','WS2M m/s':'WS2M m/s','WS10M_MAX m/s':'WS10M_MAX m/s',
+      'Temperature':'Suhu','Heat stress':'Tegasan haba','Rainfall':'Hujan','Dry-spell window':'Tetingkap tempoh kering',
+      'Humidity':'Kelembapan','Solar radiation':'Sinaran suria','Wind exposure':'Pendedahan angin','Canopy vigour':'Kesuburan kanopi',
+      'Drainage':'Saliran','Drainage (model)':'Saliran (model)','Elevation':'Ketinggian','Soil pH':'pH tanah'
+    })[s] || s; },
+  'monS': function(i){ return ['J','F','M','A','M','J','J','O','S','O','N','D'][i]; },
+  'wd': function(i){ return ['Ahd','Isn','Sel','Rab','Kha','Jum','Sab'][i]; },
+  'asp': function(a){ return ({N:'U',NE:'TL',E:'T',SE:'TG',S:'S',SW:'BD',W:'B',NW:'BL',flat:'rata'})[a] || a; },
+  'farm.sum': function(t2,ac,st,ca,fc2,kc){ return '≈ '+t2+' pokok · '+ac+'/ekar · '+T('stage',st)+' · kanopi '+ca+' m² ('+fc2+'% litupan tanah) · Kcb '+kc; },
+  'ndvi.note': function(k,n){ return 'MOD13Q1 250 m, disaring awan dengan jalur kebolehpercayaan piksel: '+k+' daripada '+n+' komposit mempunyai ≥5 piksel cerah dalam tetingkap ±1 km. Jurang ialah tempoh mendung, sengaja dibiarkan kosong dan tidak diinterpolasi.'; },
+  'date': function(dt){ return dt.getDate()+' '+T('mon',dt.getMonth())+' '+dt.getFullYear(); },
+  'wdate': function(dt){ return T('wd',dt.getDay())+' '+dt.getDate()+' '+T('mon',dt.getMonth()); },
+  'centre': function(){ return 'tengah'; },
+
+  'err': function(s){
+      s = String(s == null ? '' : s);
+      var exact = {
+      'blocked — CORS, offline, or the host is down':'disekat — CORS, di luar talian, atau hos tergendala',
+      'both Copernicus and SRTM DEMs failed':'kedua-dua DEM Copernicus dan SRTM gagal',
+      'POWER returned no data (ocean point?)':'POWER tidak memulangkan data (titik di laut?)',
+      'no response from the worker':'tiada respons daripada Worker',
+      'archive returned no soil block':'arkib tidak memulangkan data tanah',
+      'Open-Meteo returned no daily block':'Open-Meteo tidak memulangkan data harian',
+      'gaps in the Copernicus response':'terdapat jurang dalam respons Copernicus',
+      'not a plot array':'ini bukan fail senarai plot',
+      'no plots found in that file':'tiada plot ditemui dalam fail itu',
+      'ORNL serves only SPL4CMDL (carbon), which is not soil moisture':'ORNL hanya membekalkan SPL4CMDL (karbon), yang bukan lembapan tanah',
+      'Chart.js failed to load.':'Chart.js gagal dimuatkan.',
+      'Leaflet failed to load from unpkg.':'Leaflet gagal dimuatkan daripada unpkg.'
+      };
+      if (exact[s]) return exact[s];
+      var m;
+      if (/^answered, but with no pH or texture/.test(s)) return 'menjawab, tetapi tanpa pH atau tekstur untuk titik ini atau dalam lingkungan ~2 km — SoilGrids mempunyai jurang, dan piksel pantai/bukit boleh jatuh ke dalamnya. Buka Tetapan kebun (bar atas) dan tandakan "Masukkan ujian tanah saya sendiri".';
+      if ((m = /^SMAP worker: (.*) · then ORNL: (.*)$/.exec(s))) return 'SMAP Worker: ' + T('err', m[1]) + ' · kemudian ORNL: ' + T('err', m[2]);
+      if (/Earthdata rejected the token/.test(s)) return (s.match(/^HTTP \d+ — /) || [''])[0]
+        + 'Earthdata menolak token — ia telah tamat tempoh (sah kira-kira 60 hari) atau akaun belum menerima perjanjian NSIDC DAAC. Jana token baharu di urs.earthdata.nasa.gov dan gantikan rahsia EARTHDATA_TOKEN pada Worker.';
+      if (/Earthdata Login refused/.test(s)) return (s.match(/^HTTP \d+ — /) || [''])[0]
+        + 'Earthdata Login menolak EARTHDATA_USERNAME / EARTHDATA_PASSWORD — semak kedua-dua rahsia pada Worker.';
+      if ((m = /^(HTTP \d+) — (.*)$/.exec(s))) return m[1] + ' — ' + T('err', m[2]);
+      if ((m = /^timed out after ([\d.]+) s$/.exec(s))) return 'tamat masa selepas ' + m[1] + ' s';
+      if ((m = /^ORNL has no (\S+) data for this location$/.exec(s))) return 'ORNL tiada data ' + m[1] + ' untuk lokasi ini';
+      if ((m = /^ORNL serves (\d+) products and none of them is SMAP/.exec(s))) return 'ORNL membekalkan ' + m[1] + ' produk dan tiada satu pun SMAP — proksi MERRA-2 dikekalkan';
+      if ((m = /^no recognisable soil-moisture band in (\S+)$/.exec(s))) return 'tiada jalur lembapan tanah yang dikenali dalam ' + m[1];
+      return s; },
+  'where': function(s){ return ({Import:'Import', Uncaught:'Ralat tidak ditangkap', Promise:'Ralat tak segerak', render:'Paparan', controls:'Kawalan', map:'Peta'})[s] || s; },
+  'geo.none': function(){ return 'Pelayar ini tiada API Geolokasi.'; },
+  'geo.insecure': function(){ return 'Geolokasi memerlukan konteks selamat. Buka halaman ini melalui http://localhost:8000 atau https://, bukan file://.'; },
+  'geo.fail': function(msg){ return 'Tidak dapat memperoleh lokasi anda: '+msg+'\n\nKlik ikon di sebelah kiri bar alamat → Lokasi → Benarkan, kemudian muat semula. Atau taip sahaja koordinat / klik pada peta.'; },
+  'tile.none': function(l){ return l+' tiada jubin di sini — cuba tarikh lain.'; },
+  'tile.avail': function(ok,n,d){ return ok+' daripada '+n+' lapisan tersedia pada '+d; },
+  'tile.switched': function(n){ return ' · ditukar kepada '+n; },
+  'u.satfrac': function(){ return ' pecahan tepu'; },
+  'u.9km': function(){ return '9 km'; },
+  'soil.approx': function(km){ return 'Titik tepat anda ialah jurang dalam peta SoilGrids — nilai ini datang daripada piksel sah terdekat, ~'+km+' km jauhnya. Piksel berdekatan di sini hampir sama antara satu sama lain, jadi ini anggaran yang munasabah; ujian makmal tetap lebih baik.'; }
+};
+Object.keys(TPL_MS).forEach(function(k){ if (TPL[k]) TPL[k].ms = TPL_MS[k]; });
 
 /* ═════════ CONTROLS (wired first — they must survive any later failure) ═════════ */
 function setPoint(lat, lon, fly){
@@ -2447,7 +2641,7 @@ function renderSite(){
       + '</tbody></table>'
       + '<p class="muted" style="font-size:11px">POWER reports the mean elevation of its ~50 km grid cell, so a large '
       + 'gap between the two elevations is expected in hilly country and is not an error — trust the DEM figure for your point.</p>';
-    chart('cTerr', {type:'line', data:{labels:['−90 m', TDLANG()==='zh' ? '中心' : 'centre', '+90 m'], datasets:[
+    chart('cTerr', {type:'line', data:{labels:['−90 m', T('centre'), '+90 m'], datasets:[
       LN(T('ch','West → East'), t.ew, '#38bdf8', {pointRadius:3}),
       LN(T('ch','South → North'), t.ns, '#4ade80', {pointRadius:3})]}});
     const srcs = document.querySelectorAll('#tab-site .card .src');

@@ -1,7 +1,7 @@
 /* TerraDurian service worker — makes the app installable and offline-capable.
 
    Strategy:
-   - THE APP'S OWN CODE (the HTML page, i18n.js, zh.json, the manifest): network-first with
+   - THE APP'S OWN CODE (the HTML page, i18n.js, zh.json, ms.json, the manifest): network-first with
      a 3 s timeout, then cache. These files must stay in step with each other — a new page
      paired with an old translation file shows untranslated text — and a stale cached page
      used to pin the app to an old build after a deploy.
@@ -14,7 +14,7 @@
      the dates made relative (see dataKey), so yesterday's pull answers today's request
      offline, and each day's pull replaces the previous one instead of piling up.
 */
-const VERSION = 'terradurian-v28';
+const VERSION = 'terradurian-v29';
 const SHELL = VERSION + '-shell';
 const DATA = VERSION + '-data';
 
@@ -30,6 +30,7 @@ const SHELL_ASSETS = [
   './apple-touch-icon.png',
   './i18n.js',
   './zh.json',
+  './ms.json',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'
