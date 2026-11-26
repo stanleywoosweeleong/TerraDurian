@@ -255,7 +255,7 @@
  "Full volume through fruit fill — water stress here drops fruit. But": "果实膨大期足量供水——此时水分胁迫会导致落果。但",
  "withhold deliberately before induction": "催花前要刻意停水",
  ": this is the one age where drying the tree out is the goal, not a failure. Resume light watering once buds are visible, then increase steadily as the fruit swells.": "：这是唯一一个以让树干燥为目标而非失误的树龄段。见到花芽后恢复轻度浇水，随果实膨大逐步增加。",
- "NASA POWER is a historical reanalysis and lags 2–3 days — it cannot forecast. This panel is the one place the app leaves the NASA stack, so it is labelled everywhere it appears.": "NASA POWER 是历史再分析数据且滞后 2–3 天——无法预报。此面板是本应用唯一离开 NASA 数据体系之处，因此凡出现处均有标注。",
+ "NASA POWER is a record of past weather that runs 2–3 days behind — it cannot forecast. So the forecast comes from Open-Meteo, which is not NASA data, and it is labelled wherever it is used. The Sources tab lists every non-NASA source in the app.": "NASA POWER 是过去天气的记录，滞后 2–3 天——无法预报。因此预报来自 Open-Meteo，它不是 NASA 数据，凡使用之处均有标注。本应用所有非 NASA 数据源都列在「来源」页。",
  "Forecast unavailable.": "预报不可用。",
  "No heat, drought or deluge signal in the next 16 days.": "未来 16 天无高温、干旱或暴雨信号。",
  "non-NASA — Open-Meteo (ECMWF/GFS)": "非 NASA — Open-Meteo (ECMWF/GFS)",
