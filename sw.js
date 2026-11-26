@@ -9,11 +9,12 @@
      from cache, refreshed in the background.
    - DATA APIs (NASA POWER, Open-Meteo, ORNL, your SMAP worker): network-first with a cache
      fallback, so you always get fresh data when online but still see the last good pull
-     when you are out in the field with no signal. Responses are stored under a key with
+     when you are out in the field with no signal — or when a data host is itself down
+     (HTTP 5xx) or rate-limiting (429). Responses are stored under a key with
      the dates made relative (see dataKey), so yesterday's pull answers today's request
      offline, and each day's pull replaces the previous one instead of piling up.
 */
-const VERSION = 'terradurian-v25';
+const VERSION = 'terradurian-v26';
 const SHELL = VERSION + '-shell';
 const DATA = VERSION + '-data';
 
@@ -96,7 +97,14 @@ self.addEventListener('fetch', event => {
         if (res && res.ok) {
           const copy = res.clone();
           caches.open(DATA).then(c => c.put(key, copy));
+          return res;
         }
+        // The host answered, but with "I am down" (5xx) or "slow down" (429). That is as
+        // useless to the grower as no signal, so the last good copy stands in here too.
+        // Not for the SMAP worker: its 502 carries the reason (an expired token) and must
+        // reach the app rather than be papered over with old readings.
+        if (res && (res.status >= 500 || res.status === 429) && !url.hostname.endsWith('workers.dev'))
+          return caches.match(key).then(hit => hit || res);
         return res;
       }).catch(() => caches.match(key).then(hit => hit || Response.error()))
     );
