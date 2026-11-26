@@ -107,6 +107,8 @@
   .fcd b{display:block;font-size:12px;color:var(--txt)}
   .fcd .t{font-family:var(--mono);font-size:12px;margin-top:3px}
   .fcd .r{font-family:var(--mono);color:var(--accent2)}
+  .saved{font-size:10px;color:var(--warn);border:1px solid var(--warn);border-radius:20px;padding:1px 6px;margin-left:6px;
+         font-weight:400;letter-spacing:0;text-transform:none;white-space:nowrap}
   .nonasa{font-size:10px;color:var(--purple);border:1px solid var(--purple);border-radius:20px;padding:1px 6px;margin-left:6px}
   .hm{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:8px}
   .hmc{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;
@@ -243,7 +245,7 @@
 <section class="tab on" id="tab-durian">
   <div class="grid g2" style="margin-bottom:14px">
     <div class="card">
-      <h3>Site suitability — Durio zibethinus</h3>
+      <h3 data-src="POWER">Site suitability — Durio zibethinus</h3>
       <div class="score">
         <svg class="ring" viewBox="0 0 120 120">
           <circle cx="60" cy="60" r="52" fill="none" stroke="#2b3542" stroke-width="12"/>
@@ -266,19 +268,19 @@
   </div>
 
   <div class="grid g3" style="margin-bottom:14px">
-    <div class="card"><h3>🌡️ Heat stress (30d)</h3><div class="big" id="kHeat">–<span class="unit"> d &gt;35°C</span></div><div class="src">POWER T2M_MAX</div></div>
-    <div class="card"><h3>💧 Root-zone wetness</h3><div class="big" id="kSoil">–</div><div class="src">POWER GWETROOT</div></div>
-    <div class="card"><h3>🌧️ Rain (30d)</h3><div class="big" id="kRain">–<span class="unit"> mm</span></div><div class="src">POWER PRECTOTCORR</div></div>
-    <div class="card"><h3>🥀 Dry spell now</h3><div class="big" id="kDry">–<span class="unit"> days</span></div><div class="src">Incl. forecast projection</div></div>
+    <div class="card"><h3 data-src="POWER">🌡️ Heat stress (30d)</h3><div class="big" id="kHeat">–<span class="unit"> d &gt;35°C</span></div><div class="src">POWER T2M_MAX</div></div>
+    <div class="card"><h3 data-src="POWER|forecast">💧 Root-zone wetness</h3><div class="big" id="kSoil">–</div><div class="src">POWER GWETROOT</div></div>
+    <div class="card"><h3 data-src="POWER">🌧️ Rain (30d)</h3><div class="big" id="kRain">–<span class="unit"> mm</span></div><div class="src">POWER PRECTOTCORR</div></div>
+    <div class="card"><h3 data-src="POWER|forecast">🥀 Dry spell now</h3><div class="big" id="kDry">–<span class="unit"> days</span></div><div class="src">Incl. forecast projection</div></div>
   </div>
 
   <div class="grid g2">
     <div class="card">
-      <h3>Flowering induction &amp; harvest projection</h3>
+      <h3 data-src="POWER|forecast">Flowering induction &amp; harvest projection</h3>
       <div id="flowering"><div class="muted">—</div></div>
     </div>
     <div class="card">
-      <h3>Root-zone water stress — the real induction signal</h3>
+      <h3 data-src="POWER|ERA5-Land soil|forecast">Root-zone water stress — the real induction signal</h3>
       <div class="chartbox"><canvas id="cDep"></canvas></div>
       <div class="legend">Red = FAO-56 balance driven by POWER rainfall. Blue dashed = ERA5-Land 9 km soil moisture,
       an independent reanalysis (keyless, so it works on mobile). Where blue sits well above red, a finer-resolution
@@ -286,17 +288,17 @@
       are genuinely stressed. Dashed amber is the 16-day forecast.</div>
     </div>
     <div class="card">
-      <h3>Water balance — last 90 days</h3>
+      <h3 data-src="POWER">Water balance — last 90 days</h3>
       <div class="chartbox"><canvas id="cBal"></canvas></div>
       <div class="legend">Bars = rainfall. Line = crop demand ETc (FAO-56 Penman-Monteith ET₀ × Kc). Deficit days need irrigation.</div>
     </div>
     <div class="card">
-      <h3>Vegetation vigour — MODIS NDVI / EVI</h3>
+      <h3 data-src="MODIS">Vegetation vigour — MODIS NDVI / EVI</h3>
       <div class="chartbox"><canvas id="cNdvi2"></canvas></div>
       <div class="legend" id="ndviNote">Cloud-screened via the MODIS pixel-reliability band.</div>
     </div>
     <div class="card">
-      <h3>Land surface temperature — MODIS</h3>
+      <h3 data-src="MODIS">Land surface temperature — MODIS</h3>
       <div class="chartbox"><canvas id="cLst2"></canvas></div>
       <div class="legend">MOD11A2, 8-day, 1 km. Day LST far above air temperature means exposed soil or canopy gaps.</div>
     </div>
@@ -306,14 +308,14 @@
 <!-- ═══════════ IRRIGATION ═══════════ -->
 <section class="tab" id="tab-irrig">
   <div class="grid g3" style="margin-bottom:14px">
-    <div class="card"><h3>Water per tree today</h3><div class="big" id="iTree">–<span class="unit"> L</span></div><div class="src" id="iTreeSrc">ETc × canopy area ÷ efficiency</div></div>
-    <div class="card"><h3>Per tree per week</h3><div class="big" id="iWeek">–<span class="unit"> L</span></div><div class="src">Next 7 days, rain-adjusted</div></div>
-    <div class="card"><h3>Whole block per week</h3><div class="big" id="iBlock">–<span class="unit"> m³</span></div><div class="src" id="iBlockSrc">—</div></div>
+    <div class="card"><h3 data-src="forecast">Water per tree today</h3><div class="big" id="iTree">–<span class="unit"> L</span></div><div class="src" id="iTreeSrc">ETc × canopy area ÷ efficiency</div></div>
+    <div class="card"><h3 data-src="forecast">Per tree per week</h3><div class="big" id="iWeek">–<span class="unit"> L</span></div><div class="src">Next 7 days, rain-adjusted</div></div>
+    <div class="card"><h3 data-src="forecast">Whole block per week</h3><div class="big" id="iBlock">–<span class="unit"> m³</span></div><div class="src" id="iBlockSrc">—</div></div>
     <div class="card"><h3>Crop coefficient Kc</h3><div class="big" id="iKc">–</div><div class="src">By tree age</div></div>
   </div>
   <div class="grid g2">
     <div class="card">
-      <h3>7-day irrigation schedule <span class="nonasa">forecast: Open-Meteo</span></h3>
+      <h3 data-src="forecast">7-day irrigation schedule <span class="nonasa">forecast: Open-Meteo</span></h3>
       <div id="iSched"><div class="muted">Press Fetch all data.</div></div>
     </div>
     <div class="card">
@@ -321,7 +323,7 @@
       <div id="iAge"><div class="muted">Press Fetch all data.</div></div>
     </div>
     <div class="card">
-      <h3>Daily water requirement — last 90 days</h3>
+      <h3 data-src="POWER">Daily water requirement — last 90 days</h3>
       <div class="chartbox"><canvas id="cIrr"></canvas></div>
       <div class="legend">Litres per tree per day actually needed after effective rainfall (80% of gross rain; the rest runs off or drains past the roots).</div>
     </div>
@@ -331,17 +333,17 @@
 <!-- ═══════════ FORECAST ═══════════ -->
 <section class="tab" id="tab-fc">
   <div class="card" style="margin-bottom:14px">
-    <h3>16-day outlook <span class="nonasa">non-NASA — Open-Meteo (ECMWF/GFS)</span></h3>
+    <h3 data-src="forecast">16-day outlook <span class="nonasa">non-NASA — Open-Meteo (ECMWF/GFS)</span></h3>
     <div id="fcCards" class="fc"><div class="muted">—</div></div>
     <div class="legend">NASA POWER is a historical reanalysis and lags 2–3 days — it cannot forecast. This panel is the one place the app leaves the NASA stack, so it is labelled everywhere it appears.</div>
   </div>
   <div class="grid g2">
     <div class="card">
-      <h3>Forward outlook &amp; actions</h3>
+      <h3 data-src="forecast">Forward outlook &amp; actions</h3>
       <div id="fcAlerts"><div class="muted">—</div></div>
     </div>
     <div class="card">
-      <h3>Rain &amp; temperature — 16 days</h3>
+      <h3 data-src="forecast">Rain &amp; temperature — 16 days</h3>
       <div class="chartbox"><canvas id="cFc"></canvas></div>
     </div>
   </div>
@@ -350,27 +352,27 @@
 <!-- ═══════════ SITE & SOIL ═══════════ -->
 <section class="tab" id="tab-site">
   <div class="grid g3" style="margin-bottom:14px">
-    <div class="card"><h3>⛰️ Elevation</h3><div class="big" id="sElev">–<span class="unit"> m</span></div><div class="src">NASA POWER site geometry</div></div>
-    <div class="card"><h3>📐 Slope</h3><div class="big" id="sSlope">–<span class="unit"> %</span></div><div class="src">Copernicus GLO-90, Horn 3×3</div></div>
-    <div class="card"><h3>🧭 Aspect</h3><div class="big" id="sAspect">–</div><div class="src">Downhill direction</div></div>
-    <div class="card"><h3>🧪 Soil pH</h3><div class="big" id="sPh">–</div><div class="src">SoilGrids 0–30 cm</div></div>
+    <div class="card"><h3 data-src="terrain">⛰️ Elevation</h3><div class="big" id="sElev">–<span class="unit"> m</span></div><div class="src">NASA POWER site geometry</div></div>
+    <div class="card"><h3 data-src="terrain">📐 Slope</h3><div class="big" id="sSlope">–<span class="unit"> %</span></div><div class="src">Copernicus GLO-90, Horn 3×3</div></div>
+    <div class="card"><h3 data-src="terrain">🧭 Aspect</h3><div class="big" id="sAspect">–</div><div class="src">Downhill direction</div></div>
+    <div class="card"><h3 data-src="soil">🧪 Soil pH</h3><div class="big" id="sPh">–</div><div class="src">SoilGrids 0–30 cm</div></div>
   </div>
   <div class="grid g2">
     <div class="card" style="grid-column:1/-1">
-      <h3>💧 SMAP — real soil moisture from the satellite</h3>
+      <h3 data-src="SMAP">💧 SMAP — real soil moisture from the satellite</h3>
       <div id="smapCard"><div class="muted">Press Fetch all data.</div></div>
     </div>
     <div class="card">
-      <h3>Drainage verdict</h3>
+      <h3 data-src="terrain">Drainage verdict</h3>
       <div id="sDrain"><div class="muted">—</div></div>
     </div>
     <div class="card">
-      <h3>Soil profile <span class="nonasa">non-NASA — ISRIC SoilGrids</span></h3>
+      <h3 data-src="soil">Soil profile <span class="nonasa">non-NASA — ISRIC SoilGrids</span></h3>
       <table id="sSoilTbl"><tbody><tr><td class="muted">—</td></tr></tbody></table>
       <div class="legend" id="sSoilNote">Durian wants a deep, friable, well-drained loam at pH 5.5–6.5. Heavy clay holds water against the roots and is the classic <i>Phytophthora</i> setup.</div>
     </div>
     <div class="card">
-      <h3>Terrain cross-section</h3>
+      <h3 data-src="terrain">Terrain cross-section</h3>
       <div class="chartbox"><canvas id="cTerr"></canvas></div>
       <div class="legend">Elevation sampled on a 3×3 grid at ~90 m spacing through your point (west→east and south→north).</div>
     </div>
@@ -388,27 +390,27 @@
 <section class="tab" id="tab-base">
   <div class="grid g2" style="margin-bottom:14px">
     <div class="card">
-      <h3>This year vs the 10-year normal</h3>
+      <h3 data-src="baseline">This year vs the 10-year normal</h3>
       <div id="bAnom"><div class="muted">—</div></div>
     </div>
     <div class="card">
-      <h3>Natural flowering-induction window</h3>
+      <h3 data-src="baseline">Natural flowering-induction window</h3>
       <div id="bInduct"><div class="muted">—</div></div>
     </div>
   </div>
   <div class="grid g2">
     <div class="card">
-      <h3>Monthly rainfall — 10-year normal vs this year</h3>
+      <h3 data-src="baseline">Monthly rainfall — 10-year normal vs this year</h3>
       <div class="chartbox"><canvas id="cClim"></canvas></div>
       <div class="legend">Bars = 10-year monthly mean. Line = the last 12 months. Where the line sits well below the bars, the season ran dry.</div>
     </div>
     <div class="card">
-      <h3>Dry days per month — 10-year mean</h3>
+      <h3 data-src="baseline">Dry days per month — 10-year mean</h3>
       <div class="chartbox"><canvas id="cDryM"></canvas></div>
       <div class="legend">Days with &lt;1 mm rain. The months with the tallest bars are when a durian flowering trigger is most likely to occur naturally.</div>
     </div>
     <div class="card" style="grid-column:1/-1">
-      <h3>Longest dry spell by month — 10-year record</h3>
+      <h3 data-src="baseline">Longest dry spell by month — 10-year record</h3>
       <div id="bHeat"></div>
       <div class="legend">Each cell is the longest run of &lt;1 mm days starting in that month, that year. Green = reached the ~10-day induction threshold.</div>
     </div>
@@ -419,59 +421,60 @@
 <section class="tab" id="tab-data">
   <div class="grid g2">
     <div class="card">
-      <div class="ds-head"><h3>☀️ POWER — Solar radiation</h3><span class="pill" id="pSolar">–</span></div>
+      <div class="ds-head"><h3 data-src="POWER">☀️ POWER — Solar radiation</h3><span class="pill" id="pSolar">–</span></div>
       <div class="chartbox"><canvas id="cSolar"></canvas></div>
       <div class="src">ALLSKY_SFC_SW_DWN · kWh/m²/day · NASA POWER</div>
     </div>
     <div class="card">
-      <div class="ds-head"><h3>🌡️ MERRA-2 — Air temperature</h3><span class="pill" id="pTemp">–</span></div>
+      <div class="ds-head"><h3 data-src="POWER">🌡️ MERRA-2 — Air temperature</h3><span class="pill" id="pTemp">–</span></div>
       <div class="chartbox"><canvas id="cTemp"></canvas></div>
       <div class="src">T2M_MAX / T2M / T2M_MIN · °C</div>
     </div>
     <div class="card">
-      <div class="ds-head"><h3>🌧️ GPM/IMERG-corrected — Precipitation</h3><span class="pill" id="pRain">–</span></div>
+      <div class="ds-head"><h3 data-src="POWER">🌧️ GPM/IMERG-corrected — Precipitation</h3><span class="pill" id="pRain">–</span></div>
       <div class="chartbox"><canvas id="cRain"></canvas></div>
       <div class="src">PRECTOTCORR · mm/day</div>
     </div>
     <div class="card">
-      <div class="ds-head"><h3>💧 SMAP — measured soil moisture</h3><span class="pill" id="pSmap">–</span></div>
+      <div class="ds-head"><h3 data-src="SMAP">💧 SMAP — measured soil moisture</h3><span class="pill" id="pSmap">–</span></div>
       <div class="chartbox"><canvas id="cSmap"></canvas></div>
       <div class="src" id="smapSrc">SMAP L-band radiometer · 9 km · ORNL DAAC</div>
     </div>
     <div class="card">
-      <div class="ds-head"><h3>💧 MERRA-2 model wetness (proxy)</h3><span class="pill" id="pSoil">–</span></div>
+      <div class="ds-head"><h3 data-src="POWER">💧 MERRA-2 model wetness (proxy)</h3><span class="pill" id="pSoil">–</span></div>
       <div class="chartbox"><canvas id="cSoil"></canvas></div>
       <div class="src">GWETTOP / GWETROOT / GWETPROF · ~50 km land model</div>
     </div>
     <div class="card" style="grid-column:1/-1">
-      <div class="ds-head"><h3>🔬 Model validation — my water balance vs the real satellite</h3></div>
+      <div class="ds-head"><h3 data-src="POWER|SMAP">🔬 Model validation — my water balance vs the real satellite</h3></div>
       <div class="chartbox tall"><canvas id="cVal"></canvas></div>
       <div class="legend" id="valNote">Needs SMAP. This is the honest test of whether the induction model
       reflects reality or just my assumptions.</div>
     </div>
     <div class="card">
-      <div class="ds-head"><h3>🌬️ MERRA-2 — Humidity &amp; wind</h3><span class="pill" id="pAtm">–</span></div>
+      <div class="ds-head"><h3 data-src="POWER">🌬️ MERRA-2 — Humidity &amp; wind</h3><span class="pill" id="pAtm">–</span></div>
       <div class="chartbox"><canvas id="cAtm"></canvas></div>
       <div class="src">RH2M (%) · WS2M &amp; WS10M_MAX (m/s)</div>
     </div>
     <div class="card">
-      <div class="ds-head"><h3>🌿 MODIS — NDVI &amp; EVI</h3><span class="pill" id="pNdvi">–</span></div>
+      <div class="ds-head"><h3 data-src="MODIS">🌿 MODIS — NDVI &amp; EVI</h3><span class="pill" id="pNdvi">–</span></div>
       <div class="chartbox"><canvas id="cNdvi"></canvas></div>
       <div class="src">MOD13Q1 · 250 m · QA-screened</div>
     </div>
     <div class="card">
-      <div class="ds-head"><h3>🌡️ MODIS — Land Surface Temp</h3><span class="pill" id="pLst">–</span></div>
+      <div class="ds-head"><h3 data-src="MODIS">🌡️ MODIS — Land Surface Temp</h3><span class="pill" id="pLst">–</span></div>
       <div class="chartbox"><canvas id="cLst"></canvas></div>
       <div class="src">MOD11A2 · 1 km · 8-day</div>
     </div>
     <div class="card">
-      <div class="ds-head"><h3>🧊 Water storage trend (GRACE-FO proxy)</h3><span class="pill" id="pTws">–</span></div>
+      <div class="ds-head"><h3 data-src="POWER">🧊 Water storage trend (GRACE-FO proxy)</h3><span class="pill" id="pTws">–</span></div>
       <div class="chartbox"><canvas id="cTws"></canvas></div>
       <div class="src">Cumulative P−ETc anomaly · proxy, not GRACE-FO</div>
     </div>
   </div>
   <div class="card" style="margin-top:14px">
-    <h3>Fetch log <button id="clearLog" style="float:right;padding:2px 8px;font-size:11px">clear</button></h3>
+    <h3>Fetch log <button id="clearLog" style="float:right;padding:2px 8px;font-size:11px">clear</button>
+      <button id="copyLog" style="float:right;padding:2px 8px;font-size:11px;margin-right:6px">copy</button></h3>
     <div id="log" style="font-family:var(--mono);font-size:11px;color:var(--dim);white-space:pre-wrap">—</div>
   </div>
 </section>
@@ -641,7 +644,7 @@ const guard = (where, fn) => { try { return fn(); } catch(e){ fail(where, e); } 
 
 const S = { lat:4.5, lon:101.9, power:null, base:null, ndvi:null, evi:null, lstD:null, lstN:null,
             terr:null, soil:null, fc:null, smap:null, era:null, derived:null, charts:{}, map:null, marker:null,
-            plots:[], errs:{} };
+            plots:[], errs:{}, saved:{} };
 // The point the data on screen was fetched for. Frozen at the start of each run, so moving
 // the pin while requests are in flight cannot mix two locations into one dashboard.
 const Q = {lat:S.lat, lon:S.lon};
@@ -718,7 +721,7 @@ var TPL = {
   'stage': { en:function(s){return s;}, zh:function(s){ return ({seedling:'苗期',juvenile:'幼龄',establishing:'成形期',bearing:'结果期',mature:'成熟期'})[s]||s; } },
   'tex':   { en:function(s){return s;}, zh:function(s){ return ({'clay':'黏土','sandy clay':'砂质黏土','silty clay':'粉质黏土','clay loam':'黏壤土','sandy clay loam':'砂质黏壤土','silty clay loam':'粉质黏壤土','loam':'壤土','sandy loam':'砂质壤土','silt loam':'粉砂壤土','silt':'粉砂土','loamy sand':'壤质砂土','sand':'砂土'})[String(s).toLowerCase()]||s; } },
   'mon':   { en:function(m){return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m];}, zh:function(m){ return (m+1)+'月'; } },
-  'dsname':{ en:function(s){return s;}, zh:function(s){ return ({forecast:'预报',terrain:'地形',soil:'土壤',MODIS:'MODIS',SMAP:'SMAP',baseline:'气候基线','ERA5-Land soil':'ERA5-Land 土壤'})[s]||s; } },
+  'dsname':{ en:function(s){return s;}, zh:function(s){ return ({POWER:'POWER',forecast:'预报',terrain:'地形',soil:'土壤',MODIS:'MODIS',SMAP:'SMAP',baseline:'气候基线','ERA5-Land soil':'ERA5-Land 土壤'})[s]||s; } },
 
   /* ── score sublabels ── */
   'sc.mean':  { en:function(v){return 'mean '+v+' °C';}, zh:function(v){return '平均 '+v+' °C';} },
@@ -834,6 +837,13 @@ var TPL = {
   'pill.rh':  { en:function(rh,w){return rh+'% RH · peak '+w+' m/s';}, zh:function(rh,w){return '湿度 '+rh+'% · 峰值 '+w+' m/s';} },
   'pill.lst': { en:function(v){return v+' °C day';}, zh:function(v){return '白天 '+v+' °C';} },
   'pill.na':  { en:function(){return 'unavailable';}, zh:function(){return '不可用';} },
+  'saved.badge':{ en:function(w){return 'saved copy · '+w;}, zh:function(w){return '已存副本 · '+w;} },
+  'saved.tip':  { en:function(){return 'The source did not answer this time, so this panel shows the last copy saved on this device.';},
+                  zh:function(){return '数据源这次没有响应，因此本面板显示的是本设备上保存的最近一份副本。';} },
+  'saved.when': { en:function(dt){return dt.toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});},
+                  zh:function(dt){return (dt.getMonth()+1)+'月'+dt.getDate()+'日 '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');} },
+  'st.ok':    { en:function(){return 'all datasets loaded';}, zh:function(){return '所有数据集已加载';} },
+  'st.saved': { en:function(list){return ' · saved copy: '+list;}, zh:function(list){return ' · 已存副本：'+list;} },
   'pill.loading':{ en:function(){return 'loading…';}, zh:function(){return '加载中…';} },
   'st.failed':{ en:function(list){return 'loaded · failed: '+list;}, zh:function(list){return '已加载 · 失败：'+list;} },
 
@@ -883,8 +893,10 @@ function setPoint(lat, lon, fly){
                          + Math.abs(S.lon).toFixed(3) + '°' + (S.lon >= 0 ? 'E' : 'W');
   if (S.marker) S.marker.setLatLng([S.lat, S.lon]);
   if (fly && S.map) S.map.setView([S.lat, S.lon], Math.max(S.map.getZoom(), 11));
-  if (S.derived && !running && (S.lat !== Q.lat || S.lon !== Q.lon))
+  if (S.derived && !running && (S.lat !== Q.lat || S.lon !== Q.lon)){
+    S.finalStatus = null;
     setStatus('pin moved — press Fetch all data to update');
+  }
 }
 /* Water use scales with the leaf area a tree actually carries, and age is simply the best
    proxy for that. So AGE → CANOPY DIAMETER → CANOPY AREA → litres. Kcb here is a coefficient
@@ -938,6 +950,34 @@ guard('controls', () => {
   $('run').onclick = run;
   $('csv').onclick = exportCsv;
   $('clearLog').onclick = () => { logLines.length = 0; $('log').textContent = '—'; };
+  // Copy the whole log (not only the 80 lines on screen) with a header that says what was
+  // being fetched — everything needed to diagnose a failed panel from a pasted message.
+  $('copyLog').onclick = async () => {
+    const text = [
+      'TerraDurian fetch log — copied ' + new Date().toString(),
+      'page: ' + location.href,
+      'point: ' + Q.lat + ', ' + Q.lon + (S.lat !== Q.lat || S.lon !== Q.lon ? ' (pin now at ' + S.lat + ', ' + S.lon + ')' : '')
+        + ' · history: ' + $('range').value + ' days · language: ' + TDLANG(),
+      'status: ' + $('status').textContent.trim(),
+      'failed: ' + (Object.keys(S.errs).filter(k => S.errs[k]).map(k => k + ' — ' + S.errs[k]).join(' | ') || 'none'),
+      'saved copies: ' + (Object.keys(S.saved).map(k => k + ' from ' + S.saved[k]).join(' | ') || 'none'),
+      'online: ' + navigator.onLine + ' · service worker: ' + (navigator.serviceWorker && navigator.serviceWorker.controller ? 'active' : 'none'),
+      'browser: ' + navigator.userAgent,
+      '— newest first —'
+    ].concat(logLines).join('\n');
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; }
+    catch(e){                                         // older browsers, or clipboard permission refused
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand('copy'); } catch(e2){}
+      ta.remove();
+    }
+    const b = $('copyLog');
+    b.textContent = ok ? 'copied ✓' : 'copy failed';
+    setTimeout(() => { b.textContent = 'copy'; }, 1800);
+  };
   $('farmBtn').onclick = () => { $('farmbar').classList.toggle('on'); farmSummary(); };
   $('printBtn').onclick = () => window.print();
   $('installBtn').onclick = async () => {
@@ -1122,6 +1162,43 @@ guard('map', () => {
 });
 
 /* ═════════ FETCHERS ═════════ */
+/* ── SAVED COPIES ──
+   When a source is unreachable or down, the service worker answers with the last good copy
+   it stored and stamps it with an X-TD-Saved header (the time it was saved). Every fetch
+   passes through noteSaved(), which files the stamp under the dataset the URL belongs to;
+   markSaved() then badges every panel that draws on that dataset. Fresh answers carry no
+   stamp, so a panel with no badge is showing live data. */
+function datasetOf(url){
+  const u = new URL(url, location.href), h = u.hostname;
+  if (h === 'power.larc.nasa.gov') return /GWETTOP/.test(u.search) ? 'POWER' : 'baseline';
+  if (h === 'modis.ornl.gov') return /\/SPL/i.test(u.pathname) || /\/products$/.test(u.pathname) ? 'SMAP' : 'MODIS';
+  if (h === 'archive-api.open-meteo.com') return 'ERA5-Land soil';
+  if (h === 'api.open-meteo.com') return /elevation/.test(u.pathname) ? 'terrain' : 'forecast';
+  if (h === 'api.opentopodata.org') return 'terrain';
+  if (h === 'rest.isric.org' || h === 'api.openepi.io') return 'soil';
+  return 'SMAP';                                    // the SMAP worker or a local smap.json
+}
+function noteSaved(url, r){
+  let at = null;
+  try { at = r.headers.get('X-TD-Saved'); } catch(e){}
+  if (!at) return;
+  const k = datasetOf(url);
+  if (!S.saved[k] || at < S.saved[k]) S.saved[k] = at;         // a panel is as old as its oldest part
+}
+function savedList(){
+  return Object.keys(S.saved).map(k => T('dsname', k)).join(', ');
+}
+function markSaved(){
+  document.querySelectorAll('h3[data-src]').forEach(h => {
+    const hit = h.dataset.src.split('|').filter(k => S.saved[k]).map(k => S.saved[k]).sort()[0];
+    let b = h.querySelector('.saved');
+    if (!hit){ if (b) b.remove(); return; }
+    if (!b){ b = document.createElement('span'); b.className = 'saved'; h.appendChild(b); }
+    b.textContent = T('saved.badge', T('saved.when', new Date(hit)));
+    b.title = T('saved.tip');
+  });
+}
+
 // Plain fetch() failures are useless ("Failed to fetch" covers CORS, DNS, timeout and offline).
 // This wrapper adds a timeout and names the likely cause so a dead panel can be diagnosed.
 async function jfetch(url, ms){
@@ -1136,6 +1213,7 @@ async function jfetch(url, ms){
     throw new Error('blocked — CORS, offline, or the host is down');
   }
   clearTimeout(to);
+  noteSaved(url, r);
   if (!r.ok){
     let why = '';
     try { const b = await r.json(); why = String(b.reason || b.error || b.message || '').slice(0, 160); } catch(e){}
@@ -1189,6 +1267,7 @@ async function ornlGet(url){
     throw new Error(e.name === 'AbortError' ? 'timed out after 90 s' : 'blocked — CORS, offline, or the host is down');
   }
   finally { clearTimeout(to); }
+  noteSaved(url, r);
   if (!r.ok){
     let body = '';
     try { body = (await r.text()).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220); } catch(e){}
@@ -2363,7 +2442,7 @@ function renderSite(){
       rs.disabled = true; rs.textContent = 'retrying…';
       try { S.soil = S.soilGrid = await fetchSoil(); S.errs.soil = null; log('soil ok on retry'); }
       catch(e){ S.errs.soil = e.message; log('soil retry failed: ' + e.message); }
-      soilChanged();
+      soilChanged(); markSaved();
     };
   }
 }
@@ -2687,6 +2766,7 @@ async function runOnce(){
   const manualSoil = (S.soil && S.soil.manual) ? S.soil : null;   // a typed-in soil test outlives a re-fetch
   S.ndvi = S.evi = S.lstD = S.lstN = S.terr = S.fc = S.fcPast = S.base = S.baseRaw = S.smap = S.era = null;
   S.soil = manualSoil; S.soilGrid = null;
+  S.saved = {}; S.finalStatus = null; markSaved();
   S.smapLag = S.smapQA = S.smapFlagged = S.smapVWC = S.ornlProducts = S.ndviKeep = S.smapWorkerErr = null;
   setStatus('NASA POWER…', true);
   try {
@@ -2694,6 +2774,7 @@ async function runOnce(){
     S.derived = derive(S.power);
     log('POWER ok — ' + S.power.date.length + ' days, elevation ' + fx(S.power.elev, 0) + ' m');
     $('csv').disabled = $('saveBtn').disabled = $('printBtn').disabled = false;
+    markSaved();
     // Rendering is reported under its own name: a drawing problem (e.g. Chart.js blocked)
     // must not be announced as "POWER failed" when the data arrived fine.
     guard('render', () => { renderDurian(); renderIrrigation(); renderSite(); renderCharts(); });
@@ -2757,9 +2838,10 @@ async function runOnce(){
   S.pending = new Set(jobs.map(j => j[0]));          // still in flight → pills say "loading…", not "unavailable"
   pills();
   const results = await Promise.all(jobs.map(async ([name, fn]) => {
-    try { await fn(); S.pending.delete(name); pills(); log(name + ' ok'); return null; }
+    try { await fn(); S.pending.delete(name); pills(); markSaved();
+          log(name + ' ok' + (S.saved[name] ? ' — SAVED COPY from ' + T('saved.when', new Date(S.saved[name])) + ' (source did not answer)' : '')); return null; }
     catch(e){
-      S.pending.delete(name); pills();
+      S.pending.delete(name); pills(); markSaved();
       S.errs[name] = (name === 'SMAP' && S.smapWorkerErr ? 'SMAP worker: ' + S.smapWorkerErr + ' · then ORNL: ' : '') + e.message;
       log(name + ' unavailable: ' + e.message);
       renderSite(); renderSmap();                     // show the reason now, not after everything else
@@ -2768,7 +2850,11 @@ async function runOnce(){
   }));
   renderSite(); renderSmap(); renderDurian();       // repaint with whatever did arrive
   const bad = results.filter(Boolean);
-  setStatus(bad.length ? T('st.failed', bad.map(n => T('dsname', n)).join(', ')) : 'all datasets loaded');
+  markSaved();
+  // kept as a function so the language toggle can rebuild it in the other language
+  S.finalStatus = () => (bad.length ? T('st.failed', bad.map(n => T('dsname', n)).join(', ')) : T('st.ok'))
+                      + (Object.keys(S.saved).length ? T('st.saved', savedList()) : '');
+  setStatus(S.finalStatus());
   if (bad.length) log('NOTE: ' + bad.join(', ') + ' failed — see the panels for the reason. Pressing Fetch again often clears rate-limit errors.');
   $('run').disabled = false;
 }
@@ -2782,6 +2868,7 @@ log('boot ok · secureContext=' + window.isSecureContext
    templated bodies (drainage verdict, SMAP caveat …) switch language live. */
 window.__tdRerender = function(){
   try { farmSummary(); } catch(e){}
+  try { markSaved(); if (S.finalStatus && !running) setStatus(S.finalStatus()); } catch(e){}
   if (!(S.derived || S.terr || S.soil || S.smap || S.fc || S.base)) return;
   try { renderSite(); } catch(e){}
   try { renderSmap(); } catch(e){}

@@ -14,7 +14,7 @@
      the dates made relative (see dataKey), so yesterday's pull answers today's request
      offline, and each day's pull replaces the previous one instead of piling up.
 */
-const VERSION = 'terradurian-v26';
+const VERSION = 'terradurian-v27';
 const SHELL = VERSION + '-shell';
 const DATA = VERSION + '-data';
 
@@ -95,8 +95,13 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(req).then(res => {
         if (res && res.ok) {
+          // Stored with the time it was saved. When this copy is later served in place of a
+          // live answer, the page reads X-TD-Saved and badges the panels built from it.
           const copy = res.clone();
-          caches.open(DATA).then(c => c.put(key, copy));
+          const headers = new Headers(copy.headers);
+          headers.set('X-TD-Saved', new Date().toISOString());
+          const stamped = new Response(copy.body, {status: copy.status, statusText: copy.statusText, headers});
+          caches.open(DATA).then(c => c.put(key, stamped));
           return res;
         }
         // The host answered, but with "I am down" (5xx) or "slow down" (429). That is as
