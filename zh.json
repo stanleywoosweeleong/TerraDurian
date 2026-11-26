@@ -417,5 +417,8 @@
  "Cloudflare Worker URL": "Cloudflare Worker 网址",
  "Import saved plots from a JSON file": "从 JSON 文件导入已保存的地块",
  "Open TerraDurian": "打开 TerraDurian",
- "QR code for https://stanleywoosweeleong.github.io/TerraDurian/": "https://stanleywoosweeleong.github.io/TerraDurian/ 的二维码"
+ "QR code for https://stanleywoosweeleong.github.io/TerraDurian/": "https://stanleywoosweeleong.github.io/TerraDurian/ 的二维码",
+ "A new version is ready": "新版本已就绪",
+ "Refresh": "刷新",
+ "Dismiss": "关闭"
 }

@@ -7,6 +7,9 @@
  *
  * - English is the source: the keys of zh.json / ms.json are the English strings.
  * - Injects a language picker in the header; the choice persists in localStorage.
+ * - On the very first launch (no valid saved language) a full-screen picker asks once.
+ *   "First launch" means nothing valid is saved — not a separate flag — so a damaged
+ *   stored value also leads back to the picker instead of a broken interface.
  * - A MutationObserver re-runs after the app re-renders, so fresh content translates too.
  * - Only EXACT trimmed matches are swapped, so numbers and one-off phrases stay English.
  * - Each translated node's English is remembered, so switching language (to English or
@@ -25,9 +28,11 @@
     zh: { label: '中文',           html: 'zh-CN', file: './zh.json' },
     ms: { label: 'Bahasa Melayu', html: 'ms',    file: './ms.json' }
   };
-  var lang = 'en';
-  try { lang = localStorage.getItem(LS) || 'en'; } catch (e) {}   // storage can be blocked
-  if (!LANGS[lang]) lang = 'en';
+  var lang = null;
+  try { lang = localStorage.getItem(LS); } catch (e) {}           // storage can be blocked
+  var firstLaunch = !LANGS[lang];  // nothing valid saved → the picker asks
+  if (firstLaunch) lang = 'en';    // what shows behind the picker
+  window.__tdLang = lang;          // the app's templates read this (kept in memory if storage is blocked)
   var dicts = { en: {} };          // language code -> {english: translation}
   var dict = {};                   // the active one
   var observer = null;
@@ -41,7 +46,7 @@
       acceptNode: function (n) {
         var p = n.parentNode;
         if (!p || SKIP[p.tagName]) return NodeFilter.FILTER_REJECT;
-        if (p.closest && p.closest('#langToggle, #log, #map, code')) return NodeFilter.FILTER_REJECT;
+        if (p.closest && p.closest('#langToggle, #langpick, #log, #map, code')) return NodeFilter.FILTER_REJECT;
         return (n.nodeValue && n.nodeValue.trim()) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       }
     });
@@ -79,7 +84,7 @@
     var els = document.querySelectorAll('[placeholder],[aria-label]');
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
-      if (el.closest && el.closest('#map')) continue;          // Leaflet's own controls
+      if (el.closest && el.closest('#map, #langpick')) continue;   // Leaflet's own controls; the picker is multilingual by design
       for (var j = 0; j < ATTRS.length; j++) {
         var a = ATTRS[j], cur = el.getAttribute(a);
         if (cur == null) continue;
@@ -116,11 +121,15 @@
   }
 
   function setLang(l) {
-    if (!LANGS[l]) l = 'en';
+    if (!LANGS[l]) return Promise.resolve(false);
+    // Always save — even when the choice equals what is already showing. Skipping the save
+    // for "no change" would mean picking the default language is never remembered, and the
+    // first-launch picker would come back on every launch.
     try { localStorage.setItem(LS, l); } catch (e) {}
-    lang = l;                       // templates read the stored choice at once
+    lang = l; window.__tdLang = l;  // templates read the choice at once
     return load(l).then(function (d) {
       if (lang === l) apply(l, d);  // ignore a slow file that lost a race with a newer choice
+      return true;
     });
   }
 
@@ -144,8 +153,34 @@
     else hdr.appendChild(sel);
   }
 
+  // First-launch picker. The page shows it (synchronously, before first paint) when no valid
+  // language is saved; here we give its buttons their job. It saves through setLang — the
+  // same path as the header picker — so the latest choice always wins.
+  function closePicker() {
+    var lp = document.getElementById('langpick');
+    if (!lp) return;
+    lp.hidden = true;
+    document.body.classList.remove('picking');
+    var kids = document.body.children;
+    for (var i = 0; i < kids.length; i++) kids[i].inert = false;
+    window.scrollTo(0, 0);
+  }
+  function wirePicker() {
+    var lp = document.getElementById('langpick');
+    if (!lp) return;
+    lp.onclick = function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('[data-lang]') : null;
+      if (!b || !LANGS[b.getAttribute('data-lang')]) return;
+      firstLaunch = false;
+      setLang(b.getAttribute('data-lang'));
+      closePicker();
+    };
+    if (!firstLaunch && !lp.hidden) closePicker();   // page and layer disagree → trust the saved choice
+  }
+
   function start() {
     injectToggle();
+    wirePicker();
     // Translate SYNCHRONOUSLY inside the observer callback: MutationObserver fires
     // before the browser paints, so freshly rendered English is swapped before it ever
     // becomes visible — no flicker. (A debounce timer here would let a frame of English

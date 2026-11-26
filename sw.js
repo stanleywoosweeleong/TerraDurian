@@ -1,36 +1,44 @@
-/* TerraDurian service worker — makes the app installable and offline-capable.
+/* TerraDurian service worker — makes the app installable, offline-capable and
+   self-updating. There is NO version number to bump on a deploy.
 
-   Strategy:
-   - THE APP'S OWN CODE (the HTML page, i18n.js, zh.json, ms.json, the manifest): network-first with
-     a 3 s timeout, then cache. These files must stay in step with each other — a new page
-     paired with an old translation file shows untranslated text — and a stale cached page
-     used to pin the app to an old build after a deploy.
-   - OTHER SHELL ASSETS (icons, the two CDN libraries): stale-while-revalidate — instant
-     from cache, refreshed in the background.
+   How updates reach people:
+   - The app opens instantly from the saved copy (cache-first). On a weak rural signal a
+     network-first launch means staring at a blank screen until a timeout.
+   - Every time the page loads, and whenever the app comes back to the foreground, the page
+     sends this worker a "check" message. The worker re-fetches every app file past the
+     HTTP cache, compares it byte-for-byte with the saved copy, and stores the new one.
+   - If the app's own code changed (the page, i18n.js or a language file), every open window
+     is told "updated" and shows a "new version is ready" bar with a Refresh button.
+     Dismissing it is fine — the new copy is already saved and appears on the next launch.
+
+   The rest:
+   - CDN LIBRARIES (Leaflet, Chart.js): stale-while-revalidate. They are pinned by version
+     and integrity hash, so they effectively never change.
    - DATA APIs (NASA POWER, Open-Meteo, ORNL, your SMAP worker): network-first with a cache
      fallback, so you always get fresh data when online but still see the last good pull
      when you are out in the field with no signal — or when a data host is itself down
-     (HTTP 5xx) or rate-limiting (429). Responses are stored under a key with
-     the dates made relative (see dataKey), so yesterday's pull answers today's request
-     offline, and each day's pull replaces the previous one instead of piling up.
+     (HTTP 5xx) or rate-limiting (429). Responses are stored under a key with the dates
+     made relative (see dataKey), so yesterday's pull answers today's request offline, and
+     each day's pull replaces the previous one instead of piling up.
 */
-const VERSION = 'terradurian-v29';
-const SHELL = VERSION + '-shell';
-const DATA = VERSION + '-data';
+const CACHE_PREFIX = 'terradurian-';     // unique to THIS app — see activate
+const SHELL = 'terradurian-shell';       // fixed names: they never change between deploys
+const DATA = 'terradurian-data';
+const INDEX = './index.html';
 
-const SHELL_ASSETS = [
-  './',
-  './index.html',
+// The app's own code. A byte change in any of these is "a new version".
+const CODE = [INDEX, './i18n.js', './zh.json', './ms.json'];
+// Every same-origin file the app needs offline.
+const OWN = CODE.concat([
   './TerraDurian.html',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
   './icon-192-maskable.png',
   './icon-512-maskable.png',
-  './apple-touch-icon.png',
-  './i18n.js',
-  './zh.json',
-  './ms.json',
+  './apple-touch-icon.png'
+]);
+const CDN = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'
@@ -49,19 +57,51 @@ const DATA_HOSTS = [
   'services.arcgisonline.com'
 ];
 
+function sameBytes(a, b){
+  if (a.byteLength !== b.byteLength) return false;
+  const x = new Uint8Array(a), y = new Uint8Array(b);
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+  return true;
+}
+
+/* Fetch one file past the HTTP cache and store it. Resolves true only when a copy was
+   already saved and the new one differs. Errors and non-200 responses leave the cache
+   alone, so a temporary 404/503 from the host can never replace the app with an error page.
+   {cache:'no-cache'} matters: GitHub Pages sends max-age=600, so a plain fetch can hand
+   back the stale copy for ten minutes after a deploy. */
+function refresh(url){
+  return fetch(url, {cache: 'no-cache'}).then(res => {
+    if (!res || !res.ok) return false;
+    return caches.open(SHELL).then(c => c.match(url).then(old =>
+      Promise.all([old ? old.arrayBuffer() : null, res.clone().arrayBuffer()]).then(b => {
+        const changed = !!b[0] && !sameBytes(b[0], b[1]);
+        return c.put(url, res).then(() => changed);
+      })));
+  }).catch(() => false);
+}
+// Refresh every own file; true if any of the CODE files changed.
+function refreshShell(){
+  return Promise.all(OWN.map(refresh)).then(changed => CODE.some(f => changed[OWN.indexOf(f)]));
+}
+
+// install: save the app, then take over at once. Safe because the cache names are stable —
+// a new worker never strands an open page on a deleted cache.
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(SHELL).then(c => c.addAll(SHELL_ASSETS).catch(() => {
-      // if a CDN asset fails at install time, cache what we can and carry on
-      return Promise.allSettled(SHELL_ASSETS.map(a => c.add(a)));
-    })).then(() => self.skipWaiting())
+    refreshShell()
+      .then(() => caches.open(SHELL))
+      .then(c => Promise.allSettled(CDN.map(u => c.match(u).then(hit => hit || c.add(u)))))   // a CDN hiccup must not block install
+      .then(() => self.skipWaiting())
   );
 });
 
+// activate: delete only THIS app's other caches (the old versioned ones). Cache Storage is
+// shared by the whole origin — on <user>.github.io that is every project page — so caches
+// without our prefix belong to other apps and are left alone.
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== SHELL && k !== DATA).map(k => caches.delete(k))
+      keys.filter(k => k.indexOf(CACHE_PREFIX) === 0 && k !== SHELL && k !== DATA).map(k => caches.delete(k))
     )).then(() => self.clients.claim())
   );
 });
@@ -117,39 +157,55 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  const cacheable = res => res && res.ok && (url.origin === self.location.origin
-    || url.hostname.endsWith('unpkg.com') || url.hostname.endsWith('cloudflare.com'));
-
-  // THE APP'S OWN CODE: network-first. The HTML must never be stale — a cached page can pin
-  // the app to an old build (old basemap, old text) long after a deploy — and i18n.js /
-  // zh.json must match the page they were deployed with. 3 s is plenty on a field
-  // connection; if the network is slower or absent we fall back to the cache, so offline
-  // still works.
-  const ownCode = url.origin === self.location.origin && /\.(html|js|json|webmanifest)$/.test(url.pathname);
-  if (req.mode === 'navigate' || ownCode) {
+  // PAGE LOADS: the saved app, instantly; the network only if nothing is saved yet.
+  // Freshness is handled by the "check" message below, not here — if the worker
+  // revalidated during the navigation it could finish before the new page is listening,
+  // and the "updated" notice would be lost.
+  if (req.mode === 'navigate') {
     event.respondWith(
-      Promise.race([
-        fetch(req),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('slow')), 3000))
-      ]).then(res => {
-        if (cacheable(res)) { const copy = res.clone(); caches.open(SHELL).then(c => c.put(req, copy)); }
+      caches.match(INDEX).then(hit => hit || fetch(req).then(res => {
+        if (res && res.ok) { const copy = res.clone(); caches.open(SHELL).then(c => c.put(INDEX, copy)); }
         return res;
-      }).catch(() => caches.match(req).then(hit =>
-        hit || (req.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
+      }))
     );
     return;
   }
 
-  // OTHER SHELL ASSETS (icons, CDN libs): stale-while-revalidate —
-  // serve the cached copy instantly, then quietly refresh it for next time. Fast start,
-  // but a deploy is picked up on the following load instead of never.
+  // THE APP'S OTHER FILES (scripts, language files, icons): saved copy first.
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      caches.match(req).then(hit => hit || fetch(req).then(res => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const copy = res.clone(); caches.open(SHELL).then(c => c.put(req, copy));
+        }
+        return res;
+      }))
+    );
+    return;
+  }
+
+  // CDN LIBRARIES: stale-while-revalidate. Anything else cross-origin (map tiles) is
+  // passed through untouched.
+  if (!(url.hostname.endsWith('unpkg.com') || url.hostname.endsWith('cloudflare.com'))) return;
   event.respondWith(
     caches.match(req).then(hit => {
       const net = fetch(req).then(res => {
-        if (cacheable(res)) { const copy = res.clone(); caches.open(SHELL).then(c => c.put(req, copy)); }
+        if (res && res.ok) { const copy = res.clone(); caches.open(SHELL).then(c => c.put(req, copy)); }
         return res;
       }).catch(() => hit);
       return hit || net;
+    })
+  );
+});
+
+// "check" from a page: refresh the app's files and, if its code changed, tell every open
+// window so each can offer a reload.
+self.addEventListener('message', event => {
+  if (event.data !== 'check') return;
+  event.waitUntil(
+    refreshShell().then(changed => {
+      if (!changed) return;
+      return self.clients.matchAll({type: 'window'}).then(list => list.forEach(c => c.postMessage('updated')));
     })
   );
 });

@@ -109,6 +109,24 @@
   .fcd .r{font-family:var(--mono);color:var(--accent2)}
   .saved{font-size:10px;color:var(--warn);border:1px solid var(--warn);border-radius:20px;padding:1px 6px;margin-left:6px;
          font-weight:400;letter-spacing:0;text-transform:none;white-space:nowrap}
+  /* "new version is ready" bar */
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9000;
+         display:flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);padding:10px 12px 10px 16px;
+         background:var(--panel2);border:1px solid var(--accent);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.55);font-size:13px}
+  .toast[hidden]{display:none}          /* display:flex would otherwise override the hidden attribute */
+  .toast span{flex:1}
+  #toastx{padding:4px 9px;border-color:transparent;background:transparent;color:var(--dim)}
+  /* first-launch language picker */
+  #langpick{position:fixed;inset:0;z-index:10000;background:var(--bg);display:flex;flex-direction:column;align-items:center;
+            justify-content:center;gap:14px;padding:calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))}
+  #langpick[hidden]{display:none}
+  #langpick:focus{outline:0}             /* the dialog takes focus, so no button looks pre-selected */
+  #langpick img{width:88px;height:88px;border-radius:20px}
+  #langpick .lptitle{margin:0 0 10px;font-size:22px;font-weight:700;letter-spacing:.2px}
+  #langpick .lptitle span{color:var(--accent)}
+  #langpick button{width:min(18rem,84vw);min-height:58px;font-size:18px;font-weight:600;border-radius:12px}
+  #langpick button:hover,#langpick button:focus-visible{border-color:var(--accent);outline:0}
+  body.picking{overflow:hidden}
   .nonasa{font-size:10px;color:var(--purple);border:1px solid var(--purple);border-radius:20px;padding:1px 6px;margin-left:6px}
   .hm{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:8px}
   .hmc{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;
@@ -593,6 +611,22 @@
 
 </main>
 
+<!-- shown when the service worker has saved a newer copy of the app -->
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>
+  <span>A new version is ready</span>
+  <button type="button" class="primary" id="toastgo">Refresh</button>
+  <button type="button" id="toastx" aria-label="Dismiss">✕</button>
+</div>
+
+<!-- first launch only: shown when no valid language has been saved yet -->
+<div id="langpick" role="dialog" aria-modal="true" tabindex="-1" aria-label="English · 中文 · Bahasa Melayu" hidden>
+  <img src="./icon-192.png" alt="">
+  <p class="lptitle">Terra<span>Durian</span></p>
+  <button type="button" data-lang="en" lang="en">English</button>
+  <button type="button" data-lang="zh" lang="zh-Hans">中文</button>
+  <button type="button" data-lang="ms" lang="ms">Bahasa Melayu</button>
+</div>
+
 <script>
 /* ══════════════════════════════════════════════════════════════════
    TerraDurian — NASA POWER + ORNL MODIS + GIBS, plus two clearly
@@ -609,13 +643,41 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
-/* ── PWA: register the service worker and offer an install button ── */
-if ('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').then(
-      r => console.log('SW registered', r && r.scope),
-      e => console.warn('SW registration failed', e));
+/* ── First launch: no valid saved language → show the picker at once, before anything
+   else paints, so the app never flashes in a language the grower did not choose.
+   i18n.js (loaded below) owns the buttons and the saving. ── */
+(function(){
+  let saved = null;
+  try { saved = localStorage.getItem('td_lang'); } catch(e){}
+  if (/^(en|zh|ms)$/.test(saved || '')) return;
+  const lp = $('langpick'); if (!lp) return;
+  lp.hidden = false;
+  document.body.classList.add('picking');
+  [].forEach.call(document.body.children, n => { if (n !== lp && n.tagName !== 'SCRIPT') n.inert = true; });
+  lp.focus();
+})();
+
+/* ── PWA: register the service worker, ask it to look for a newer copy, and offer an
+   install button. The worker serves the saved app instantly; this page then asks it to
+   "check" — on every load and whenever the app returns to the foreground (installed apps
+   stay open for days). If the app's code changed, the worker answers "updated" and the
+   bar appears. Reloading is safe: the pin, farm setup and saved plots are kept for the tab. ── */
+try {
+  $('toastgo').onclick = () => location.reload();
+  $('toastx').onclick  = () => { $('toast').hidden = true; };
+} catch(e){ console.warn('update bar', e); }
+if ('serviceWorker' in navigator && location.protocol !== 'file:'){
+  const askForUpdate = () => {
+    if (navigator.onLine === false) return;
+    navigator.serviceWorker.ready.then(reg => { if (reg.active) reg.active.postMessage('check'); }).catch(() => {});
+  };
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data === 'updated'){ $('toast').hidden = false; log('a newer copy of the app has been saved — Refresh to use it'); }
   });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(askForUpdate).catch(e => console.warn('SW registration failed', e));
+  });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') askForUpdate(); });
 }
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
@@ -670,7 +732,10 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
    whole (word order differs between languages, so fragment-by-fragment swapping cannot
    work here). A template with no entry for the chosen language falls back to English. */
 function tr(s){ return (TDLANG() !== 'en' && window.__tdDict && window.__tdDict[s]) || s; }
-function TDLANG(){ try { return localStorage.getItem('td_lang') || 'en'; } catch(e){ return 'en'; } }
+function TDLANG(){
+  if (window.__tdLang) return window.__tdLang;        // set by i18n.js; survives blocked storage for the session
+  try { return localStorage.getItem('td_lang') || 'en'; } catch(e){ return 'en'; }
+}
 function T(key){
   var a = [].slice.call(arguments, 1), e = TPL[key];
   if (!e) return '';
@@ -1131,6 +1196,7 @@ function setPoint(lat, lon, fly){
                          + Math.abs(S.lon).toFixed(3) + '°' + (S.lon >= 0 ? 'E' : 'W');
   if (S.marker) S.marker.setLatLng([S.lat, S.lon]);
   if (fly && S.map) S.map.setView([S.lat, S.lon], Math.max(S.map.getZoom(), 11));
+  if (S.keepForm) S.keepForm();
   if (S.derived && !running && (S.lat !== Q.lat || S.lon !== Q.lon)){
     S.finalStatus = null;
     setStatus('pin moved — press Fetch all data to update');
@@ -1193,7 +1259,7 @@ guard('controls', () => {
   $('copyLog').onclick = async () => {
     const text = [
       'TerraDurian fetch log — copied ' + new Date().toString(),
-      'page: ' + location.href,
+      'page: ' + location.href + ' · this copy of the app: ' + document.lastModified,
       'point: ' + Q.lat + ', ' + Q.lon + (S.lat !== Q.lat || S.lon !== Q.lon ? ' (pin now at ' + S.lat + ', ' + S.lon + ')' : '')
         + ' · history: ' + $('range').value + ' days · language: ' + TDLANG(),
       'status: ' + $('status').textContent.trim(),
@@ -2921,6 +2987,7 @@ function savePlot(){
   log('saved plot "' + d.farm.name + '" (' + S.plots.length + ' total)');
 }
 function renderCompare(){
+  try { sessionStorage.setItem('td_plots', JSON.stringify(S.plots)); } catch(e){}   // kept for this tab, so a Refresh does not lose them
   if (!S.plots.length){ $('cmpTbl').innerHTML = '<tbody><tr><td class="muted">No plots saved yet.</td></tr></tbody>'; return; }
   $('cmpTbl').innerHTML = '<thead><tr><th>Plot</th><th class="num">Score</th><th class="num">Rain</th>'
     + '<th class="num">Temp</th><th class="num">Slope</th><th class="num">Elev</th><th class="num">pH</th>'
@@ -2950,6 +3017,19 @@ function exportJson(){
   a.href = URL.createObjectURL(new Blob([JSON.stringify(S.plots, null, 2)], {type:'application/json'}));
   a.download = 'terradurian_plots.json'; a.click();
 }
+// Rebuild every plot from known fields only: a malformed or hostile file (or a damaged
+// saved copy) can then neither break the Compare table nor smuggle markup into it.
+function cleanPlots(arr){
+  const num = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  return (Array.isArray(arr) ? arr : []).filter(q => q && typeof q === 'object').map(q => ({
+    name: String(q.name == null ? 'Plot' : q.name).slice(0, 80),
+    lat: num(q.lat), lon: num(q.lon), total: num(q.total),
+    items: (Array.isArray(q.items) ? q.items : [])
+      .filter(it => it && typeof it.k === 'string').map(it => ({k: it.k.slice(0, 40), s: num(it.s)})),
+    rain: num(q.rain), tMean: num(q.tMean), bestDry: num(q.bestDry), slope: num(q.slope),
+    elev: num(q.elev), ph: num(q.ph), texture: typeof q.texture === 'string' ? q.texture.slice(0, 40) : null,
+    trees: num(q.trees), litres: num(q.litres)}));
+}
 function importJson(e){
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
@@ -2957,17 +3037,7 @@ function importJson(e){
     try {
       const j = JSON.parse(r.result);
       if (!Array.isArray(j)) throw new Error('not a plot array');
-      // Rebuild every plot from known fields only: a malformed or hostile file can then
-      // neither break the Compare table nor smuggle markup into it.
-      const num = v => (typeof v === 'number' && isFinite(v)) ? v : null;
-      const clean = j.filter(q => q && typeof q === 'object').map(q => ({
-        name: String(q.name == null ? 'Plot' : q.name).slice(0, 80),
-        lat: num(q.lat), lon: num(q.lon), total: num(q.total),
-        items: (Array.isArray(q.items) ? q.items : [])
-          .filter(it => it && typeof it.k === 'string').map(it => ({k: it.k.slice(0, 40), s: num(it.s)})),
-        rain: num(q.rain), tMean: num(q.tMean), bestDry: num(q.bestDry), slope: num(q.slope),
-        elev: num(q.elev), ph: num(q.ph), texture: typeof q.texture === 'string' ? q.texture.slice(0, 40) : null,
-        trees: num(q.trees), litres: num(q.litres)}));
+      const clean = cleanPlots(j);
       if (!clean.length) throw new Error('no plots found in that file');
       S.plots = S.plots.concat(clean); renderCompare();
       log('imported ' + clean.length + ' plots');
@@ -3101,6 +3171,31 @@ async function runOnce(){
   if (bad.length) log('NOTE: ' + bad.join(', ') + ' failed — see the panels for the reason. Pressing Fetch again often clears rate-limit errors.');
   $('run').disabled = false;
 }
+
+/* Keep what the grower typed for the life of this tab, so pressing Refresh on the update bar
+   (or reloading for any reason) comes back to the same pin, farm setup and saved plots.
+   sessionStorage is per-tab, which is exactly what "saved plots live in this tab" promises. */
+const KEEP = ['lat','lon','range','fName','fSpace','fAge','fCanopy','fAuto','fEff','fArea','mSoilOn','mPh','mClay','mSand','smapUrl'];
+guard('restore', () => {
+  let form = null, plots = null;
+  try { form = JSON.parse(sessionStorage.getItem('td_form') || 'null');
+        plots = JSON.parse(sessionStorage.getItem('td_plots') || 'null'); } catch(e){}
+  if (form && typeof form === 'object'){
+    KEEP.forEach(id => { const el = $(id), v = form[id]; if (!el || v == null) return;
+      if (el.type === 'checkbox') el.checked = !!v; else el.value = String(v).slice(0, 300); });
+    if (isFinite(parseFloat($('lat').value)) && isFinite(parseFloat($('lon').value)))
+      setPoint($('lat').value, $('lon').value, true);
+    Q.lat = S.lat; Q.lon = S.lon;
+    $('fAuto').dispatchEvent(new Event('change'));
+    if ($('mSoilOn').checked) $('mSoilOn').dispatchEvent(new Event('change'));
+  }
+  if (plots){ S.plots = cleanPlots(plots); if (S.plots.length) renderCompare(); }
+  const keep = () => { const o = {};
+    KEEP.forEach(id => { const el = $(id); if (el) o[id] = el.type === 'checkbox' ? el.checked : el.value; });
+    try { sessionStorage.setItem('td_form', JSON.stringify(o)); } catch(e){} };
+  document.addEventListener('input', keep); document.addEventListener('change', keep);
+  S.keepForm = keep;
+});
 
 setStatus('ready — press Fetch all data');
 log('boot ok · secureContext=' + window.isSecureContext

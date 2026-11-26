@@ -18,13 +18,21 @@ Three languages: English / 简体中文 / Bahasa Melayu.
 GitHub Pages already serves over HTTPS, which the PWA (install + offline) needs.
 
 ## Updating later
-The page, `i18n.js`, `zh.json` and `ms.json` are fetched network-first, so returning visitors get
-a new deploy on their next online load without any extra step. Icons and the two CDN
-libraries are served from cache and refreshed in the background.
+Just push your changes. There is no version number to bump anywhere.
+GitHub Pages takes a minute or two to publish.
 
-Bump the version string in `sw.js` (e.g. `terradurian-v29` → `-v30`) when you want to
-throw away everything cached on visitors' devices — for example after changing how
-data responses are cached.
+How the update reaches people:
+- The app always opens instantly from the copy saved on the device.
+- Each time it is opened, and each time it comes back to the foreground, it quietly
+  checks for a newer copy and saves it.
+- If the app's code changed (`index.html`, `i18n.js`, `zh.json` or `ms.json`), a
+  "A new version is ready — Refresh" bar appears. Refresh applies it at once; if the
+  bar is dismissed, the new copy simply appears on the next launch.
+- Refreshing keeps the pin, the Farm setup and the saved plots for that browser tab.
+
+## First launch
+The first time the app is opened on a device it asks for a language (English / 中文 /
+Bahasa Melayu) and remembers the answer. The picker in the header changes it later.
 
 ## Live SMAP
 Real SMAP soil moisture comes through a Cloudflare Worker; the app has the endpoint
