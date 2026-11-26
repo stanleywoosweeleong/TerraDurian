@@ -633,7 +633,10 @@ function log(m){
 }
 function fail(where, e){
   const msg = where + ': ' + (e && e.message ? e.message : e);
-  const b = $('banner'); b.className = 'on'; b.textContent = '⚠ ' + msg;
+  const b = $('banner'); b.className = 'on';
+  let shown = msg;                                   // the log keeps the English original
+  try { shown = T('where', where) + ': ' + T('err', e && e.message ? e.message : e); } catch(x){}
+  b.textContent = '⚠ ' + shown;
   log('ERROR ' + msg);
   console.error(where, e);
 }
@@ -665,6 +668,7 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
    The app owns the numbers; each template supplies English AND Chinese, so a
    sentence with an interpolated value translates as a whole (Chinese word order
    differs from English, so fragment-by-fragment swapping cannot work here). */
+function tr(s){ return (TDLANG() === 'zh' && window.__tdDict && window.__tdDict[s]) || s; }
 function TDLANG(){ try { return localStorage.getItem('td_lang') || 'en'; } catch(e){ return 'en'; } }
 function T(key){
   var a = [].slice.call(arguments, 1), e = TPL[key];
@@ -876,9 +880,49 @@ var TPL = {
                  zh:function(k,n){return 'MOD13Q1 250 米，经像元可靠性波段云筛选：'+n+' 个合成期中有 '+k+' 个在 ±1 公里窗口内有 ≥5 个晴空像元。空缺为多云时段，如实留空而非插值。';} },
   'date': { en:function(dt){return dt.toDateString().slice(4);}, zh:function(dt){return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日';} },
   'wdate':{ en:function(dt){return dt.toDateString().slice(0,10);}, zh:function(dt){return (dt.getMonth()+1)+'月'+dt.getDate()+'日 '+T('wd',dt.getDay());} },
-  'err': { en:function(s){return s;}, zh:function(s){ return ({
-      'answered, but with no pH or texture for this point or within ~2 km — SoilGrids has gaps, and a coastal/hill pixel can fall in one. Open Farm setup (top bar) and tick "Enter my own soil test".':'有响应，但该点及周边约 2 公里内都没有 pH 或质地数据——SoilGrids 存在空缺，海岸/山地像元可能正落在空缺中。请点击顶栏的「🌳 农场设置」，勾选「输入我的土壤检测」，填入你的土壤化验值。'
-    })[s]||s; } },
+  /* Error text. Messages are written once, in English, where they are thrown (and stay
+     English in the Fetch log, which is a diagnostic record). This turns them into Chinese
+     at the moment they are shown in a panel or the banner. Unknown messages pass through. */
+  'err': { en:function(s){return s;}, zh:function(s){
+      s = String(s == null ? '' : s);
+      var exact = {
+      'answered, but with no pH or texture for this point or within ~2 km — SoilGrids has gaps, and a coastal/hill pixel can fall in one. Open Farm setup (top bar) and tick "Enter my own soil test".':'有响应，但该点及周边约 2 公里内都没有 pH 或质地数据——SoilGrids 存在空缺，海岸/山地像元可能正落在空缺中。请点击顶栏的「🌳 农场设置」，勾选「输入我的土壤检测」，填入你的土壤化验值。',
+      'blocked — CORS, offline, or the host is down':'请求被拦截——跨域限制、离线，或服务器宕机',
+      'both Copernicus and SRTM DEMs failed':'Copernicus 与 SRTM 两个高程数据源均失败',
+      'POWER returned no data (ocean point?)':'POWER 未返回数据（该点可能在海上？）',
+      'no response from the worker':'Worker 没有响应',
+      'archive returned no soil block':'存档接口未返回土壤数据',
+      'Open-Meteo returned no daily block':'Open-Meteo 未返回逐日数据',
+      'gaps in the Copernicus response':'Copernicus 的响应中有缺口',
+      'not a plot array':'这不是地块列表文件',
+      'no plots found in that file':'该文件中没有地块',
+      'ORNL serves only SPL4CMDL (carbon), which is not soil moisture':'ORNL 只提供 SPL4CMDL（碳产品），那不是土壤湿度',
+      'Chart.js failed to load.':'Chart.js 加载失败。',
+      'Leaflet failed to load from unpkg.':'Leaflet 未能从 unpkg 加载。'
+      };
+      if (exact[s]) return exact[s];
+      var m;
+      if ((m = /^SMAP worker: (.*) · then ORNL: (.*)$/.exec(s))) return 'SMAP Worker：' + T('err', m[1]) + ' · 随后 ORNL：' + T('err', m[2]);
+      if (/Earthdata rejected the token/.test(s)) return (s.match(/^HTTP \d+ — /) || [''])[0]
+        + 'Earthdata 拒绝了令牌——令牌已过期（有效期约 60 天），或账户尚未接受 NSIDC DAAC 协议。请到 urs.earthdata.nasa.gov 生成新令牌，并替换 Worker 的 EARTHDATA_TOKEN 密钥。';
+      if ((m = /^(HTTP \d+) — (.*)$/.exec(s))) return m[1] + ' — ' + T('err', m[2]);
+      if ((m = /^timed out after ([\d.]+) s$/.exec(s))) return '请求超时（' + m[1] + ' 秒）';
+      if ((m = /^ORNL has no (\S+) data for this location$/.exec(s))) return 'ORNL 没有该位置的 ' + m[1] + ' 数据';
+      if ((m = /^ORNL serves (\d+) products and none of them is SMAP/.exec(s))) return 'ORNL 提供 ' + m[1] + ' 个产品，其中没有 SMAP——继续使用 MERRA-2 替代';
+      if ((m = /^no recognisable soil-moisture band in (\S+)$/.exec(s))) return m[1] + ' 中没有可识别的土壤湿度波段';
+      return s; } },
+  'where': { en:function(s){return s;}, zh:function(s){ return ({Import:'导入', Uncaught:'未捕获的错误', Promise:'异步错误', render:'渲染', controls:'控件', map:'地图', POWER:'POWER'})[s] || s; } },
+  'st.located': { en:function(n){return 'located ±'+n+' m';}, zh:function(n){return '已定位 ±'+n+' 米';} },
+  'geo.none':   { en:function(){return 'This browser has no Geolocation API.';}, zh:function(){return '此浏览器不支持定位功能。';} },
+  'geo.insecure':{ en:function(){return 'Geolocation needs a secure context. Open this page via http://localhost:8000 or https://, not file://.';},
+                   zh:function(){return '定位需要安全环境。请通过 http://localhost:8000 或 https:// 打开本页面，而不是 file://。';} },
+  'geo.fail':   { en:function(msg){return 'Could not get your location: '+msg+'\n\nClick the icon left of the address bar → Location → Allow, then reload. Or just type coordinates / click the map.';},
+                  zh:function(msg){return '无法获取你的位置：'+msg+'\n\n请点击地址栏左侧的图标 → 位置 → 允许，然后重新加载。也可以直接输入坐标，或在地图上点击。';} },
+  'tile.none':  { en:function(l){return l+' has no tile here — try another date.';}, zh:function(l){return l+' 在此处没有影像瓦片——请换一个日期。';} },
+  'tile.avail': { en:function(ok,n,d){return ok+' of '+n+' layers available on '+d;}, zh:function(ok,n,d){return d+'：'+n+' 个图层中有 '+ok+' 个可用';} },
+  'tile.switched':{ en:function(n){return ' · switched to '+n;}, zh:function(n){return ' · 已切换到 '+n;} },
+  'u.satfrac':  { en:function(){return ' sat. frac.';}, zh:function(){return '（饱和度）';} },
+  'u.9km':      { en:function(){return '9 km';}, zh:function(){return '9 公里';} },
   'soil.approx': {
     en: function(km){ return 'Your exact point is a gap in the SoilGrids map — these values come from the nearest valid pixel, ~'+km+' km away. Nearby pixels here agree with each other closely, so this is a fair estimate; a lab test is still better.'; },
     zh: function(km){ return '你的精确位置在 SoilGrids 地图中是一处空缺——这些数值来自约 '+km+' 公里外最近的有效像元。周边像元的数值彼此非常接近，因此这是合理的估计；土壤化验仍然更好。'; }
@@ -1019,20 +1063,18 @@ guard('controls', () => {
   ['mPh','mClay','mSand'].forEach(id => $(id).oninput = () => { if ($('mSoilOn').checked) applyManualSoil(); });
 
   $('gps').onclick = () => {
-    if (!navigator.geolocation) { alert('This browser has no Geolocation API.'); return; }
+    if (!navigator.geolocation) { alert(T('geo.none')); return; }
     if (!window.isSecureContext){
-      alert('Geolocation needs a secure context. Open this page via http://localhost:8000 or https://, not file://.');
+      alert(T('geo.insecure'));
       return;
     }
     setStatus('locating…', true);
     navigator.geolocation.getCurrentPosition(
       p => { setPoint(p.coords.latitude, p.coords.longitude, true);
              log('GPS fix ±' + Math.round(p.coords.accuracy) + ' m');
-             setStatus('located ±' + Math.round(p.coords.accuracy) + ' m'); run(); },
+             setStatus(T('st.located', Math.round(p.coords.accuracy))); run(); },
       e => { setStatus('location denied'); log('geolocation failed: ' + e.message);
-             alert('Could not get your location: ' + e.message
-               + '\n\nClick the icon left of the address bar → Location → Allow, then reload. '
-               + 'Or just type coordinates / click the map.'); },
+             alert(T('geo.fail', e.message)); },
       {enableHighAccuracy:true, timeout:15000, maximumAge:60000});
   };
 
@@ -1063,9 +1105,15 @@ function buildTile(cfg){
   const t = L.tileLayer(tileUrl(cfg), {maxNativeZoom:cfg.z, maxZoom:19, tileSize:256,
     opacity: cfg.overlay ? 1 : 0.92, attribution:'NASA GIBS / EOSDIS'});
   t.on('tileerror', () => { tileErrors++;
-    if (tileErrors % 8 === 1) $('tileMsg').innerHTML = '<span class="err">' + cfg.l + ' has no tile here — try another date.</span>'; });
-  t.on('tileload', () => { $('tileMsg').textContent = ''; });
+    if (tileErrors % 8 === 1) setTile(() => T('tile.none', cfg.l), true); });
+  t.on('tileload', () => setTile(null));
   return t;
+}
+function setTile(fn, isErr){
+  S.tileFn = fn; S.tileErr = !!isErr;
+  const el = $('tileMsg'); if (!el) return;
+  el.textContent = fn ? fn() : '';
+  el.className = (fn && isErr) ? 'err' : 'muted';
 }
 function applyLayers(){
   if (!S.map) return;
@@ -1094,14 +1142,15 @@ function probeLayers(){
       if (btns[i]) btns[i].classList.toggle('dead', !good);
       if (done === LAYERS.length){
         const ok = live.filter(Boolean).length;
-        $('tileMsg').textContent = ok + ' of ' + LAYERS.length + ' layers available on ' + gibsDate();
+        const day = gibsDate(); let sw = null;
+        setTile(() => T('tile.avail', ok, LAYERS.length, day) + (sw != null ? T('tile.switched', tr(LAYERS[sw].n)) : ''));
         if (!live[activeIdx]){
           const alt = live.findIndex((v, j) => v && !LAYERS[j].overlay);
           if (alt >= 0){
             activeIdx = alt;
             btns.forEach((b, j) => { if (!LAYERS[j].overlay) b.classList.toggle('on', j === alt); });
             applyLayers();
-            $('tileMsg').textContent += ' · switched to ' + LAYERS[alt].n;
+            sw = alt; setTile(S.tileFn);
           }
         }
       }
@@ -2330,7 +2379,7 @@ function renderSmap(){
     let why = '';
     if (fileOrigin) why = '<div class="alert bad" style="margin-bottom:8px"><div>' + T('smap.fileWarn') + '</div></div>';
     card.innerHTML = why + '<div class="alert warn"><div><b>Real SMAP unavailable</b><small>'
-      + T('smap.unavail', esc(S.errs.SMAP || ''), S.ornlProducts ? esc(S.ornlProducts.join(' · ')) : '', fx(Q.lat,4), fx(Q.lon,4))
+      + T('smap.unavail', esc(T('err', S.errs.SMAP || '')), S.ornlProducts ? esc(S.ornlProducts.join(' · ')) : '', fx(Q.lat,4), fx(Q.lon,4))
       + '</small></div></div>';
     return;
   }
@@ -2338,7 +2387,7 @@ function renderSmap(){
   const rows = [];
   if (l)  rows.push([T('smap.surfRow', esc(sm.bSurf)), fx(l.v, 3) + ' m³/m³', esc(l.date)]);
   if (lr) rows.push([T('smap.rootRow', esc(sm.bRoot)), fx(lr.v, 3) + ' m³/m³', esc(lr.date)]);
-  rows.push([T('smap.proxyRow'), fx(d ? d.soilRoot : null, 2) + ' sat. frac.', T('smap.proxyNote')]);
+  rows.push([T('smap.proxyRow'), fx(d ? d.soilRoot : null, 2) + T('u.satfrac'), T('smap.proxyNote')]);
   const lag = S.smapLag;
   const flagPct = (S.smapFlagged && sm.surf) ? Math.round(100 * S.smapFlagged / sm.surf.length) : 0;
   let caveat = '';
@@ -2408,7 +2457,7 @@ function renderSite(){
     }
   } else {
     $('sDrain').innerHTML = '<div class="alert warn"><div><b>No terrain data</b><small>'
-      + T('drain.noterr', S.errs.terrain ? '<span class="err">' + esc(S.errs.terrain) + '</span>' : '')
+      + T('drain.noterr', S.errs.terrain ? '<span class="err">' + esc(T('err', S.errs.terrain)) + '</span>' : '')
       + '</small></div></div>';
   }
 
@@ -2656,7 +2705,7 @@ function pills(){
   set('pSmap', sm ? fx(sm.v,3) + ' m³/m³' : na('SMAP'),
       sm ? (sm.v > 0.35 ? 'bad' : sm.v < 0.12 ? 'warn' : 'good') : '');
   if (S.smap && $('smapSrc')) $('smapSrc').textContent = S.smap.prod + ' · ' + S.smap.bSurf
-    + (S.smap.bRoot ? ' + ' + S.smap.bRoot : '') + ' · 9 km';
+    + (S.smap.bRoot ? ' + ' + S.smap.bRoot : '') + ' · ' + T('u.9km');
   const nv = S.ndvi && S.ndvi.filter(r => r.v != null).slice(-1)[0];
   set('pNdvi',  nv ? 'NDVI ' + fx(nv.v,2) : na('MODIS'), nv ? (nv.v >= .7 ? 'good' : nv.v >= .5 ? 'warn' : 'bad') : '');
   const lv = S.lstD && S.lstD.filter(r => r.v != null).slice(-1)[0];
@@ -2782,7 +2831,7 @@ async function runOnce(){
     fail('POWER', e);
     setStatus('POWER failed');
     $('verdict').textContent = 'POWER fetch failed';
-    $('verdictNote').innerHTML = '<span class="err">' + esc(e.message) + '</span>';
+    $('verdictNote').innerHTML = '<span class="err">' + esc(T('err', e.message)) + '</span>';
     $('run').disabled = false;
     return;
   }
@@ -2869,6 +2918,7 @@ log('boot ok · secureContext=' + window.isSecureContext
 window.__tdRerender = function(){
   try { farmSummary(); } catch(e){}
   try { markSaved(); if (S.finalStatus && !running) setStatus(S.finalStatus()); } catch(e){}
+  try { if (S.tileFn) setTile(S.tileFn, S.tileErr); } catch(e){}
   if (!(S.derived || S.terr || S.soil || S.smap || S.fc || S.base)) return;
   try { renderSite(); } catch(e){}
   try { renderSmap(); } catch(e){}

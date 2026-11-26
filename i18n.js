@@ -9,6 +9,7 @@
  * - A MutationObserver re-runs after the app re-renders, so fresh content translates too.
  * - Only EXACT trimmed matches are swapped, so numbers and one-off phrases stay English.
  * - Each translated node's English is remembered, so switching back restores it exactly.
+ * - Input placeholders and aria-labels are translated too.
  */
 (function () {
   'use strict';
@@ -52,7 +53,29 @@
       var want = lead + t + trail;
       if (n.nodeValue !== want) n.nodeValue = want;
     });
+    translateAttrs();
     if (observer) observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  // Text that lives in attributes — input placeholders and the labels screen readers speak.
+  // The English original is parked in data-en-<attr> so switching back restores it exactly.
+  var ATTRS = ['placeholder', 'aria-label'];
+  function translateAttrs() {
+    var els = document.querySelectorAll('[placeholder],[aria-label]');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.closest && el.closest('#map')) continue;          // Leaflet's own controls
+      for (var j = 0; j < ATTRS.length; j++) {
+        var a = ATTRS[j], cur = el.getAttribute(a);
+        if (cur == null) continue;
+        var en = el.getAttribute('data-en-' + a);
+        if (lang === 'en') { if (en != null && cur !== en) el.setAttribute(a, en); continue; }
+        var t = dict[en != null ? en : cur];
+        if (t == null) continue;
+        if (en == null) el.setAttribute('data-en-' + a, cur);
+        if (cur !== t) el.setAttribute(a, t);
+      }
+    }
   }
 
   function setLang(l) {
@@ -100,6 +123,7 @@
     .then(function (r) { return r.json(); })
     .then(function (d) {
       dict = d;
+      window.__tdDict = d;          // the app looks up names held in data tables (e.g. map layers)
       if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', start);
       else start();
     })

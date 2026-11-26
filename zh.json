@@ -401,5 +401,21 @@
  "Share this app": "分享本应用",
  "Scan to open TerraDurian on a phone, or share the link:": "扫码在手机上打开 TerraDurian，或分享此链接：",
  "Source code on": "源代码见",
- "Free and open — installable to a home screen, and works offline once loaded.": "免费开放——可添加到主屏幕，加载后可离线使用。"
+ "Free and open — installable to a home screen, and works offline once loaded.": "免费开放——可添加到主屏幕，加载后可离线使用。",
+ "location denied": "定位被拒绝",
+ "POWER failed": "POWER 获取失败",
+ "POWER fetch failed": "POWER 数据获取失败",
+ "SRTM 30 m (NASA), Horn 3×3": "SRTM 30 米（NASA）· Horn 3×3",
+ "ALLSKY_SFC_SW_DWN · kWh/m²/day · NASA POWER": "ALLSKY_SFC_SW_DWN · kWh/m²/天 · NASA POWER",
+ "PRECTOTCORR · mm/day": "PRECTOTCORR · 毫米/天",
+ "SMAP L-band radiometer · 9 km · ORNL DAAC": "SMAP L 波段辐射计 · 9 公里 · ORNL DAAC",
+ "GWETTOP / GWETROOT / GWETPROF · ~50 km land model": "GWETTOP / GWETROOT / GWETPROF · 约 50 公里陆面模型",
+ "MOD13Q1 · 250 m · QA-screened": "MOD13Q1 · 250 米 · 经质量筛选",
+ "MOD11A2 · 1 km · 8-day": "MOD11A2 · 1 公里 · 8 天",
+ "RH2M (%) · WS2M & WS10M_MAX (m/s)": "RH2M（%）· WS2M 与 WS10M_MAX（m/s）",
+ ". Free and open — installable to a home screen, and works offline once loaded.": "。免费且开源——可安装到主屏幕，加载一次后即可离线使用。",
+ "Cloudflare Worker URL": "Cloudflare Worker 网址",
+ "Import saved plots from a JSON file": "从 JSON 文件导入已保存的地块",
+ "Open TerraDurian": "打开 TerraDurian",
+ "QR code for https://stanleywoosweeleong.github.io/TerraDurian/": "https://stanleywoosweeleong.github.io/TerraDurian/ 的二维码"
 }
