@@ -43,6 +43,11 @@ the app's SMAP panel shows "Earthdata rejected the token" and falls back to the 
 proxy. Generate a new token at urs.earthdata.nasa.gov and replace the Worker's
 `EARTHDATA_TOKEN` secret (Cloudflare → the Worker → Settings → Variables and Secrets).
 
+To stop doing that by hand, add two more secrets to the Worker — `EARTHDATA_USERNAME`
+and `EARTHDATA_PASSWORD` — and deploy the current `tools/smap-worker.js`. The Worker then
+asks Earthdata Login for a valid token itself and renews it when it expires. Prefer a
+separate Earthdata account made only for this Worker (it must accept the NSIDC DAAC EULA).
+
 The desktop helpers (`fetch_smap.py`, `diagnose_smap.py`, `Get SMAP data.bat`) are not
 included in this repository.
 

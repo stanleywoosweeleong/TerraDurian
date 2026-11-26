@@ -10,6 +10,15 @@
  *   502 with an "Earthdata rejected the token" error and the app falls back to its model
  *   proxy. The fix is always the same: generate a new token and replace the secret.
  *
+ * AUTOMATIC RENEWAL (optional, recommended): add two more secrets,
+ *     EARTHDATA_USERNAME   and   EARTHDATA_PASSWORD
+ *   and the Worker asks Earthdata Login for a token by itself
+ *   (POST /api/users/find_or_create_token — it hands back the account's current token, or
+ *   makes a new one once the old one has expired). Nothing then needs replacing by hand.
+ *   With both set, EARTHDATA_TOKEN is ignored and can be deleted.
+ *   Use a separate Earthdata account made just for this Worker if you can: the password
+ *   is stored encrypted, but anyone who can edit this Worker could read it out.
+ *
  * Call:  /?lat=3.2477&lon=102.4192&days=365&max=18
  *   ?end=YYYY-MM-DD -> window ENDS on this date instead of today. This is how the app
  *                      paginates: several calls with different ?end each get their own
@@ -42,6 +51,33 @@ const TOKEN_MSG = 'Earthdata rejected the token — it has expired (they last ab
   + 'has not accepted the NSIDC DAAC EULA. Generate a new token at urs.earthdata.nasa.gov and replace '
   + 'the EARTHDATA_TOKEN secret on this Worker.';
 const isAuthFail = status => status === 401 || status === 403;
+
+// ── automatic token renewal ────────────────────────────────────────────────────────────
+// The token is kept in memory for the life of this Worker instance and re-read from
+// Earthdata Login at most every 6 hours, or at once when NASA rejects it.
+const URS_TOKEN = 'https://urs.earthdata.nasa.gov/api/users/find_or_create_token';
+const TOKEN_TTL = 6 * 3600 * 1000;
+let memo = { token: null, at: 0 };
+const canRenew = env => !!(env.EARTHDATA_USERNAME && env.EARTHDATA_PASSWORD);
+const b64 = str => btoa(String.fromCharCode(...new TextEncoder().encode(str)));   // safe for non-ASCII passwords
+async function getToken(env, force) {
+  if (!canRenew(env)) return env.EARTHDATA_TOKEN || null;          // manual mode: the stored secret
+  if (!force && memo.token && Date.now() - memo.at < TOKEN_TTL) return memo.token;
+  const r = await timedFetch(URS_TOKEN, {
+    method: 'POST',
+    headers: { Authorization: 'Basic ' + b64(env.EARTHDATA_USERNAME + ':' + env.EARTHDATA_PASSWORD) },
+  }, 10000);
+  if (!r.ok) {
+    memo = { token: null, at: 0 };
+    throw new Error(r.status === 401
+      ? 'Earthdata Login refused EARTHDATA_USERNAME / EARTHDATA_PASSWORD — check both secrets on this Worker.'
+      : 'Earthdata Login answered HTTP ' + r.status + ' when asked for a token.');
+  }
+  const j = await r.json();
+  if (!j || !j.access_token) throw new Error('Earthdata Login returned no token.');
+  memo = { token: j.access_token, at: Date.now() };
+  return memo.token;
+}
 // integer query parameter with a default and hard bounds; junk input gets the default
 const intParam = (v, dflt, lo, hi) => {
   const n = parseInt(v, 10);
@@ -116,8 +152,8 @@ function pickEvenly(arr, k) {
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
-    const token = env.EARTHDATA_TOKEN;
-    if (!token) return json({ error: 'Worker is missing EARTHDATA_TOKEN secret.' }, 500);
+    if (!canRenew(env) && !env.EARTHDATA_TOKEN)
+      return json({ error: 'Worker has no credentials: set EARTHDATA_USERNAME and EARTHDATA_PASSWORD (automatic renewal), or EARTHDATA_TOKEN.' }, 500);
 
     const u = new URL(request.url);
     const lat = parseFloat(u.searchParams.get('lat')), lon = parseFloat(u.searchParams.get('lon'));
@@ -156,6 +192,10 @@ export default {
       await caches.default.put(cacheKey, cc);
       return resp;
     };
+    // looked up only now, after the edge cache has had its chance — a cache hit costs no login
+    let token;
+    try { token = await getToken(env, false); }
+    catch (e) { return json({ error: e.name === 'AbortError' ? 'Earthdata Login timed out.' : e.message }, 502); }
     const auth = { headers: { Authorization: 'Bearer ' + token } };
     const cmrUrl = CMR + '?short_name=' + SHORT_NAME
       + '&temporal=' + start.toISOString().slice(0, 10) + ',' + end.toISOString().slice(0, 10)
@@ -164,11 +204,18 @@ export default {
 
     let entries;
     try {
-      const r = await timedFetch(cmrUrl, auth, 10000);
+      let r = await timedFetch(cmrUrl, auth, 10000);
+      if (isAuthFail(r.status) && canRenew(env)) {       // token expired mid-life: fetch a new one, try once more
+        auth.headers.Authorization = 'Bearer ' + await getToken(env, true);
+        r = await timedFetch(cmrUrl, auth, 10000);
+      }
       if (isAuthFail(r.status)) return json({ error: TOKEN_MSG }, 502);          // not cached
       if (!r.ok) return json({ error: 'CMR HTTP ' + r.status, detail: (await r.text()).slice(0, 300) }, 502);
       entries = ((await r.json()).feed || {}).entry || [];
-    } catch (e) { return json({ error: 'CMR failed: ' + (e.name === 'AbortError' ? 'timeout' : e.message) }, 502); }
+    } catch (e) {
+      if (/^Earthdata Login/.test(e.message || '')) return json({ error: e.message }, 502);   // renewal itself failed
+      return json({ error: 'CMR failed: ' + (e.name === 'AbortError' ? 'timeout' : e.message) }, 502);
+    }
     if (!entries.length) return json({ error: 'no granules for this point/period' }, 404);
 
     // DEBUG: show the real link structure so the OPeNDAP path can be nailed down
@@ -253,7 +300,10 @@ export default {
     // The data host refused the token. Without this check the granules would just count as
     // "no data" and an empty answer would be cached for up to 30 days — long after the token
     // had been replaced. Say what is wrong instead, and cache nothing.
-    if (stats.auth) return json({ error: TOKEN_MSG, window: win, stats }, 502);
+    if (stats.auth) {
+      memo = { token: null, at: 0 };                  // with automatic renewal, the next call logs in afresh
+      return json({ error: TOKEN_MSG, window: win, stats }, 502);
+    }
     const obs = results.filter(Boolean).sort((a, b) => a.date < b.date ? -1 : 1);
     if (!obs.length) return cachePut(json({
       error: 'no usable retrievals', window: win, stats,
