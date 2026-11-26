@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="./manifest.webmanifest">
 <meta name="theme-color" content="#11150f">
+<script>/* a saved light/dark choice is applied before anything paints */
+try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -19,37 +21,64 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
         integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous"></script>
 <style>
+  /* Two themes share one set of token names. Dark is the default sheet; light applies when
+     the phone is in light mode (unless the user chose dark) or when the user chose light.
+     Palette, from the fruit: husk · bark · thorn · flesh cream · Musang gold. Green / orange /
+     red are kept for good / caution / bad and blue for water, so colour always means something. */
   :root{
     --bg:#11150f; --panel:#191f16; --panel2:#222a1d; --line:#34402d;
-    --txt:#f1e8c9; --dim:#a3aa90; --accent:#f2cf4a; --accent2:#38bdf8;
+    --txt:#f1e8c9; --dim:#a3aa90; --accent:#f2cf4a; --accent-ink:#f2cf4a; --accent2:#38bdf8;
     --warn:#f59a3c; --bad:#f87171; --good:#4ade80; --purple:#a78bfa;
+    --good-bg:#11251a; --good-line:#245c39; --warn-bg:#2b1e10; --warn-line:#7a4a16;
+    --bad-bg:#2a1414; --bad-line:#7a2b2b; --wet-line:#1c4a63;
+    --husk:#2c3626; --heat1:#3d4a35; --on-status:#07130c; --shadow:rgba(0,0,0,.55);
+    color-scheme:dark;                 /* native pickers, date boxes and scrollbars match the page */
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
     /* figures: a condensed instrument-panel face, bundled so it works offline. Latin only —
        Chinese text beside a number falls through to the system font. */
     --num:"Barlow Semi Condensed",var(--font);
-    color-scheme:dark;                 /* native pickers, date boxes and scrollbars drawn for a dark page */
   }
-  /* Palette, from the fruit: husk night (page) · bark (surfaces) · thorn (lines) · flesh cream
-     (text) · Musang gold (the one main action, and the brand). Green / orange / red are kept
-     for good / caution / bad and blue for water, so colour always means something. */
+  /* light: flesh-cream paper, husk-dark ink — easier to read in direct sun */
+  :root[data-theme="light"]{
+    --bg:#f5efdc; --panel:#fffcf2; --panel2:#ece4cb; --line:#d2c8a6;
+    --txt:#1e2316; --dim:#5b614d; --accent:#eec32f; --accent-ink:#7c5d00; --accent2:#0b6ea8;
+    --warn:#b55a00; --bad:#bf3324; --good:#1c7d36; --purple:#6541b8;
+    --good-bg:#e3f2de; --good-line:#9cc89b; --warn-bg:#fbe9d2; --warn-line:#e0ae72;
+    --bad-bg:#fbe2de; --bad-line:#dfa197; --wet-line:#8fc0dc;
+    --husk:#dcd3b4; --heat1:#d9d0b0; --on-status:#ffffff; --shadow:rgba(60,50,10,.25);
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+    --bg:#f5efdc; --panel:#fffcf2; --panel2:#ece4cb; --line:#d2c8a6;
+    --txt:#1e2316; --dim:#5b614d; --accent:#eec32f; --accent-ink:#7c5d00; --accent2:#0b6ea8;
+    --warn:#b55a00; --bad:#bf3324; --good:#1c7d36; --purple:#6541b8;
+    --good-bg:#e3f2de; --good-line:#9cc89b; --warn-bg:#fbe9d2; --warn-line:#e0ae72;
+    --bad-bg:#fbe2de; --bad-line:#dfa197; --wet-line:#8fc0dc;
+    --husk:#dcd3b4; --heat1:#d9d0b0; --on-status:#ffffff; --shadow:rgba(60,50,10,.25);
+    color-scheme:light;
+    }
+  }
   @font-face{font-family:"Barlow Semi Condensed";font-weight:600;font-style:normal;font-display:swap;
              src:url("./barlow-semi-condensed-600.woff2") format("woff2")}
   *{box-sizing:border-box}
   input[type=checkbox]{accent-color:var(--accent)}
   body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:14px;line-height:1.5}
+  /* theme switch: a text glyph, so it takes the text colour in either theme */
+  #themeBtn{padding:6px 11px;font-size:16px;line-height:1.2;min-width:40px}
   #moreBtn{display:none}                /* phones only: opens the less-used controls */
   header{display:flex;align-items:center;gap:14px;padding:calc(12px + env(safe-area-inset-top,0px)) calc(18px + env(safe-area-inset-right,0px)) 12px calc(18px + env(safe-area-inset-left,0px));background:var(--bg);border-bottom:1px solid var(--line);flex-wrap:wrap}
   .logo{font-family:var(--num);font-weight:600;font-size:22px;letter-spacing:0;line-height:1.1}
-  .logo span{color:var(--accent)}
+  .logo span{color:var(--accent-ink)}
   .sub{color:var(--dim);font-size:12px}
   .spacer{flex:1}
   input,select,button{font-family:var(--font);font-size:13px}
   input,select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:6px 8px}
-  input:focus,select:focus{outline:1px solid var(--accent)}
+  input:focus,select:focus{outline:1px solid var(--accent-ink)}
   button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:6px 12px;cursor:pointer}
-  button:hover{border-color:var(--accent)}
-  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button:hover{border-color:var(--accent-ink)}
+  button:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
   button.primary{background:var(--accent);color:#1b1602;border-color:var(--accent);font-weight:700}
   button.primary:hover{filter:brightness(1.1)}
   button:disabled{opacity:.45;cursor:not-allowed}
@@ -78,7 +107,7 @@
   .pill.warn{color:var(--warn);border-color:var(--warn)}
   .pill.bad{color:var(--bad);border-color:var(--bad)}
   .pill.nn{color:var(--purple);border-color:var(--purple)}
-  #map{height:440px;border-radius:10px;border:1px solid var(--line);background:#11150f}
+  #map{height:440px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
   .score{display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap}
   .ring{width:132px;height:132px;flex:none}
   #ringTxt{font-family:var(--num)}
@@ -90,9 +119,9 @@
   td.num,th.num{text-align:right}
   td.num{font-family:var(--num);font-size:15px;font-variant-numeric:tabular-nums}
   .alert{display:flex;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);margin-bottom:8px}
-  .alert.warn{border-color:#7a4a16;background:#2b1e10}
-  .alert.bad{border-color:#7a2b2b;background:#2a1414}
-  .alert.good{border-color:#245c39;background:#11251a}
+  .alert.warn{border-color:var(--warn-line);background:var(--warn-bg)}
+  .alert.bad{border-color:var(--bad-line);background:var(--bad-bg)}
+  .alert.good{border-color:var(--good-line);background:var(--good-bg)}
   .alert b{display:block;margin-bottom:2px}
   .alert small{color:var(--dim)}
   .alert small b{display:inline;margin:0;font-weight:600;color:var(--txt)}
@@ -108,21 +137,21 @@
   .legend{font-size:11px;color:var(--dim);margin-top:6px}
   .ds-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .lay{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-  .lay button.on{border-color:var(--accent);color:var(--accent)}
+  .lay button.on{border-color:var(--accent-ink);color:var(--accent-ink)}
   .farmbar label[style*="--accent)"]{color:var(--txt) !important}     /* tick-box captions read as text, not as actions */
   .lay button.dead{opacity:.35;text-decoration:line-through}
   code{font-family:var(--mono);font-size:11px;background:var(--panel2);padding:1px 5px;border-radius:4px}
   .err{color:var(--bad);font-size:12px;font-family:var(--mono)}
   .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-1px}
   @keyframes sp{to{transform:rotate(360deg)}}
-  #banner{display:none;padding:10px 18px;background:#2a1414;border-bottom:1px solid #7a2b2b;color:#f87171;
+  #banner{display:none;padding:10px 18px;background:var(--bad-bg);border-bottom:1px solid var(--bad-line);color:var(--bad);
           font-family:var(--mono);font-size:12px;white-space:pre-wrap}
   #banner.on{display:block}
   .fc{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}
   .fcd{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 6px;text-align:center;font-size:11px}
-  .fcd.dry{border-color:#7a4a16}
-  .fcd.wet{border-color:#1c4a63}
-  .fcd.hot{border-color:#7a2b2b}
+  .fcd.dry{border-color:var(--warn-line)}
+  .fcd.wet{border-color:var(--wet-line)}
+  .fcd.hot{border-color:var(--bad-line)}
   .fcd b{display:block;font-size:12px;color:var(--txt)}
   .fcd .t{font-family:var(--num);font-size:15px;margin-top:3px}
   .fcd .r{font-family:var(--num);font-size:14px;color:var(--accent2)}
@@ -135,7 +164,7 @@
   /* "new version is ready" bar */
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9000;
          display:flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);padding:10px 12px 10px 16px;
-         background:var(--panel2);border:1px solid var(--accent);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.55);font-size:13px}
+         background:var(--panel2);border:1px solid var(--accent);border-radius:10px;box-shadow:0 8px 28px var(--shadow);font-size:13px}
   .toast[hidden]{display:none}          /* display:flex would otherwise override the hidden attribute */
   .toast span{flex:1}
   #toastx{padding:4px 9px;border-color:transparent;background:transparent;color:var(--dim)}
@@ -146,14 +175,14 @@
   #langpick:focus{outline:0}             /* the dialog takes focus, so no button looks pre-selected */
   #langpick img{width:88px;height:88px;border-radius:20px}
   #langpick .lptitle{margin:0 0 10px;font-family:var(--num);font-size:30px;font-weight:600}
-  #langpick .lptitle span{color:var(--accent)}
+  #langpick .lptitle span{color:var(--accent-ink)}
   #langpick button{width:min(18rem,84vw);min-height:58px;font-size:18px;font-weight:600;border-radius:12px}
   #langpick button:hover,#langpick button:focus-visible{border-color:var(--accent);outline:0}
   body.picking{overflow:hidden}
   .nonasa{font-weight:400;font-size:10px;color:var(--purple);border:1px solid var(--purple);border-radius:20px;padding:1px 6px;margin-left:6px}
   .hm{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:8px}
   .hmc{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;
-       font-size:12px;font-family:var(--num);color:#07130c;font-weight:600}
+       font-size:12px;font-family:var(--num);color:var(--on-status);font-weight:600}
   .hml{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;font-size:10px;color:var(--dim);text-align:center}
   @media print{
     nav,.bar,.farmbar,header .spacer,button{display:none!important}
@@ -213,6 +242,7 @@
     /* ── header: brand and language on one line, status underneath ── */
     header{ flex-wrap:wrap; }
     #langToggle{ margin-left:0 !important; padding:6px 12px; min-height:40px; }
+    #themeBtn{ min-height:40px; }
 
     /* ── top controls: a tidy grid instead of ragged wrapping ──
        8 columns:  [ 📍 location …………… ][ coordinates ]
@@ -235,7 +265,7 @@
     #run{ grid-column:span 5; order:3; font-size:16px; }
     #farmBtn{ grid-column:span 6; order:4; }
     #moreBtn{ display:block; grid-column:span 2; order:5; font-size:20px; line-height:1; }
-    #moreBtn[aria-expanded="true"]{ border-color:var(--accent); color:var(--accent); }
+    #moreBtn[aria-expanded="true"]{ border-color:var(--accent-ink); color:var(--accent-ink); }
     /* behind ⋯ :      [Lat][ box ……… ][Lon][ box ……… ]
                        [ Save plot ………………………………………… ]
                        [ CSV ………………… ][ Report …………… ]            */
@@ -304,6 +334,7 @@
     <div class="sub">NASA Earth Science farm intelligence</div>
   </div>
   <div class="spacer"></div>
+  <button id="themeBtn" type="button" aria-label="Switch between light and dark">☾</button>
   <div id="status">booting…</div>
 </header>
 
@@ -375,9 +406,9 @@
       <div class="score">
         <svg class="ring" viewBox="0 0 120 120">
           <g id="thorns"></g>
-          <circle cx="60" cy="60" r="41.5" fill="#222a1d" stroke="#34402d" stroke-width="1"/>
-          <text id="ringTxt" x="60" y="66" text-anchor="middle" font-size="34" font-weight="600" fill="#f1e8c9">–</text>
-          <text x="60" y="80" text-anchor="middle" font-size="9" fill="#a3aa90">/ 100</text>
+          <circle cx="60" cy="60" r="41.5" style="fill:var(--panel2);stroke:var(--line)" stroke-width="1"/>
+          <text id="ringTxt" x="60" y="66" text-anchor="middle" font-size="34" font-weight="600" style="fill:var(--txt)">–</text>
+          <text x="60" y="80" text-anchor="middle" font-size="9" style="fill:var(--dim)">/ 100</text>
         </svg>
         <div style="flex:1;min-width:230px">
           <div id="verdict" class="big" style="font-size:19px">Awaiting data</div>
@@ -750,6 +781,35 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
+/* ── Light / dark ──
+   With nothing saved the app follows the phone's own setting, live. The ☀ / ☾ button in the
+   header overrides it and the choice is remembered. The stylesheet does the work through
+   data-theme on <html>; here we only flip it, redraw what is painted on canvas, and swap
+   the basemap. */
+const isLight = () => {
+  const t = document.documentElement.getAttribute('data-theme');
+  return t ? t === 'light' : !!(window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches);
+};
+function themeChanged(){
+  const b = $('themeBtn'); if (b) b.textContent = isLight() ? '☀' : '☾';       // shows the theme in use
+  try { readTheme(); } catch(e){}
+  const m = document.querySelector('meta[name="theme-color"]'); if (m && K.bg) m.setAttribute('content', K.bg);
+  try { if (S.retone) S.retone(); } catch(e){}
+  try { if (window.__tdRerender) window.__tdRerender(); } catch(e){}
+}
+try {
+  $('themeBtn').onclick = () => {
+    const next = isLight() ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('td_theme', next); } catch(e){}
+    themeChanged();
+  };
+  $('themeBtn').textContent = isLight() ? '☀' : '☾';
+  if (window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    if (!document.documentElement.getAttribute('data-theme')) themeChanged();   // only while following the phone
+  });
+} catch(e){ console.warn('theme', e); }
+
 /* ── First launch: no valid saved language → show the picker at once, before anything
    else paints, so the app never flashes in a language the grower did not choose.
    i18n.js (loaded below) owns the buttons and the saving. ── */
@@ -823,7 +883,7 @@ const Q = {lat:S.lat, lon:S.lon};
 let running = false, rerun = false;                 // see run()
 
 const fx  = (v, n) => (v == null || !isFinite(v)) ? '–' : (+v).toFixed(n);
-const col = s => s >= 75 ? '#4ade80' : s >= 50 ? '#f59a3c' : '#f87171';
+const col = s => s >= 75 ? 'var(--good)' : s >= 50 ? 'var(--warn)' : 'var(--bad)';
 const sum = a => a.reduce((x, y) => x + y, 0);
 const avg = a => a.length ? sum(a) / a.length : null;
 const median = a => {
@@ -1549,12 +1609,17 @@ guard('map', () => {
      readable even with a satellite layer switched on. */
   const ESRI = 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/';
   const ESRI_ATTR = 'Tiles © Esri — Esri, DeLorme, HERE, © OpenStreetMap contributors';
-  L.tileLayer(ESRI + 'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+  const tone = () => isLight() ? 'Light' : 'Dark';
+  S.baseTiles = L.tileLayer(ESRI + 'World_' + tone() + '_Gray_Base/MapServer/tile/{z}/{y}/{x}',
     {maxZoom:19, maxNativeZoom:16, attribution: ESRI_ATTR}).addTo(S.map);
+  S.retone = () => {                                            // called when the theme changes
+    S.baseTiles.setUrl(ESRI + 'World_' + tone() + '_Gray_Base/MapServer/tile/{z}/{y}/{x}');
+    S.labelTiles.setUrl(ESRI + 'World_' + tone() + '_Gray_Reference/MapServer/tile/{z}/{y}/{x}');
+  };
   S.map.createPane('labels');
   S.map.getPane('labels').style.zIndex = 450;                  // above tiles (200), below markers (600)
   S.map.getPane('labels').style.pointerEvents = 'none';        // clicks still set the pin
-  L.tileLayer(ESRI + 'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+  S.labelTiles = L.tileLayer(ESRI + 'World_' + tone() + '_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
     {maxZoom:19, maxNativeZoom:16, pane:'labels', opacity:0.9}).addTo(S.map);
   S.marker = L.marker([S.lat, S.lon], {draggable:true}).addTo(S.map);
   S.map.on('click', e => setPoint(e.latlng.lat, e.latlng.lng, false));
@@ -2510,7 +2575,7 @@ function setThorns(score){
     }
   }
   const lit = score == null ? 0 : Math.round(score / 100 * THORNS), c = col(score || 0);
-  [].forEach.call(g.childNodes, (t, i) => t.setAttribute('fill', i < lit ? c : '#2c3626'));
+  [].forEach.call(g.childNodes, (t, i) => { t.style.fill = i < lit ? c : 'var(--husk)'; });
 }
 function renderDurian(){
   const d = S.derived, p = S.power;
@@ -2629,13 +2694,13 @@ function renderDurian(){
   chart('cDep', {type:'line', data:{
     labels: p.date.slice(-N).concat(fs ? fs.path.map(x => x.date) : []),
     datasets:[
-      LN(T('ch','Rainfall-model depletion %'), depPct.concat(fcDep.map(() => null)), '#f87171', {fill:true, spanGaps:false}),
-      LN(T('ch','ERA5-Land 9 km (independent)'), eraDep.concat(fcDep.map(() => null)), '#38bdf8', {borderDash:[2,2], spanGaps:true}),
-      LN(T('ch','Forecast'), new Array(N).fill(null).concat(fcDep), '#f59a3c', {borderDash:[4,3]}),
-      LN(T('ch','Stress threshold (RAW)'), new Array(N + fcDep.length).fill(P_DEPLETE*100), '#4ade80', {borderDash:[6,4], borderWidth:1})
+      LN(T('ch','Rainfall-model depletion %'), depPct.concat(fcDep.map(() => null)), K.bad, {fill:true, spanGaps:false}),
+      LN(T('ch','ERA5-Land 9 km (independent)'), eraDep.concat(fcDep.map(() => null)), K.water, {borderDash:[2,2], spanGaps:true}),
+      LN(T('ch','Forecast'), new Array(N).fill(null).concat(fcDep), K.warn, {borderDash:[4,3]}),
+      LN(T('ch','Stress threshold (RAW)'), new Array(N + fcDep.length).fill(P_DEPLETE*100), K.good, {borderDash:[6,4], borderWidth:1})
     ]},
     options:{scales:{y:{min:0, max:100, grid:GRID, ticks:TICK,
-      title:{display:true, text:T('ch','% of available water used'), color:'#a3aa90'}},
+      title:{display:true, text:T('ch','% of available water used'), color:K.dim}},
       x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
 }
 
@@ -2670,7 +2735,7 @@ function renderIrrigation(){
     const ca = Math.PI * Math.pow(c/2, 2);
     const k = a < 3 ? 0.85 : a < 8 ? 0.92 : 0.98;
     const L = et0now * k * ca / f.eff;
-    return '<tr' + (Math.abs(a - f.age) < 1.5 ? ' style="background:#222a1d"' : '') + '>'
+    return '<tr' + (Math.abs(a - f.age) < 1.5 ? ' style="background:var(--panel2)"' : '') + '>'
       + '<td>' + T('ir.yr', a) + '<span class="muted">' + T('stage', stageOf(a)) + '</span></td>'
       + '<td class="num">' + c.toFixed(1) + ' m</td>'
       + '<td class="num">' + ca.toFixed(0) + ' m²</td>'
@@ -2721,7 +2786,7 @@ function renderIrrigation(){
   $('iBlockSrc').textContent = T('ir.block', f.trees, f.area, fx(wk * f.trees / 1000, 1), fx(wk * f.trees / 7000, 1));
 
   chart('cIrr', {type:'bar', data:{labels: S.power.date.slice(-90), datasets:[
-    {label:T('ch','L/tree/day needed'), data: dd.litres.slice(-90), backgroundColor:'#38bdf8', borderWidth:0}]}});
+    {label:T('ch','L/tree/day needed'), data: dd.litres.slice(-90), backgroundColor:K.water, borderWidth:0}]}});
 }
 
 /* ═════════ RENDER — FORECAST ═════════ */
@@ -2753,12 +2818,12 @@ function renderForecast(){
     '<div class="alert ' + a[0] + '"><div><b>' + a[1] + '</b><small>' + a[2] + '</small></div></div>').join('');
 
   chart('cFc', {type:'bar', data:{labels:S.fc.map(x => x.date.slice(5)), datasets:[
-    {label:T('ch','Rain mm'), data:S.fc.map(x => x.rain), backgroundColor:'#38bdf8', borderWidth:0, order:3},
-    LN(T('ch','Tmax °C'), S.fc.map(x => x.tmax), '#f87171', {type:'line', yAxisID:'y1', order:1, pointRadius:2}),
-    LN(T('ch','Tmin °C'), S.fc.map(x => x.tmin), '#38bdf8', {type:'line', yAxisID:'y1', order:2, pointRadius:2})]},
+    {label:T('ch','Rain mm'), data:S.fc.map(x => x.rain), backgroundColor:K.water, borderWidth:0, order:3},
+    LN(T('ch','Tmax °C'), S.fc.map(x => x.tmax), K.bad, {type:'line', yAxisID:'y1', order:1, pointRadius:2}),
+    LN(T('ch','Tmin °C'), S.fc.map(x => x.tmin), K.water, {type:'line', yAxisID:'y1', order:2, pointRadius:2})]},
     options:{scales:{
-      y:{grid:GRID, ticks:TICK, title:{display:true, text:'mm', color:'#a3aa90'}},
-      y1:{position:'right', grid:{drawOnChartArea:false}, ticks:TICK, title:{display:true, text:'°C', color:'#a3aa90'}},
+      y:{grid:GRID, ticks:TICK, title:{display:true, text:'mm', color:K.dim}},
+      y1:{position:'right', grid:{drawOnChartArea:false}, ticks:TICK, title:{display:true, text:'°C', color:K.dim}},
       x:{grid:GRID, ticks:TICK}}}});
 }
 
@@ -2841,8 +2906,8 @@ function renderSite(){
       + '<p class="muted" style="font-size:11px">POWER reports the mean elevation of its ~50 km grid cell, so a large '
       + 'gap between the two elevations is expected in hilly country and is not an error — trust the DEM figure for your point.</p>';
     chart('cTerr', {type:'line', data:{labels:['−90 m', T('centre'), '+90 m'], datasets:[
-      LN(T('ch','West → East'), t.ew, '#38bdf8', {pointRadius:3}),
-      LN(T('ch','South → North'), t.ns, '#4ade80', {pointRadius:3})]}});
+      LN(T('ch','West → East'), t.ew, K.water, {pointRadius:3}),
+      LN(T('ch','South → North'), t.ns, K.good, {pointRadius:3})]}});
     const srcs = document.querySelectorAll('#tab-site .card .src');
     if (t.src && srcs.length >= 3){
       srcs[0].textContent = t.src;                                  // elevation card
@@ -2938,7 +3003,7 @@ function renderBaseline(){
   h += '<table style="margin-top:10px"><thead><tr><th>Month</th><th class="num">Mean rain</th>'
      + '<th class="num">Mean stress run</th><th class="num">Yrs w/ 10 d STRESS</th>'
      + '<th class="num">Old rain rule</th><th class="num">Δ</th></tr></thead><tbody>'
-     + b.inductMonths.map(m => '<tr' + (m.spct >= 30 ? ' style="background:#11251a"' : '') + '>'
+     + b.inductMonths.map(m => '<tr' + (m.spct >= 30 ? ' style="background:var(--good-bg)"' : '') + '>'
         + '<td>' + T('mon', m.m) + '</td>'
         + '<td class="num">' + fx(b.normRain[m.m], 0) + ' mm</td>'
         + '<td class="num">' + fx(m.meanSBest, 1) + ' d</td>'
@@ -2952,11 +3017,11 @@ function renderBaseline(){
 
   const monL = MONTHS.map((_, i) => T('mon', i));
   chart('cClim', {type:'bar', data:{labels:monL, datasets:[
-    {label:T('ch','10-yr normal mm'), data:b.normRain, backgroundColor:'#34402d', borderWidth:0, order:2},
-    LN(T('ch','Last 12 months mm'), b.curRain, '#38bdf8', {type:'line', order:1, pointRadius:3})]}});
+    {label:T('ch','10-yr normal mm'), data:b.normRain, backgroundColor:K.line, borderWidth:0, order:2},
+    LN(T('ch','Last 12 months mm'), b.curRain, K.water, {type:'line', order:1, pointRadius:3})]}});
   chart('cDryM', {type:'bar', data:{labels:monL, datasets:[
     {label:T('ch','Dry days (<1 mm), 10-yr mean'), data:b.normDry,
-     backgroundColor:b.normDry.map(v => v >= 8 ? '#f59a3c' : '#34402d'), borderWidth:0}]}});
+     backgroundColor:b.normDry.map(v => v >= 8 ? K.warn : K.line), borderWidth:0}]}});
 
   // heat map — stress runs by default, old rain rule available for comparison
   const drawHeat = (useStress) => {
@@ -2969,8 +3034,8 @@ function renderBaseline(){
     grid.forEach((row, i) => {
       g += '<div class="hm">' + row.map(v => {
         if (v == null) return '<div class="hmc" style="background:transparent"></div>';   // outside the record
-        const c = v >= 10 ? '#4ade80' : v >= 7 ? '#f59a3c' : v >= 4 ? '#3d4a35' : '#222a1d';
-        const t = v >= 7 ? '#07130c' : '#a3aa90';
+        const c = v >= 10 ? 'var(--good)' : v >= 7 ? 'var(--warn)' : v >= 4 ? 'var(--heat1)' : 'var(--panel2)';
+        const t = v >= 7 ? 'var(--on-status)' : 'var(--dim)';
         return '<div class="hmc" style="background:' + c + ';color:' + t + '" title="' + b.years[i] + '">' + v + '</div>';
       }).join('') + '</div>';
     });
@@ -2984,7 +3049,17 @@ function renderBaseline(){
 }
 
 /* ═════════ CHARTS ═════════ */
-const GRID = {color:'#34402d'}, TICK = {color:'#a3aa90', font:{size:10}};
+/* Canvas cannot read CSS variables, so the charts take their colours from K — a copy of the
+   theme tokens, re-read whenever the theme changes (after which every chart is redrawn). */
+const K = {};
+let GRID = {}, TICK = {};
+function readTheme(){
+  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+  K.good = v('--good'); K.warn = v('--warn'); K.bad = v('--bad'); K.water = v('--accent2');
+  K.purple = v('--purple'); K.txt = v('--txt'); K.dim = v('--dim'); K.line = v('--line'); K.bg = v('--bg');
+  GRID = {color: K.line}; TICK = {color: K.dim, font:{size:10}};
+}
+readTheme();
 function chart(id, cfg){
   if (typeof Chart === 'undefined') throw new Error('Chart.js failed to load.');
   if (!$(id)) return;
@@ -2993,7 +3068,7 @@ function chart(id, cfg){
     responsive:true, maintainAspectRatio:false,
     animation:false,     // charts are destroyed/recreated on every data arrival — replaying the entry animation each time reads as flicker
     interaction:{mode:'index', intersect:false},
-    plugins:{legend:{labels:{color:'#a3aa90', boxWidth:10, font:{size:10}}}},
+    plugins:{legend:{labels:{color:K.dim, boxWidth:10, font:{size:10}}}},
     scales:{x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}, y:{grid:GRID, ticks:TICK}}
   }, cfg.options || {});
   S.charts[id] = new Chart($(id), cfg);
@@ -3004,27 +3079,27 @@ const LN = (label, data, color, extra) => Object.assign(
 
 function renderCharts(){
   const p = S.power, d = S.derived, x = p.date, t = (a, n) => a.slice(-n);
-  chart('cSolar', {type:'line', data:{labels:x, datasets:[LN(T('ch','Solar kWh/m²/d'), p.SOLAR_KWH, '#f59a3c', {fill:true})]}});
+  chart('cSolar', {type:'line', data:{labels:x, datasets:[LN(T('ch','Solar kWh/m²/d'), p.SOLAR_KWH, K.warn, {fill:true})]}});
   chart('cTemp',  {type:'line', data:{labels:x, datasets:[
-    LN(T('ch','Tmax'), p.T2M_MAX, '#f87171'), LN(T('ch','Tmean'), p.T2M, '#f1e8c9'), LN(T('ch','Tmin'), p.T2M_MIN, '#38bdf8')]}});
-  chart('cRain',  {type:'bar',  data:{labels:x, datasets:[{label:T('ch','mm/day'), data:p.PRECTOTCORR, backgroundColor:'#38bdf8', borderWidth:0}]}});
+    LN(T('ch','Tmax'), p.T2M_MAX, K.bad), LN(T('ch','Tmean'), p.T2M, K.txt), LN(T('ch','Tmin'), p.T2M_MIN, K.water)]}});
+  chart('cRain',  {type:'bar',  data:{labels:x, datasets:[{label:T('ch','mm/day'), data:p.PRECTOTCORR, backgroundColor:K.water, borderWidth:0}]}});
   chart('cSoil',  {type:'line', data:{labels:x, datasets:[
-    LN(T('ch','Surface'), p.GWETTOP, '#38bdf8'), LN(T('ch','Root zone'), p.GWETROOT, '#4ade80'), LN(T('ch','Profile'), p.GWETPROF, '#a78bfa')]},
+    LN(T('ch','Surface'), p.GWETTOP, K.water), LN(T('ch','Root zone'), p.GWETROOT, K.good), LN(T('ch','Profile'), p.GWETPROF, K.purple)]},
     options:{scales:{y:{min:0, max:1, grid:GRID, ticks:TICK}, x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
   chart('cAtm',   {type:'line', data:{labels:x, datasets:[
-    LN(T('ch','RH2M %'), p.RH2M, '#4ade80'),
-    LN(T('ch','WS2M m/s'), p.WS2M, '#f59a3c', {yAxisID:'y1'}),
-    LN(T('ch','WS10M_MAX m/s'), p.WS10M_MAX, '#f87171', {yAxisID:'y1'})]},
+    LN(T('ch','RH2M %'), p.RH2M, K.good),
+    LN(T('ch','WS2M m/s'), p.WS2M, K.warn, {yAxisID:'y1'}),
+    LN(T('ch','WS10M_MAX m/s'), p.WS10M_MAX, K.bad, {yAxisID:'y1'})]},
     options:{scales:{y:{grid:GRID, ticks:TICK}, y1:{position:'right', grid:{drawOnChartArea:false}, ticks:TICK},
       x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
-  chart('cTws',   {type:'line', data:{labels:x, datasets:[LN(T('ch','Cumulative P−ETc anomaly (mm)'), d.tws, '#a78bfa', {fill:true})]}});
+  chart('cTws',   {type:'line', data:{labels:x, datasets:[LN(T('ch','Cumulative P−ETc anomaly (mm)'), d.tws, K.purple, {fill:true})]}});
 
   if (S.smap && S.smap.surf && S.smap.surf.length){
     const sm = S.smap;
-    const sets = [LN(T('ch','SMAP surface m³/m³'), sm.surf.map(r => r.v), '#38bdf8', {pointRadius:2, spanGaps:true, fill:true})];
-    if (sm.root) sets.push(LN(T('ch','SMAP root zone m³/m³'), sm.root.map(r => r.v), '#4ade80', {pointRadius:2, spanGaps:true}));
+    const sets = [LN(T('ch','SMAP surface m³/m³'), sm.surf.map(r => r.v), K.water, {pointRadius:2, spanGaps:true, fill:true})];
+    if (sm.root) sets.push(LN(T('ch','SMAP root zone m³/m³'), sm.root.map(r => r.v), K.good, {pointRadius:2, spanGaps:true}));
     chart('cSmap', {type:'line', data:{labels: sm.surf.map(r => r.date), datasets: sets},
-      options:{scales:{y:{grid:GRID, ticks:TICK, title:{display:true, text:'m³/m³', color:'#a3aa90'}},
+      options:{scales:{y:{grid:GRID, ticks:TICK, title:{display:true, text:'m³/m³', color:K.dim}},
         x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
 
     // Validation: does my modelled depletion actually track the real instrument?
@@ -3051,17 +3126,17 @@ function renderCharts(){
         r2txt = T('val.r', r.toFixed(2), pts.length);
       }
       chart('cVal', {type:'line', data:{labels, datasets:[
-        LN(T('ch','Modelled depletion % (FAO-56)'), modelled, '#f87171'),
-        LN(T('ch','SMAP observed, normalised %'), observed, '#38bdf8', {pointRadius:3, spanGaps:true, borderDash:[4,3]}),
-        LN(T('ch','Stress threshold'), new Array(N).fill(P_DEPLETE*100), '#4ade80', {borderDash:[6,4], borderWidth:1})
+        LN(T('ch','Modelled depletion % (FAO-56)'), modelled, K.bad),
+        LN(T('ch','SMAP observed, normalised %'), observed, K.water, {pointRadius:3, spanGaps:true, borderDash:[4,3]}),
+        LN(T('ch','Stress threshold'), new Array(N).fill(P_DEPLETE*100), K.good, {borderDash:[6,4], borderWidth:1})
       ]}, options:{scales:{y:{min:0, max:100, grid:GRID, ticks:TICK}, x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
       if ($('valNote')) $('valNote').innerHTML =
         T('val.head') + r2txt + (S.smapFlagged ? T('val.caveat', fx(S.smapVWC,1)) : '');
     }
   }
   chart('cBal',   {type:'bar',  data:{labels:t(x,90), datasets:[
-    {label:T('ch','Rain mm'), data:t(p.PRECTOTCORR,90), backgroundColor:'#38bdf8', borderWidth:0, order:2},
-    LN(T('ch','Crop demand ETc mm'), t(d.etc,90), '#f87171', {type:'line', order:1})]}});
+    {label:T('ch','Rain mm'), data:t(p.PRECTOTCORR,90), backgroundColor:K.water, borderWidth:0, order:2},
+    LN(T('ch','Crop demand ETc mm'), t(d.etc,90), K.bad, {type:'line', order:1})]}});
   renderModis();
   pills();
 }
@@ -3070,15 +3145,15 @@ function renderModis(){
     if (S.ndviKeep != null && $('ndviNote'))
       $('ndviNote').textContent = T('ndvi.note', S.ndviKeep, S.ndvi.length);
     const labels = S.ndvi.map(r => r.date);
-    const mk = () => { const s = [LN('NDVI', S.ndvi.map(r => r.v), '#4ade80', {fill:true, pointRadius:2, spanGaps:true})];
-      if (S.evi) s.push(LN('EVI', S.evi.map(r => r.v), '#a78bfa', {pointRadius:2, spanGaps:true})); return s; };
+    const mk = () => { const s = [LN('NDVI', S.ndvi.map(r => r.v), K.good, {fill:true, pointRadius:2, spanGaps:true})];
+      if (S.evi) s.push(LN('EVI', S.evi.map(r => r.v), K.purple, {pointRadius:2, spanGaps:true})); return s; };
     chart('cNdvi', {type:'line', data:{labels, datasets:mk()}});
     chart('cNdvi2', {type:'line', data:{labels, datasets:mk()}});
   }
   if (S.lstD && S.lstD.length){
     const labels = S.lstD.map(r => r.date);
-    const mk = () => { const s = [LN(T('ch','LST day °C'), S.lstD.map(r => r.v), '#f87171', {pointRadius:2, spanGaps:true})];
-      if (S.lstN) s.push(LN(T('ch','LST night °C'), S.lstN.map(r => r.v), '#38bdf8', {pointRadius:2, spanGaps:true})); return s; };
+    const mk = () => { const s = [LN(T('ch','LST day °C'), S.lstD.map(r => r.v), K.bad, {pointRadius:2, spanGaps:true})];
+      if (S.lstN) s.push(LN(T('ch','LST night °C'), S.lstN.map(r => r.v), K.water, {pointRadius:2, spanGaps:true})); return s; };
     chart('cLst', {type:'line', data:{labels, datasets:mk()}});
     chart('cLst2', {type:'line', data:{labels, datasets:mk()}});
   }
@@ -3139,7 +3214,7 @@ function renderCompare(){
   });
   const keys = [];
   S.plots.forEach(p => p.items.forEach(i => { if (!keys.includes(i.k)) keys.push(i.k); }));
-  const cols = ['#4ade80','#38bdf8','#f59a3c','#a78bfa','#f87171','#f1e8c9'];
+  const cols = [K.good,K.water,K.warn,K.purple,K.bad,K.txt];
   chart('cCmp', {type:'bar', data:{labels:keys.map(k => T('ch', k)), datasets:S.plots.map((p, i) => ({
     label: p.name, backgroundColor: cols[i % cols.length], borderWidth:0,
     data: keys.map(k => { const it = p.items.find(x => x.k === k); return it && it.s != null ? Math.round(it.s) : null; })
@@ -3331,6 +3406,7 @@ guard('restore', () => {
 });
 
 setThorns(null);                                  // the empty gauge, before any data
+themeChanged();                                   // sync the button, browser bar and basemap with the theme in use
 setStatus('ready — press Fetch all data');
 log('boot ok · secureContext=' + window.isSecureContext
   + ' · Leaflet=' + (typeof L !== 'undefined')
