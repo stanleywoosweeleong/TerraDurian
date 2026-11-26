@@ -140,24 +140,47 @@ function dateOf(e) { const t = e.time_start || e.updated || ''; return t ? t.sli
 //   ...DMR XML... </Dataset> \n\r\n  [4-byte chunk header]  N×([4-byte value][4-byte CRC])  [4-byte trailer]
 // The data sits at the very END, so counting back from buf.length is immune to the DMR's
 // varying length. We request 4 Float32 vars (sm + vegetation, AM & PM) → uniform 8-byte stride.
-// We tell soil-moisture (0–1) from vegetation-water-content (>1) by value, not position.
-// KNOWN LIMIT: over sparse vegetation VWC can itself be below 1 kg/m², and it would then be
-// read as soil moisture. That cannot happen under a closed tree canopy (VWC is well above 5),
-// which is what this worker is for — do not reuse it for bare or arid sites without fixing this.
+//
+// WHICH VALUE IS WHICH: DAP4 sends the values in the order the variables are declared in the
+// DMR — the XML at the front of this same response. So the variable names are read from that
+// XML and each value is matched to its name. Telling them apart by size instead (soil moisture
+// is 0–1, vegetation water content usually above 1) is wrong over sparse vegetation, where
+// vegetation water content is itself below 1 and would be reported as soil moisture.
+// If the names cannot be read (an unexpected response shape), the size rule is the fallback,
+// but a pair in which BOTH numbers could be soil moisture is rejected rather than guessed.
+const WANT = ['soil_moisture', 'vegetation_water_content', 'soil_moisture_pm', 'vegetation_water_content_pm'];
+function dmrOrder(buf, dataStart) {
+  // the DMR is plain XML; latin1 keeps byte positions and never throws on the binary tail
+  const xml = new TextDecoder('latin1').decode(buf.subarray(0, Math.max(0, dataStart)));
+  const names = [];
+  const re = /<Float32\b[^>]*\bname="([^"]+)"/g;
+  let m;
+  while ((m = re.exec(xml))) if (WANT.indexOf(m[1]) >= 0) names.push(m[1]);
+  // usable only if it names exactly the variables we asked for, each once
+  return (names.length === WANT.length && WANT.every(n => names.indexOf(n) >= 0 && names.indexOf(n) === names.lastIndexOf(n))) ? names : null;
+}
+const smOk  = x => x >= 0.01 && x <= 1;                 // a soil-moisture value (fill is −9999)
+const vwcOk = x => x >= 0 && x < 100;                   // a vegetation-water-content value
 function readDap(buf, nVars) {
   if (!buf || buf.length < 8 + 8 * nVars) return null;
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const base = buf.length - 4 - 8 * nVars;              // first value, counting from the end
   const v = i => dv.getFloat32(base + i * 8, true);
-  const pick = (a, b) => {                              // one AM/PM pair -> {sm, vwc} or null
-    let sm = null, vwc = null;
-    for (const x of [v(a), v(b)]) {
-      if (x >= 0.01 && x <= 1) sm = x;                 // below 0.01 is not a soil-moisture value (or is stray bytes)
-      else if (x > 1 && x < 100) vwc = x;
-    }
-    return sm != null ? { sm, vwc } : null;
-  };
-  const r = pick(0, 1) || pick(2, 3);                  // AM pair preferred, else PM pair
+  const names = nVars === WANT.length ? dmrOrder(buf, base) : null;
+  let r = null;
+  if (names) {
+    const val = n => v(names.indexOf(n));
+    const pair = (smName, vwcName) => smOk(val(smName)) ? { sm: val(smName), vwc: vwcOk(val(vwcName)) ? val(vwcName) : null } : null;
+    r = pair('soil_moisture', 'vegetation_water_content') || pair('soil_moisture_pm', 'vegetation_water_content_pm');   // AM preferred
+  } else {
+    const pick = (a, b) => {                            // one AM/PM pair by size -> {sm, vwc} or null
+      const x = v(a), y = v(b);
+      if (smOk(x) && smOk(y)) return null;              // ambiguous: either could be soil moisture — do not guess
+      const sm = smOk(x) ? x : smOk(y) ? y : null, other = smOk(x) ? y : x;
+      return sm != null ? { sm, vwc: (other > 1 && other < 100) ? other : null } : null;
+    };
+    r = pick(0, 1) || pick(2, 3);
+  }
   if (!r) return null;
   return { sm: r.sm, vwc: r.vwc, flag: r.vwc != null && r.vwc > 5 };  // SMAP trusts VWC < ~5 kg/m²
 }

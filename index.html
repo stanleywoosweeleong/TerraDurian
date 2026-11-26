@@ -1146,6 +1146,7 @@ var TPL = {
       'Open-Meteo returned no daily block':'Open-Meteo 未返回逐日数据',
       'gaps in the Copernicus response':'Copernicus 的响应中有缺口',
       'the saved forecast is too old to use':'保存的预报太旧，无法使用',
+      'the forecast came back without rain or evapotranspiration values':'预报返回时没有降雨或蒸散数据',
       'not a plot array':'这不是地块列表文件',
       'no plots found in that file':'该文件中没有地块',
       'ORNL serves only SPL4CMDL (carbon), which is not soil moisture':'ORNL 只提供 SPL4CMDL（碳产品），那不是土壤湿度',
@@ -1170,6 +1171,15 @@ var TPL = {
   'a.chronic': { en:function(dep,run,trig,max){return 'Root zone is <b>'+dep+'% depleted</b> and has been past the stress threshold for <b>'+run+' consecutive days</b>. An induction window is roughly '+trig+'–'+max+' days of stress; this long is a standing deficit that costs growth and fruit. Check that Farm setup matches your trees and soil, then irrigate.';},
                  zh:function(dep,run,trig,max){return '根区已亏缺 <b>'+dep+'%</b>，且已连续 <b>'+run+' 天</b>超过胁迫阈值。催花窗口大约是 '+trig+'–'+max+' 天的胁迫；持续这么久已属长期缺水，会影响生长和结果。请确认农场设置与你的树和土壤相符，然后灌溉。';} },
   'fl.cTitle': { en:function(n){return 'Stressed for '+n+' days — past any induction window';}, zh:function(n){return '已胁迫 '+n+' 天——早已超过催花窗口';} },
+  'w.short': { en:function(d){return '⚠ The forecast has no rain or evapotranspiration values after '+d+', so the projection stops there.';},
+               zh:function(d){return '⚠ '+d+' 之后的预报缺少降雨或蒸散数据，推算到该日为止。';} },
+  'w.nofc':  { en:function(){return '⚠ The forecast came without usable rain or evapotranspiration values for today, so nothing is projected forward.';},
+               zh:function(){return '⚠ 预报中今天没有可用的降雨或蒸散数据，因此不做向前推算。';} },
+  'ir.short':{ en:function(n){return '⚠ Only '+n+' forecast day'+(n===1?' has':'s have')+' usable rain and evapotranspiration values; the weekly total covers those days only.';},
+               zh:function(n){return '⚠ 只有 '+n+' 个预报日有可用的降雨和蒸散数据；每周合计仅包含这些天。';} },
+  'fc.partialT': { en:function(){return 'Forecast incomplete';}, zh:function(){return '预报不完整';} },
+  'fc.partial':  { en:function(n,t){return '<b>'+n+'</b> of '+t+' days came without a rain value. Totals and dry-spell advice are withheld for the missing days.';},
+                   zh:function(n,t){return t+' 天中有 <b>'+n+'</b> 天没有降雨数值。缺失的日子不计入合计，也不给出干旱期建议。';} },
   'st.located': { en:function(n){return 'located ±'+n+' m';}, zh:function(n){return '已定位 ±'+n+' 米';} },
   'geo.none':   { en:function(){return 'This browser has no Geolocation API.';}, zh:function(){return '此浏览器不支持定位功能。';} },
   'geo.insecure':{ en:function(){return 'Geolocation needs a secure context. Open this page via http://localhost:8000 or https://, not file://.';},
@@ -1322,6 +1332,11 @@ var TPL_MS = {
   'st.saved': function(list){ return ' · salinan tersimpan: '+list; },
   'st.failed': function(list){ return 'dimuatkan · gagal: '+list; },
   'st.located': function(n){ return 'lokasi dikesan ±'+n+' m'; },
+  'w.short': function(d){ return '⚠ Ramalan tiada nilai hujan atau sejatpeluhan selepas '+d+', jadi unjuran berhenti di situ.'; },
+  'w.nofc': function(){ return '⚠ Ramalan tiba tanpa nilai hujan atau sejatpeluhan yang boleh digunakan untuk hari ini, jadi tiada unjuran ke hadapan dibuat.'; },
+  'ir.short': function(n){ return '⚠ Hanya '+n+' hari ramalan mempunyai nilai hujan dan sejatpeluhan yang boleh digunakan; jumlah mingguan meliputi hari-hari itu sahaja.'; },
+  'fc.partialT': function(){ return 'Ramalan tidak lengkap'; },
+  'fc.partial': function(n,t){ return '<b>'+n+'</b> daripada '+t+' hari tiba tanpa nilai hujan. Jumlah dan nasihat tempoh kering tidak diberikan untuk hari yang tiada data.'; },
   'st.powerkept': function(la,lo){ return 'POWER gagal — masih memaparkan '+la+', '+lo; },
   'w.gap': function(n){ return '⚠ '+n+' hari antara hari cerapan terakhir dan ramalan tiada data, jadi unjuran melangkaunya. Ambil semula apabila sumber boleh dihubungi.'; },
   'a.chronic': function(dep,run,trig,max){ return 'Zon akar <b>susut '+dep+'%</b> dan telah melepasi ambang tegasan selama <b>'+run+' hari berturut-turut</b>. Tetingkap aruhan ialah kira-kira '+trig+'–'+max+' hari tegasan; selama ini ialah defisit berpanjangan yang menjejaskan pertumbuhan dan buah. Pastikan Tetapan kebun sepadan dengan pokok dan tanah anda, kemudian siram.'; },
@@ -1366,6 +1381,7 @@ var TPL_MS = {
       'Open-Meteo returned no daily block':'Open-Meteo tidak memulangkan data harian',
       'gaps in the Copernicus response':'terdapat jurang dalam respons Copernicus',
       'the saved forecast is too old to use':'ramalan tersimpan terlalu lama untuk digunakan',
+      'the forecast came back without rain or evapotranspiration values':'ramalan tiba tanpa nilai hujan atau sejatpeluhan',
       'not a plot array':'ini bukan fail senarai plot',
       'no plots found in that file':'tiada plot ditemui dalam fail itu',
       'ORNL serves only SPL4CMDL (carbon), which is not soil moisture':'ORNL hanya membekalkan SPL4CMDL (karbon), yang bukan lembapan tanah',
@@ -1547,9 +1563,10 @@ guard('controls', () => {
       S.soil = S.soilGrid || null;                         // back to the last SoilGrids answer, if any
       if (!S.soil && S.power && !S.soilAsking){            // none was ever fetched (the test was on) → fetch now
         S.soilAsking = true; S.errs.soil = null;
-        fetchSoil().then(so => { S.soilGrid = so; if (!$('mSoilOn').checked){ S.soil = so; S.errs.soil = null; } },
-                         e => { S.errs.soil = e.message; })
-          .then(() => { S.soilAsking = false; soilChanged(); markSaved(); });
+        const asked = S.runId;
+        fetchSoil().then(so => { if (S.runId !== asked) return; S.soilGrid = so; if (!$('mSoilOn').checked){ S.soil = so; S.errs.soil = null; } },
+                         e => { if (S.runId === asked) S.errs.soil = e.message; })
+          .then(() => { S.soilAsking = false; if (S.runId === asked){ soilChanged(); markSaved(); } });
       }
     }
     soilChanged();
@@ -2436,10 +2453,13 @@ function irrigationNeed(rain, et0, kc, taw, Dr0){
 // runs of consecutive real-stress days (Dr past RAW)
 function stressRuns(dep){
   const stress = dep.map(v => v == null ? null : v > P_DEPLETE);
-  let now = 0;
-  for (let i = stress.length - 1; i >= 0; i--){
-    if (stress[i] == null) continue;
-    if (stress[i]) now++; else break;
+  // The newest days have no value yet (data arrives late) and are skipped. But once counting
+  // has started, a missing day ENDS the run: two stressed stretches either side of a hole in
+  // the record are not one continuous stretch, and must not add up to an induction trigger.
+  let now = 0, last = stress.length - 1;
+  while (last >= 0 && stress[last] == null) last--;
+  for (let i = last; i >= 0; i--){
+    if (stress[i]) now++; else break;                 // false or missing both stop the count
   }
   let best = 0, cur = 0, lastEnd = null, ends = [];
   for (let i = 0; i < stress.length; i++){
@@ -2473,9 +2493,8 @@ function derive(p){
 
   let ri = n - 1; while (ri > 0 && p.PRECTOTCORR[ri] == null) ri--;     // last day with a rain value
   let dry = 0;
-  for (let i = n-1; i >= 0; i--){
-    if (p.PRECTOTCORR[i] == null) continue;                 // trailing fill must not end the count
-    if (p.PRECTOTCORR[i] < 1) dry++; else break;
+  for (let i = ri; i >= 0; i--){                            // from the last day WITH a value; a hole further back ends the count
+    if (p.PRECTOTCORR[i] != null && p.PRECTOTCORR[i] < 1) dry++; else break;
   }
   let best = 0, cur = 0, lastInduct = null;
   for (let i = 0; i < n; i++){
@@ -2557,7 +2576,7 @@ function baseline(b){
       cell.rain += r;
       if (r < 1){ cell.dry++; run++; cell.best = Math.max(cell.best, run); }
       else run = 0;
-    }
+    } else run = 0;                                   // a day with no value ends the run
     if (stressB[i]){ srun++; cell.sbest = Math.max(cell.sbest, srun); }
     else srun = 0;
     if (b.T2M[i] != null) byMonth[m].t.push(b.T2M[i]);
@@ -2675,21 +2694,34 @@ function score(d, ndvi, terr, soil){
 /* ═════════ RENDER — DURIAN ═════════ */
 const fmtD = t => T('date', t);
 
+/* A forecast day is usable for the water balance only if BOTH its rain and its ET₀ are real
+   numbers. A missing value is unknown — never "no rain" and never an assumed 4 mm of
+   evaporation: advice built on invented numbers reads exactly like advice built on data.
+   The projections therefore run through the unbroken stretch of known days and stop at the
+   first unknown one; what they could not cover is reported. */
+const known = x => x && typeof x.rain === 'number' && isFinite(x.rain) && typeof x.et0 === 'number' && isFinite(x.et0);
+function knownAhead(){                       // the leading run of usable forecast days
+  const out = [];
+  for (let i = 0; S.fc && i < S.fc.length && known(S.fc[i]); i++) out.push(S.fc[i]);
+  return out;
+}
 // Days between the last observed POWER day and today, from Open-Meteo's recent past.
 function bridgeDays(after){
   if (!S.fcPast || !after) return [];
-  return S.fcPast.filter(x => x.date > after);
+  // only the unbroken stretch of known days immediately before today; anything earlier than a
+  // hole is dropped, and the days it leaves uncovered are counted as a gap by the callers
+  const rows = S.fcPast.filter(x => x.date > after);
+  let i = rows.length; while (i > 0 && known(rows[i - 1])) i--;
+  return rows.slice(i);
 }
 function forwardDry(){                       // extend the current dry spell using the forecast
   if (!S.fc || !S.derived) return null;
   let spell = S.derived.dry;
-  bridgeDays(S.derived.dryDate).forEach(x => {
-    if (x.rain == null) return;
-    if (x.rain < 1) spell++; else spell = 0;
-  });
+  bridgeDays(S.derived.dryDate).forEach(x => { if (x.rain < 1) spell++; else spell = 0; });
+  const ahead = knownAhead();
   let d = 0;
-  for (let i = 0; i < S.fc.length; i++){
-    if (S.fc[i].rain != null && S.fc[i].rain < 1) d++; else break;
+  for (let i = 0; i < ahead.length; i++){
+    if (ahead[i].rain < 1) d++; else break;
   }
   return {extra: d, total: spell + d,
           reaches: spell + d >= AG.dryTrigger,
@@ -2702,14 +2734,15 @@ function forwardDry(){                       // extend the current dry spell usi
    depToday / runToday describe today rather than three days ago. */
 function forwardStress(){
   const d = S.derived;
-  if (!d || !S.fc || d.depNow == null) return null;
+  const ahead = knownAhead();
+  if (!d || !S.fc || d.depNow == null || !ahead.length) return null;   // nothing known to project with
   const f = d.farm, taw = d.taw, raw = d.raw;
   let Dr = d.depNow * taw;
   let run = d.stressNow;
   const ksOf = () => Dr > raw ? Math.max(0, (taw - Dr) / (taw - raw)) : 1;
   const step = x => {
-    const peff = 0.8 * (x.rain || 0);
-    const etc = ksOf() * f.kc * (x.et0 != null ? x.et0 : 4);
+    const peff = 0.8 * x.rain;
+    const etc = ksOf() * f.kc * x.et0;
     Dr = Math.min(taw, Math.max(0, Dr - peff + etc));
     const stressed = Dr / taw > P_DEPLETE;
     if (stressed) run++; else run = 0;
@@ -2719,18 +2752,19 @@ function forwardStress(){
   // The past_days bridge covers a week; an old saved POWER copy, or a forecast that came
   // back without past days, leaves a hole — reported, never silently skipped.
   const br = bridgeDays(d.wbDate);
-  const gap = Math.max(0, dayDiff(d.wbDate, (br[0] || S.fc[0]).date) - 1);
+  const gap = Math.max(0, dayDiff(d.wbDate, (br[0] || ahead[0]).date) - 1);
   br.forEach(step);
   const depToday = Dr / taw, runToday = run, ksToday = ksOf();
   const path = [];
   let hitDay = null;
-  for (let i = 0; i < S.fc.length; i++){
-    const x = S.fc[i];
+  for (let i = 0; i < ahead.length; i++){
+    const x = ahead[i];
     const stressed = step(x);
     if (run >= AG.stressTrigger && hitDay == null) hitDay = x.date;
     path.push({date:x.date, dep: Dr/taw, stressed, run});
   }
   return {path, hitDay, endRun: run, endDep: Dr / taw, depToday, runToday, ksToday, gap,
+          short: S.fc.length - ahead.length, endDate: ahead[ahead.length - 1].date,
           maxRun: Math.max.apply(null, path.map(p2 => p2.run).concat([runToday]))};
 }
 
@@ -2781,7 +2815,7 @@ function renderDurian(){
   $('kRain').innerHTML = fx(d.rain30, 0) + '<span class="unit"> mm</span>';
   $('kDry').innerHTML  = cur.run + '<span class="unit"> stress days</span>'
     + (fs && fs.hitDay && cur.run < AG.stressTrigger ? '<div class="unit" style="font-size:11px;color:var(--good)">' + T('kpi.trig', fs.hitDay) + '</div>'
-       : fs ? '<div class="unit" style="font-size:11px">' + T('kpi.by', fs.endRun, S.fc[S.fc.length-1].date) + '</div>' : '');
+       : fs ? '<div class="unit" style="font-size:11px">' + T('kpi.by', fs.endRun, fs.endDate) + '</div>' : '');
 
   const A = [];
   if (d.deficit30 > 40) A.push(['bad','Irrigation deficit',
@@ -2847,6 +2881,8 @@ function renderDurian(){
     + '<tr><td>Consecutive stress days</td><td class="num"><b>' + T('d.days', cur.run) + '</b>'
       + (fs && fs.hitDay && cur.run < AG.stressTrigger ? T('w.trig', fs.hitDay) : fs ? T('w.fcst', fs.endRun) : '') + '</td></tr>'
     + (fs && fs.gap ? '<tr><td colspan="2" style="color:var(--warn)">' + T('w.gap', fs.gap) + '</td></tr>' : '')
+    + (fs && fs.short ? '<tr><td colspan="2" style="color:var(--warn)">' + T('w.short', fs.endDate) + '</td></tr>' : '')
+    + (!fs && S.fc ? '<tr><td colspan="2" style="color:var(--warn)">' + T('w.nofc') + '</td></tr>' : '')
     + '<tr><td>Longest stress run in window</td><td class="num">' + T('d.days', d.bestStress) + '</td></tr>'
     + '<tr><td>TAW / RAW</td><td class="num">' + fx(d.taw,0) + ' / ' + fx(d.raw,0) + ' mm</td></tr>'
     + '<tr><th colspan="2" style="padding-left:0">For comparison — the naive rainfall rule</th></tr>'
@@ -2894,16 +2930,17 @@ function renderIrrigation(){
   // forecast: each day's figure is what is needed AFTER the water already in the soil.
   let irrDr = dd.irrDr;
   const irrStep = x => {
-    const etc = (x.et0 != null ? x.et0 : 4) * f.kc;
-    irrDr = Math.max(0, irrDr - 0.8 * (x.rain || 0) + etc);
+    const etc = x.et0 * f.kc;
+    irrDr = Math.max(0, irrDr - 0.8 * x.rain + etc);
     const mm = Math.max(0, irrDr - dd.irrLimit);
     irrDr -= mm;
     return {x, etc, need: mm * f.canopyArea / f.eff};
   };
   let today, tSrc, week = null;
-  if (S.fc && S.fc.length){
+  const ahead = knownAhead();
+  if (ahead.length){
     bridgeDays(dd.wbDate).forEach(irrStep);
-    week = S.fc.slice(0, 7).map(irrStep);
+    week = ahead.slice(0, 7).map(irrStep);
     today = week[0].need;
     tSrc = T('ir.todaySrc', fx(week[0].etc,1), fx(week[0].x.rain,1), fx(f.canopyArea,0), Math.round(f.eff*100));
   } else {
@@ -2917,7 +2954,7 @@ function renderIrrigation(){
   if (kcSrc) kcSrc.textContent = T('ir.kcSrc', f.age, f.canopy, fx(f.canopyArea, 0));
 
   // what the same weather asks of a tree at every age — this is the answer to "does age matter?"
-  const et0now = (S.fc && S.fc.length && S.fc[0].et0 != null) ? S.fc[0].et0
+  const et0now = (S.fc && S.fc.length && known(S.fc[0])) ? S.fc[0].et0
                : (dd.et0[dd.et0.length-1] || 4);
   const ages = [1, 2, 3, 5, 8, 12, 20];
   const ageRows = ages.map(a => {
@@ -2964,6 +3001,8 @@ function renderIrrigation(){
       + '<th class="num">ETc mm</th><th class="num">Water/tree</th></tr></thead><tbody>' + rows + '</tbody></table>'
       + '<p class="muted" style="font-size:11px;margin-top:8px">Counts 80% of forecast rain and the water already in the soil. '
       + 'If you are trying to induce flowering, ignore this table and let the trees dry out.</p>';
+    if (week.length < 7) $('iSched').insertAdjacentHTML('beforeend',
+      '<p style="font-size:11px;color:var(--warn)">' + T('ir.short', week.length) + '</p>');
   } else {
     wk = 7 * (dd.litres30 || 0);
     $('iSched').innerHTML = '<p class="muted">Forecast unavailable — showing the 30-day average instead.</p>';
@@ -2980,25 +3019,29 @@ function renderIrrigation(){
 function renderForecast(){
   if (!S.fc){ $('fcCards').innerHTML = '<div class="err">Forecast unavailable.</div>'; return; }
   $('fcCards').innerHTML = S.fc.map(x => {
-    const dry = x.rain < 1, hot = x.tmax > 35;
+    const dry = x.rain != null && x.rain < 1, hot = x.tmax != null && x.tmax > 35;
     return '<div class="fcd ' + (hot ? 'hot' : dry ? 'dry' : 'wet') + '">'
       + '<b>' + T('wd', new Date(x.date + 'T00:00:00').getDay()) + '</b>'
       + '<div class="muted">' + x.date.slice(5) + '</div>'
       + '<div class="t">' + fx(x.tmax,0) + '° / ' + fx(x.tmin,0) + '°</div>'
-      + '<div class="r">' + (x.rain < 0.1 ? '—' : fx(x.rain,1) + ' mm') + '</div></div>';
+      + '<div class="r">' + (x.rain == null ? '?' : x.rain < 0.1 ? '—' : fx(x.rain,1) + ' mm') + '</div></div>';
   }).join('');
 
   const A = [], fd = forwardDry();
+  // Totals are only stated when every day's rain is known: a sum with holes in it would
+  // read as "very little rain" when the truth is "we were not told".
+  const rainKnown = S.fc.every(x => typeof x.rain === 'number');
   const rain16 = sum(S.fc.map(x => x.rain || 0));
-  const hotDays = S.fc.filter(x => x.tmax > 35).length;
-  const wetDays = S.fc.filter(x => x.rain >= 10).length;
+  const hotDays = S.fc.filter(x => x.tmax != null && x.tmax > 35).length;
+  const wetDays = S.fc.filter(x => x.rain != null && x.rain >= 10).length;
+  if (!rainKnown) A.push(['warn', T('fc.partialT'), T('fc.partial', S.fc.filter(x => typeof x.rain !== 'number').length, S.fc.length)]);
   if (fd && fd.extra >= 3) A.push(['warn','Dry run ahead',
     T('fc.dry', fd.extra, fd.total, fd.reaches)]);
   if (hotDays >= 3) A.push(['bad','Heat event',
     T('fc.heat', hotDays)]);
-  if (rain16 > 250) A.push(['warn','Heavy rain incoming',
+  if (rainKnown && rain16 > 250) A.push(['warn','Heavy rain incoming',
     T('fc.heavy', fx(rain16,0), wetDays)]);
-  if (rain16 < 20) A.push(['warn','Very little rain forecast',
+  if (rainKnown && rain16 < 20) A.push(['warn','Very little rain forecast',
     T('fc.little', fx(rain16,0))]);
   if (!A.length) A.push(['good','Nothing notable','No heat, drought or deluge signal in the next 16 days.']);
   $('fcAlerts').innerHTML = A.map(a =>
@@ -3134,9 +3177,16 @@ function renderSite(){
     const rs = $('retrySoil');
     if (rs) rs.onclick = async () => {
       rs.disabled = true; rs.textContent = 'retrying…';
-      try { S.soil = S.soilGrid = await fetchSoil(); S.errs.soil = null; log('soil ok on retry'); }
-      catch(e){ S.errs.soil = e.message; log('soil retry failed: ' + e.message); }
+      const asked = S.runId;                          // the fetch this answer belongs to
+      let so = null, err = null;
+      try { so = await fetchSoil(); } catch(e){ err = e; }
+      // A newer Fetch (possibly for another pin) or a manual soil test has taken over since:
+      // this answer is for a point no longer on screen and must not be applied to it.
+      if (S.runId !== asked || (S.soil && S.soil.manual)){ log('soil retry answer discarded — superseded'); return; }
+      if (so){ S.soil = S.soilGrid = so; S.errs.soil = null; S.bad = (S.bad || []).filter(x => x !== 'soil'); log('soil ok on retry'); }
+      else { S.errs.soil = err.message; log('soil retry failed: ' + err.message); }
       soilChanged(); markSaved();
+      if (so && S.finalStatus && !running) setStatus(S.finalStatus());
     };
   }
 }
@@ -3377,7 +3427,8 @@ function savePlot(){
   const d = S.derived; if (!d) return;
   const nv = S.ndvi && S.ndvi.filter(x => x.v != null).slice(-1)[0];
   const sc = score(d, nv ? nv.v : null, S.terr, S.soil);
-  S.plots.push({name: d.farm.name, lat: Q.lat, lon: Q.lon, total: sc.total,
+  const pt = S.dataPt || Q;                         // during a new fetch Q already names the NEXT point
+  S.plots.push({name: d.farm.name, lat: pt.lat, lon: pt.lon, total: sc.total,
     items: sc.items.map(i => ({k:i.k, s:i.s})),
     rain: d.rainAnnual, tMean: d.tMean, bestDry: d.bestDry,
     slope: S.terr ? S.terr.slopePct : null, elev: (S.terr && S.terr.elevDem != null) ? S.terr.elevDem : d.elev,
@@ -3459,10 +3510,26 @@ function exportCsv(){
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
-  a.download = 'terradurian_' + Q.lat + '_' + Q.lon + '.csv'; a.click();
+  const pt = S.dataPt || Q;
+  a.download = 'terradurian_' + pt.lat + '_' + pt.lon + '.csv'; a.click();
 }
 
 /* ═════════ ORCHESTRATE ═════════ */
+/* Every panel that is filled by a best-effort job is emptied when a run starts. Without this,
+   a job that fails for the new point (forecast down, baseline refused) would leave the
+   PREVIOUS point's forecast, baseline or satellite charts on screen under the new coordinates. */
+function clearSecondary(){
+  const dash = '<div class="muted">—</div>';
+  ['cFc','cClim','cDryM','cNdvi','cNdvi2','cLst','cLst2','cSmap','cVal','cTerr'].forEach(id => {
+    if (S.charts[id]){ S.charts[id].destroy(); delete S.charts[id]; }
+  });
+  [['fcCards', dash], ['fcAlerts', dash], ['bAnom', dash], ['bInduct', dash], ['bHeat', ''], ['smapCard', dash]].forEach(x => {
+    const el = $(x[0]); if (el) el.innerHTML = x[1];
+  });
+  // captions that quote the previous point's results go back to their starting text
+  S.note0 = S.note0 || {valNote: $('valNote').innerHTML, ndviNote: $('ndviNote').innerHTML};
+  $('valNote').innerHTML = S.note0.valNote; $('ndviNote').innerHTML = S.note0.ndviNote;
+}
 // One run at a time. A request that arrives mid-run (GPS fix, a second click) is queued and
 // starts when the current run has finished, against the then-current pin.
 /* SoilGrids is the one source with no alternative, and it is intermittent: a request that is
@@ -3477,13 +3544,14 @@ function soilRetryLater(runId, n){
     log('soil: automatic retry ' + (n + 1) + ' of ' + SOIL_WAITS.length);
     try {
       const so = await fetchSoil();
-      if (S.runId !== runId || (S.soil && S.soil.manual)) return;
+      if (S.runId !== runId || S.soil) return;                    // superseded, or soil arrived another way meanwhile
       S.soil = S.soilGrid = so; S.errs.soil = null;
       S.bad = (S.bad || []).filter(x => x !== 'soil');
       log('soil ok on automatic retry');
       soilChanged(); markSaved();
       if (S.finalStatus && !running) setStatus(S.finalStatus());
     } catch(e){
+      if (S.runId !== runId) return;
       S.errs.soil = e.message; log('soil retry failed: ' + e.message);
       soilRetryLater(runId, n + 1);
     }
@@ -3529,8 +3597,10 @@ async function runOnce(){
   S.ndvi = S.evi = S.lstD = S.lstN = S.terr = S.fc = S.fcPast = S.base = S.baseRaw = S.smap = S.era = null;
   S.soil = manualSoil; S.soilGrid = null;
   S.finalStatus = null; markSaved();
+  clearSecondary();                                  // panels that belong to the previous point are emptied NOW
   S.smapLag = S.smapQA = S.smapFlagged = S.smapVWC = S.ornlProducts = S.ndviKeep = S.smapWorkerErr = null;
   S.power = power;
+  S.dataPt = {lat: Q.lat, lon: Q.lon};               // the point the numbers on screen belong to — not the pin, not a run in flight
   S.derived = derive(S.power);
   log('POWER ok — ' + S.power.date.length + ' days, elevation ' + fx(S.power.elev, 0) + ' m');
   $('csv').disabled = $('saveBtn').disabled = $('printBtn').disabled = false;
@@ -3548,6 +3618,7 @@ async function runOnce(){
         const today = new Date(Date.now() + r.offset * 1000).toISOString().slice(0, 10);   // today at the site
         const fc = r.rows.filter(x => x.date >= today), past = r.rows.filter(x => x.date < today);
         if (!fc.length) throw new Error('the saved forecast is too old to use');
+        if (!fc.some(known)) throw new Error('the forecast came back without rain or evapotranspiration values');
         S.fc = fc; S.fcPast = past;
         renderForecast(); renderIrrigation(); renderDurian();
       }],
@@ -3604,7 +3675,7 @@ async function runOnce(){
       S.pending.delete(name); pills(); markSaved();
       S.errs[name] = (name === 'SMAP' && S.smapWorkerErr ? 'SMAP worker: ' + S.smapWorkerErr + ' · then ORNL: ' : '') + e.message;
       log(name + ' unavailable: ' + e.message);
-      guard('render', () => { renderSite(); renderSmap(); });   // show the reason now, not after everything else
+      guard('render', () => { renderSite(); renderSmap(); if (name === 'forecast') renderForecast(); });   // show the reason now, not after everything else
       return name;
     }
   }));
