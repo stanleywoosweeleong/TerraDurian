@@ -1153,6 +1153,13 @@ var TPL = {
                   zh:function(msg){return '无法获取你的位置：'+msg+'\n\n请点击地址栏左侧的图标 → 位置 → 允许，然后重新加载。也可以直接输入坐标，或在地图上点击。';} },
   'tile.none':  { en:function(l){return l+' has no tile here — try another date.';}, zh:function(l){return l+' 在此处没有影像瓦片——请换一个日期。';} },
   'tile.avail': { en:function(ok,n,d){return ok+' of '+n+' layers available on '+d;}, zh:function(ok,n,d){return d+'：'+n+' 个图层中有 '+ok+' 个可用';} },
+  'tile.search': { en:function(n){return 'Looking for the latest '+n+' pass over your pin…';}, zh:function(n){return '正在查找 '+n+' 最近一次经过图钉位置的影像…';}, ms:function(n){return 'Mencari laluan '+n+' terkini di atas pin anda…';} },
+  'tile.pass':   { en:function(n,d){return n+': showing the satellite pass of '+d+' — the newest up to the chosen date. Cloud can still hide the ground.';},
+                   zh:function(n,d){return n+'：显示 '+d+' 的卫星过境影像——所选日期之前最新的一次。云层仍可能遮住地面。';},
+                   ms:function(n,d){return n+': memaparkan laluan satelit pada '+d+' — yang terbaharu sehingga tarikh dipilih. Awan masih boleh melindungi tanah.';} },
+  'tile.nopass': { en:function(n,w,d){return 'No '+n+' pass over your pin in the '+w+' days up to '+d+'.';},
+                   zh:function(n,w,d){return '截至 '+d+' 的 '+w+' 天内，'+n+' 没有经过图钉位置的影像。';},
+                   ms:function(n,w,d){return 'Tiada laluan '+n+' di atas pin anda dalam '+w+' hari sehingga '+d+'.';} },
   'tile.switched':{ en:function(n){return ' · switched to '+n;}, zh:function(n){return ' · 已切换到 '+n;} },
   'u.satfrac':  { en:function(){return ' sat. frac.';}, zh:function(){return '（饱和度）';} },
   'centre':     { en:function(){return 'centre';}, zh:function(){return '中心';} },
@@ -1528,10 +1535,14 @@ const LAYERS = [
   {n:'VIIRS NOAA-21',     l:'VIIRS_NOAA21_CorrectedReflectance_TrueColor', tms:'GoogleMapsCompatible_Level9', ext:'jpg', z:9, daily:true},
   {n:'VIIRS NOAA-20',     l:'VIIRS_NOAA20_CorrectedReflectance_TrueColor', tms:'GoogleMapsCompatible_Level9', ext:'jpg', z:9, daily:true},
   {n:'MODIS true colour', l:'MODIS_Terra_CorrectedReflectance_TrueColor',  tms:'GoogleMapsCompatible_Level9', ext:'jpg', z:9, daily:true},
-  {n:'Landsat WELD 30 m', l:'Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual', tms:'GoogleMapsCompatible_Level12', ext:'jpg', z:12, daily:false, time:'2000-12-01'},   // the annual mosaic NASA serves is the year 2000
+  // 30 m imagery from Landsat 8/9 and Sentinel-2 (NASA's Harmonized Landsat Sentinel-2 set).
+  // `sparse`: each satellite passes a given farm only every few days, so on most dates the
+  // tile is empty. For these the app looks back for the latest real pass (see latestPass).
+  {n:'Landsat 30 m',      l:'HLS_L30_Nadir_BRDF_Adjusted_Reflectance',     tms:'GoogleMapsCompatible_Level12', ext:'png', z:12, sparse:true},
+  {n:'Sentinel-2 30 m',   l:'HLS_S30_Nadir_BRDF_Adjusted_Reflectance',     tms:'GoogleMapsCompatible_Level12', ext:'png', z:12, sparse:true},
   {n:'MODIS NDVI',        l:'MODIS_Terra_NDVI_8Day',                       tms:'GoogleMapsCompatible_Level9', ext:'png', z:9, daily:true},
   {n:'Land surface temp', l:'MODIS_Terra_Land_Surface_Temp_Day',           tms:'GoogleMapsCompatible_Level7', ext:'png', z:7, daily:true},
-  {n:'🌃 Night lights',    l:'VIIRS_Black_Marble',                          tms:'GoogleMapsCompatible_Level8', ext:'png', z:8, daily:false, time:'2016-01-01'},
+  {n:'🌃 Night lights',    l:'VIIRS_NOAA20_GapFilled_BRDF_Corrected_DayNightBand_Radiance', tms:'GoogleMapsCompatible_Level8', ext:'png', z:8, daily:true},
   // Fire detections are published as vector tiles only, which Leaflet cannot draw unaided;
   // NASA's WMS endpoint renders the same layer to a transparent image instead.
   {n:'🔥 Active fires',    l:'VIIRS_NOAA20_Thermal_Anomalies_375m_All',     wms:true, daily:true, overlay:true}
@@ -1540,7 +1551,7 @@ let gibsLayer = null, fireLayer = null, activeIdx = 0, tileErrors = 0;
 const dayAgo = n => new Date(Date.now() - n*864e5).toISOString().slice(0,10);
 const gibsDate = () => ($('gibsDate') && $('gibsDate').value) || dayAgo(2);
 const tileUrl = cfg => GIBS_URL.replace('{layer}', cfg.l)
-  .replace('{time}', cfg.daily ? gibsDate() : cfg.time)
+  .replace('{time}', cfg.daily ? gibsDate() : (cfg.time || gibsDate()))
   .replace('{tms}', cfg.tms).replace('{ext}', cfg.ext);
 
 const GIBS_WMS = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
@@ -1552,7 +1563,7 @@ function buildTile(cfg){
         opacity: cfg.overlay ? 1 : 0.92, attribution:'NASA GIBS / EOSDIS'});
   t.on('tileerror', () => { tileErrors++;
     if (tileErrors % 8 === 1) setTile(() => T('tile.none', cfg.l), true); });
-  t.on('tileload', () => setTile(null));
+  t.on('tileload', () => { if (!cfg.sparse) setTile(null); });        // a sparse layer keeps its "pass of …" note
   return t;
 }
 function setTile(fn, isErr){
@@ -1565,12 +1576,38 @@ function applyLayers(){
   if (!S.map) return;
   if (gibsLayer) S.map.removeLayer(gibsLayer);
   tileErrors = 0;
-  const cfg = LAYERS[activeIdx];
-  if (cfg){ gibsLayer = buildTile(cfg); gibsLayer.addTo(S.map); }
+  const cfg = LAYERS[activeIdx], idx = activeIdx;
+  gibsLayer = null;
+  if (cfg && cfg.sparse){
+    // find the newest real pass first, then draw that date
+    setTile(() => T('tile.search', tr(cfg.n)));
+    const asked = gibsDate();
+    latestPass(cfg).then(day => {
+      if (activeIdx !== idx || gibsDate() !== asked) return;         // the user moved on meanwhile
+      if (!day){ setTile(() => T('tile.nopass', tr(cfg.n), PASS_WINDOW, asked), true); return; }
+      cfg.time = day;
+      gibsLayer = buildTile(cfg); gibsLayer.addTo(S.map);
+      setTile(() => T('tile.pass', tr(cfg.n), day));
+    });
+  } else if (cfg){ gibsLayer = buildTile(cfg); gibsLayer.addTo(S.map); }
   if (fireLayer){                                   // the fire overlay follows the imagery date too
     S.map.removeLayer(fireLayer);
     fireLayer = buildTile(LAYERS.find(c => c.overlay)); fireLayer.addTo(S.map);
   }
+}
+/* Landsat and Sentinel-2 each pass over a given point only every few days. NASA still answers
+   for the days in between, with an empty transparent tile of about 1 KB. So: ask for the size
+   of the pin's own tile on each of the last PASS_WINDOW days (HEAD requests — no image is
+   downloaded) and take the newest one that actually holds a picture. */
+const PASS_WINDOW = 20;
+function latestPass(cfg){
+  const t = tileXY(S.lat, S.lon, cfg.z), end = new Date(gibsDate() + 'T00:00:00Z').getTime();
+  const days = Array.from({length: PASS_WINDOW}, (_, i) => new Date(end - i * 864e5).toISOString().slice(0, 10));
+  const url = d => GIBS_URL.replace('{layer}', cfg.l).replace('{time}', d).replace('{tms}', cfg.tms)
+    .replace('{ext}', cfg.ext).replace('{z}', cfg.z).replace('{y}', t.y).replace('{x}', t.x);
+  return Promise.all(days.map(d => fetch(url(d), {method:'HEAD'})
+      .then(r => r.ok ? +(r.headers.get('content-length') || 0) : 0).catch(() => 0)))
+    .then(sizes => { const i = sizes.findIndex(n => n > 3000); return i < 0 ? null : days[i]; });
 }
 function tileXY(lat, lon, z){
   const n = Math.pow(2, z);
