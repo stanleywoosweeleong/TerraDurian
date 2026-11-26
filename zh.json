@@ -286,7 +286,7 @@
  "copy": "复制",
  "copied ✓": "已复制 ✓",
  "copy failed": "复制失败",
- "Layers are probed on load — anything struck through has no tile at this date/zoom.": "加载时会探测图层——带删除线的表示该日期/缩放级别下无瓦片。",
+ "Layers are probed on load — anything struck through has no tile at this date/zoom. Active fires is an overlay: it is drawn on top of the picture you choose, and stays until you tap it again.": "图层在加载时探测——带删除线的表示在该日期/缩放级别没有瓦片。“活跃火点”是叠加图层：它画在你所选的影像之上，再点一次才会移除。",
  "◀ −1 day": "◀ −1 天",
  "+1 day ▶": "+1 天 ▶",
  "Re-probe layers": "重新探测图层",

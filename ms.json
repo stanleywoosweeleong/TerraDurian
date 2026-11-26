@@ -286,7 +286,7 @@
  "copy": "salin",
  "copied ✓": "disalin ✓",
  "copy failed": "gagal menyalin",
- "Layers are probed on load — anything struck through has no tile at this date/zoom.": "Lapisan diuji semasa dimuatkan — yang dipotong garis tiada jubin pada tarikh/zum ini.",
+ "Layers are probed on load — anything struck through has no tile at this date/zoom. Active fires is an overlay: it is drawn on top of the picture you choose, and stays until you tap it again.": "Lapisan diuji semasa dimuatkan — yang dipotong garis tiada jubin pada tarikh/zum ini. Kebakaran aktif ialah lapisan tindih: ia dilukis di atas imej yang anda pilih, dan kekal sehingga anda mengetiknya sekali lagi.",
  "◀ −1 day": "◀ −1 hari",
  "+1 day ▶": "+1 hari ▶",
  "Re-probe layers": "Uji semula lapisan",

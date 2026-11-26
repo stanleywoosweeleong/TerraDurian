@@ -140,6 +140,11 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
   .lay button.on{border-color:var(--accent-ink);color:var(--accent-ink)}
   .farmbar label[style*="--accent)"]{color:var(--txt) !important}     /* tick-box captions read as text, not as actions */
   .lay button.dead{opacity:.35;text-decoration:line-through}
+  /* an overlay is added on top of the chosen picture: set apart, dashed, and ticked when on */
+  .lay button.overlay{margin-left:10px;border-style:dashed}
+  .lay button.overlay::before{content:"+ ";color:var(--dim)}
+  .lay button.overlay.on{border-style:solid}
+  .lay button.overlay.on::before{content:"✓ ";color:var(--accent-ink)}
   code{font-family:var(--mono);font-size:11px;background:var(--panel2);padding:1px 5px;border-radius:4px}
   .err{color:var(--bad);font-size:12px;font-family:var(--mono)}
   .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-1px}
@@ -641,7 +646,7 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
     <h3>NASA GIBS imagery — click the map to move the pin</h3>
     <div class="lay" id="layers"></div>
     <div id="map"></div>
-    <div class="legend">Layers are probed on load — anything struck through has no tile at this date/zoom.</div>
+    <div class="legend">Layers are probed on load — anything struck through has no tile at this date/zoom. Active fires is an overlay: it is drawn on top of the picture you choose, and stays until you tap it again.</div>
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <label class="muted" for="gibsDate">Imagery date</label>
       <input id="gibsDate" name="gibsDate" type="date">
@@ -1161,6 +1166,12 @@ var TPL = {
   'tile.nopass': { en:function(n,w,d){return 'No '+n+' pass over your pin in the '+w+' days up to '+d+'.';},
                    zh:function(n,w,d){return '截至 '+d+' 的 '+w+' 天内，'+n+' 没有经过图钉位置的影像。';},
                    ms:function(n,w,d){return 'Tiada laluan '+n+' di atas pin anda dalam '+w+' hari sehingga '+d+'.';} },
+  'tile.firezoom':{ en:function(){return 'Zoom in to see active fires. From this far out every detection would be drawn hundreds of kilometres wide.';},
+                    zh:function(){return '请放大以查看活跃火点。在这么远的视角下，每个火点都会被画成数百公里宽。';},
+                    ms:function(){return 'Zum masuk untuk melihat kebakaran aktif. Dari jarak sejauh ini setiap pengesanan akan dilukis selebar ratusan kilometer.';} },
+  'tile.overlaytip':{ en:function(){return 'Overlay: drawn on top of whichever picture is chosen. Tap again to remove it.';},
+                      zh:function(){return '叠加图层：画在所选影像之上。再点一次即可移除。';},
+                      ms:function(){return 'Lapisan tindih: dilukis di atas imej yang dipilih. Ketik sekali lagi untuk membuangnya.';} },
   'tile.switched':{ en:function(n){return ' · switched to '+n;}, zh:function(n){return ' · 已切换到 '+n;} },
   'u.satfrac':  { en:function(){return ' sat. frac.';}, zh:function(){return '（饱和度）';} },
   'centre':     { en:function(){return 'centre';}, zh:function(){return '中心';} },
@@ -1556,15 +1567,27 @@ const tileUrl = cfg => GIBS_URL.replace('{layer}', cfg.l)
   .replace('{tms}', cfg.tms).replace('{ext}', cfg.ext);
 
 const GIBS_WMS = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
+/* Each fire detection is drawn as a dot of fixed size on screen. Zoomed far out, a dot a few
+   pixels wide covers hundreds of kilometres and the dots merge into solid red, which says
+   nothing useful and looks alarming. So the overlay is only drawn from this zoom inwards
+   (about one country per screen), and a note explains why when it is hidden. */
+const FIRE_MIN_ZOOM = 6;
+function fireNote(){
+  if (!S.map) return;
+  const hidden = !!fireLayer && S.map.getZoom() < FIRE_MIN_ZOOM;
+  if (hidden) setTile(() => T('tile.firezoom'));
+  else if (S.tileFn && S.tileFire) setTile(null);
+  S.tileFire = hidden;
+}
 function buildTile(cfg){
   const t = cfg.wms
     ? L.tileLayer.wms(GIBS_WMS, {layers:cfg.l, format:'image/png', transparent:true, version:'1.1.1',
-        time:gibsDate(), maxZoom:19, attribution:'NASA GIBS / EOSDIS'})
+        time:gibsDate(), minZoom:FIRE_MIN_ZOOM, maxZoom:19, attribution:'NASA GIBS / EOSDIS'})
     : L.tileLayer(tileUrl(cfg), {maxNativeZoom:cfg.z, maxZoom:19, tileSize:256,
         opacity: cfg.overlay ? 1 : 0.92, attribution:'NASA GIBS / EOSDIS'});
   t.on('tileerror', () => { tileErrors++;
     if (tileErrors % 8 === 1) setTile(() => T('tile.none', cfg.l), true); });
-  t.on('tileload', () => { if (!cfg.sparse) setTile(null); });        // a sparse layer keeps its "pass of …" note
+  t.on('tileload', () => { if (!cfg.sparse && !S.tileFire) setTile(null); });        // a sparse layer keeps its "pass of …" note
   return t;
 }
 function setTile(fn, isErr){
@@ -1654,7 +1677,8 @@ function probeLayers(){
 
 guard('map', () => {
   if (typeof L === 'undefined') throw new Error('Leaflet failed to load from unpkg.');
-  S.map = L.map('map', {center:[S.lat, S.lon], zoom:11, worldCopyJump:true});
+  // minZoom 4: a farm tool has no use for the whole globe, and below that the world repeats
+  S.map = L.map('map', {center:[S.lat, S.lon], zoom:11, minZoom:4, worldCopyJump:true});
   /* Basemap: Esri dark canvas, no API key. (CARTO's public tiles started returning an
      "API KEY REQUIRED" watermark baked into the image, so they had to go.) Esri splits
      it into a label-free base and a transparent reference layer; we put the labels in
@@ -1676,16 +1700,20 @@ guard('map', () => {
     {maxZoom:19, maxNativeZoom:16, pane:'labels', opacity:0.9}).addTo(S.map);
   S.marker = L.marker([S.lat, S.lon], {draggable:true}).addTo(S.map);
   S.map.on('click', e => setPoint(e.latlng.lat, e.latlng.lng, false));
+  S.map.on('zoomend', fireNote);
   S.marker.on('dragend', e => { const p = e.target.getLatLng(); setPoint(p.lat, p.lng, false); });
 
   LAYERS.forEach((cfg, i) => {
     const b = document.createElement('button');
     b.textContent = cfg.n;
     if (cfg.overlay){
+      b.classList.add('overlay');
+      b.title = T('tile.overlaytip');
       b.onclick = () => {
         b.classList.toggle('on');
         if (fireLayer){ S.map.removeLayer(fireLayer); fireLayer = null; }
         if (b.classList.contains('on')){ fireLayer = buildTile(cfg); fireLayer.addTo(S.map); }
+        fireNote();
       };
     } else {
       if (i === 0) b.classList.add('on');
