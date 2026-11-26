@@ -33,11 +33,18 @@ built in (Farm setup → SMAP endpoint). To run your own, deploy `tools/smap-wor
 cannot be reached, the app tries a local `smap.json`, then ORNL DAAC, then falls back
 to the MERRA-2 proxy.
 
-## tools/  (optional — NOT part of the website, and not included in this repository)
-- smap-worker.js   Cloudflare Worker that serves live SMAP as CORS JSON
-- fetch_smap.py    desktop script: pull SMAP to a local smap.json (needs Earthdata login)
-- diagnose_smap.py one-granule SMAP diagnostic
-- Get SMAP data.bat  double-click wrapper for fetch_smap.py (Windows)
+## tools/  (optional — NOT part of the website)
+- smap-worker.js   Cloudflare Worker that serves live SMAP as CORS JSON. To update the
+                   live worker, paste this file into the Worker's editor in Cloudflare
+                   and deploy — nothing in this repo deploys it for you.
+
+The NASA Earthdata token the Worker uses **expires about every 60 days**. When it does,
+the app's SMAP panel shows "Earthdata rejected the token" and falls back to the model
+proxy. Generate a new token at urs.earthdata.nasa.gov and replace the Worker's
+`EARTHDATA_TOKEN` secret (Cloudflare → the Worker → Settings → Variables and Secrets).
+
+The desktop helpers (`fetch_smap.py`, `diagnose_smap.py`, `Get SMAP data.bat`) are not
+included in this repository.
 
 ## Notes
 - Soil (ISRIC SoilGrids) and the forecast (Open-Meteo) are non-NASA sources, badged
