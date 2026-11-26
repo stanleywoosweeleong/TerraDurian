@@ -1180,11 +1180,12 @@ async function fetchPower(days, params){
 const ORNL = 'https://modis.ornl.gov/rst/api/v1';
 async function ornlGet(url){
   const ctl = new AbortController();
-  const to = setTimeout(() => ctl.abort(), 30000);
+  // ORNL subsets are slow under load — 30 s cut off requests that would have answered.
+  const to = setTimeout(() => ctl.abort(), 90000);
   let r;
   try { r = await fetch(url, {headers:{Accept:'application/json'}, signal: ctl.signal}); }
   catch(e){
-    throw new Error(e.name === 'AbortError' ? 'timed out after 30 s' : 'blocked — CORS, offline, or the host is down');
+    throw new Error(e.name === 'AbortError' ? 'timed out after 90 s' : 'blocked — CORS, offline, or the host is down');
   }
   finally { clearTimeout(to); }
   if (!r.ok){
@@ -1370,6 +1371,10 @@ async function fetchSmap(){
     dates = await modisDates(prod);
     log('SMAP /dates listed ' + dates.length + ' dates');
   } catch(e){
+    // ORNL saying outright that it holds nothing for this point is final. Probing the archive
+    // anyway only fires a dozen slow requests that compete with the MODIS pull on the same host.
+    if (/no .*data available/i.test(e.message))
+      throw new Error('ORNL has no ' + prod + ' data for this location');
     log('SMAP /dates refused (' + e.message + ') — probing the archive directly');
   }
 
