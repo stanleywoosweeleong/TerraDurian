@@ -182,7 +182,8 @@ function readDap(buf, nVars) {
     r = pick(0, 1) || pick(2, 3);
   }
   if (!r) return null;
-  return { sm: r.sm, vwc: r.vwc, flag: r.vwc != null && r.vwc > 5 };  // SMAP trusts VWC < ~5 kg/m²
+  // `named`: true when the value was matched to its variable name, false when the size rule had to be used
+  return { sm: r.sm, vwc: r.vwc, flag: r.vwc != null && r.vwc > 5, named: !!names };  // SMAP trusts VWC < ~5 kg/m²
 }
 
 function pickEvenly(arr, k) {
@@ -320,7 +321,9 @@ export default {
     }
 
     const chosen = pickEvenly(entries, max);
-    const stats = { chosen: chosen.length, kept: 0, flagged: 0, nodata: 0, no_opendap: 0, errors: 0, http: 0, auth: 0 };
+    // named / by_size: how the kept readings were decoded (see readDap). All of them should be `named`;
+    // a non-zero by_size means the response header was not laid out as expected and the fallback ran.
+    const stats = { chosen: chosen.length, kept: 0, named: 0, by_size: 0, flagged: 0, nodata: 0, no_opendap: 0, errors: 0, http: 0, auth: 0 };
     const px = '[' + rc.row + '][' + rc.col + ']';
     // 4 Float32 variables (soil moisture + vegetation water content, AM & PM) via DAP4 BINARY.
     const AM = '/Soil_Moisture_Retrieval_Data_AM/';
@@ -341,7 +344,7 @@ export default {
         const p = readDap(r.bytes, 4);
         if (!p) { stats.nodata++; return null; }
         if (p.flag) { stats.flagged++; if (!loose) return null; }
-        stats.kept++;
+        stats.kept++; if (p.named) stats.named++; else stats.by_size++;
         const d = dateOf(g);
         return d ? { date: d, sm_surface: +p.sm.toFixed(4), flagged: p.flag || undefined,
                      vwc: p.vwc != null ? +p.vwc.toFixed(2) : undefined } : null;
