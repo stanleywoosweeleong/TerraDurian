@@ -1030,8 +1030,8 @@ var TPL = {
   /* ── forecast alerts ── */
   'fc.dry':   { en:function(x,tot,hit){return '<b>'+x+'</b> dry days forecast, taking the current spell to <b>'+tot+' days</b>. '+(hit?'That crosses the induction threshold — a deliberate choice point: irrigate to protect fruit, or withhold to force flowers.':'Not yet enough to trigger flowering.');}, zh:function(x,tot,hit){return '预报还有 <b>'+x+'</b> 个无雨日，当前干旱期将达 <b>'+tot+' 天</b>。'+(hit?'这将越过催花阈值——需要主动抉择：灌溉保果，还是停水催花。':'尚不足以触发开花。');} },
   'fc.heat':  { en:function(n){return '<b>'+n+'</b> days above 35 °C forecast. Irrigate at dawn, mulch, shade young trees. Flowers and pinhead fruit abort fast at these temperatures.';}, zh:function(n){return '预报有 <b>'+n+'</b> 天超过 35 °C。请清晨灌溉、覆盖保墒、为幼树遮荫。这种温度下花和幼果会迅速脱落。';} },
-  'fc.heavy': { en:function(mm,w){return '<b>'+mm+' mm</b> over 16 days, '+w+' days ≥10 mm. Clear drains before it arrives; saturated soil plus warm weather is peak <i>Phytophthora</i> weather.';}, zh:function(mm,w){return '16 天内 <b>'+mm+' 毫米</b>，其中 '+w+' 天 ≥10 毫米。雨来之前清理排水沟；土壤饱和加上温暖天气正是棕榈疫霉（黑头病）高发天气。';} },
-  'fc.little':{ en:function(mm){return 'Only <b>'+mm+' mm</b> in 16 days. Check the Irrigation tab unless you are inducing.';}, zh:function(mm){return '16 天仅 <b>'+mm+' 毫米</b>。若不是在催花，请查看灌溉页。';} },
+  'fc.heavy': { en:function(mm,w,n){return '<b>'+mm+' mm</b> over '+n+' days, '+w+' days ≥10 mm. Clear drains before it arrives; saturated soil plus warm weather is peak <i>Phytophthora</i> weather.';}, zh:function(mm,w,n){return n+' 天内 <b>'+mm+' 毫米</b>，其中 '+w+' 天 ≥10 毫米。雨来之前清理排水沟；土壤饱和加上温暖天气正是棕榈疫霉（黑头病）高发天气。';} },
+  'fc.little':{ en:function(mm,n){return 'Only <b>'+mm+' mm</b> in '+n+' days. Check the Irrigation tab unless you are inducing.';}, zh:function(mm,n){return n+' 天仅 <b>'+mm+' 毫米</b>。若不是在催花，请查看灌溉页。';} },
 
   /* ── SMAP panel ── */
   'smap.title':{ en:function(p){return 'Real SMAP: '+p+' at 9 km';}, zh:function(p){return '真实 SMAP：'+p+'（9 公里）';} },
@@ -1171,15 +1171,20 @@ var TPL = {
   'a.chronic': { en:function(dep,run,trig,max){return 'Root zone is <b>'+dep+'% depleted</b> and has been past the stress threshold for <b>'+run+' consecutive days</b>. An induction window is roughly '+trig+'–'+max+' days of stress; this long is a standing deficit that costs growth and fruit. Check that Farm setup matches your trees and soil, then irrigate.';},
                  zh:function(dep,run,trig,max){return '根区已亏缺 <b>'+dep+'%</b>，且已连续 <b>'+run+' 天</b>超过胁迫阈值。催花窗口大约是 '+trig+'–'+max+' 天的胁迫；持续这么久已属长期缺水，会影响生长和结果。请确认农场设置与你的树和土壤相符，然后灌溉。';} },
   'fl.cTitle': { en:function(n){return 'Stressed for '+n+' days — past any induction window';}, zh:function(n){return '已胁迫 '+n+' 天——早已超过催花窗口';} },
-  'w.short': { en:function(d){return '⚠ The forecast has no rain or evapotranspiration values after '+d+', so the projection stops there.';},
-               zh:function(d){return '⚠ '+d+' 之后的预报缺少降雨或蒸散数据，推算到该日为止。';} },
-  'w.nofc':  { en:function(){return '⚠ The forecast came without usable rain or evapotranspiration values for today, so nothing is projected forward.';},
-               zh:function(){return '⚠ 预报中今天没有可用的降雨或蒸散数据，因此不做向前推算。';} },
-  'ir.short':{ en:function(n){return '⚠ Only '+n+' forecast day'+(n===1?' has':'s have')+' usable rain and evapotranspiration values; the weekly total covers those days only.';},
-               zh:function(n){return '⚠ 只有 '+n+' 个预报日有可用的降雨和蒸散数据；每周合计仅包含这些天。';} },
-  'fc.partialT': { en:function(){return 'Forecast incomplete';}, zh:function(){return '预报不完整';} },
-  'fc.partial':  { en:function(n,t){return '<b>'+n+'</b> of '+t+' days came without a rain value. Totals and dry-spell advice are withheld for the missing days.';},
-                   zh:function(n,t){return t+' 天中有 <b>'+n+'</b> 天没有降雨数值。缺失的日子不计入合计，也不给出干旱期建议。';} },
+  'w.holes': { en:function(n){return '⚠ '+n+' forecast day'+(n===1?'':'s')+' came without rain or evapotranspiration values. '+(n===1?'It is':'They are')+' passed over: the soil state is carried across and the count of consecutive stress days restarts after '+(n===1?'it':'them')+'.';},
+               zh:function(n){return '⚠ 有 '+n+' 个预报日缺少降雨或蒸散数据。这些天被跳过：土壤状态延续，连续胁迫天数在其后重新计数。';} },
+  'w.nofc':  { en:function(){return '⚠ The forecast came without usable rain or evapotranspiration values, so nothing is projected forward.';},
+               zh:function(){return '⚠ 预报中没有可用的降雨或蒸散数据，因此不做向前推算。';} },
+  'ir.short':{ en:function(n){return '⚠ '+n+' of the next 7 days have forecast values; the weekly total covers those '+n+' day'+(n===1?'':'s')+'.';},
+               zh:function(n){return '⚠ 未来 7 天中有 '+n+' 天有预报数值；每周合计只包含这 '+n+' 天。';} },
+  'ir.todayNA':{ en:function(){return 'today has no forecast rain or ET₀ value yet';}, zh:function(){return '今天暂无预报的降雨或 ET₀ 数值';} },
+  'fc.partialT': { en:function(){return 'Some forecast days have no values';}, zh:function(){return '部分预报日没有数值';} },
+  'fc.partial':  { en:function(n,t){return '<b>'+n+'</b> of the '+t+' days came without a rain value. The figures and advice here are worked out from the other '+(t-n)+'.';},
+                   zh:function(n,t){return t+' 天中有 <b>'+n+'</b> 天没有降雨数值。这里的数字和建议按其余 '+(t-n)+' 天计算。';} },
+  'fc.tail': { en:function(n,k){return 'The last '+(n===1?'day has':n+' days have')+' no values yet — that is the edge of what the weather models cover at this hour. Everything here is worked out from the '+k+' days that do.';},
+               zh:function(n,k){return '最后 '+n+' 天暂无数值——这是天气模式此刻覆盖范围的边缘。这里的内容均按有数值的 '+k+' 天计算。';} },
+  'fc.na': { en:function(){return 'no data yet';}, zh:function(){return '暂无数据';} },
+  'fc.none': { en:function(n){return 'No heat, drought or deluge signal in the next '+n+' days.';}, zh:function(n){return '未来 '+n+' 天无高温、干旱或暴雨信号。';} },
   'st.located': { en:function(n){return 'located ±'+n+' m';}, zh:function(n){return '已定位 ±'+n+' 米';} },
   'geo.none':   { en:function(){return 'This browser has no Geolocation API.';}, zh:function(){return '此浏览器不支持定位功能。';} },
   'geo.insecure':{ en:function(){return 'Geolocation needs a secure context. Open this page via http://localhost:8000 or https://, not file://.';},
@@ -1279,8 +1284,8 @@ var TPL_MS = {
 
   'fc.dry': function(x,tot,hit){ return '<b>'+x+'</b> hari kering diramalkan, menjadikan tempoh kering semasa <b>'+tot+' hari</b>. '+(hit?'Itu melepasi ambang aruhan — satu titik pilihan yang disengajakan: siram untuk melindungi buah, atau tahan air untuk memaksa bunga.':'Belum cukup untuk mencetuskan pembungaan.'); },
   'fc.heat': function(n){ return '<b>'+n+'</b> hari melebihi 35 °C diramalkan. Siram waktu subuh, beri sungkupan, teduhkan pokok muda. Bunga dan putik buah gugur dengan cepat pada suhu ini.'; },
-  'fc.heavy': function(mm,w){ return '<b>'+mm+' mm</b> dalam 16 hari, '+w+' hari ≥10 mm. Bersihkan parit sebelum hujan tiba; tanah tepu ditambah cuaca panas ialah cuaca kemuncak <i>Phytophthora</i>.'; },
-  'fc.little': function(mm){ return 'Hanya <b>'+mm+' mm</b> dalam 16 hari. Semak tab Pengairan kecuali anda sedang mengaruh bunga.'; },
+  'fc.heavy': function(mm,w,n){ return '<b>'+mm+' mm</b> dalam '+n+' hari, '+w+' hari ≥10 mm. Bersihkan parit sebelum hujan tiba; tanah tepu ditambah cuaca panas ialah cuaca kemuncak <i>Phytophthora</i>.'; },
+  'fc.little': function(mm,n){ return 'Hanya <b>'+mm+' mm</b> dalam '+n+' hari. Semak tab Pengairan kecuali anda sedang mengaruh bunga.'; },
 
   'smap.title': function(p){ return 'SMAP sebenar: '+p+' pada 9 km'; },
   'smap.real': function(kind,lag){
@@ -1332,11 +1337,15 @@ var TPL_MS = {
   'st.saved': function(list){ return ' · salinan tersimpan: '+list; },
   'st.failed': function(list){ return 'dimuatkan · gagal: '+list; },
   'st.located': function(n){ return 'lokasi dikesan ±'+n+' m'; },
-  'w.short': function(d){ return '⚠ Ramalan tiada nilai hujan atau sejatpeluhan selepas '+d+', jadi unjuran berhenti di situ.'; },
-  'w.nofc': function(){ return '⚠ Ramalan tiba tanpa nilai hujan atau sejatpeluhan yang boleh digunakan untuk hari ini, jadi tiada unjuran ke hadapan dibuat.'; },
-  'ir.short': function(n){ return '⚠ Hanya '+n+' hari ramalan mempunyai nilai hujan dan sejatpeluhan yang boleh digunakan; jumlah mingguan meliputi hari-hari itu sahaja.'; },
-  'fc.partialT': function(){ return 'Ramalan tidak lengkap'; },
-  'fc.partial': function(n,t){ return '<b>'+n+'</b> daripada '+t+' hari tiba tanpa nilai hujan. Jumlah dan nasihat tempoh kering tidak diberikan untuk hari yang tiada data.'; },
+  'w.holes': function(n){ return '⚠ '+n+' hari ramalan tiba tanpa nilai hujan atau sejatpeluhan. Hari itu dilangkau: keadaan tanah dibawa ke hadapan dan kiraan hari tegasan berturut-turut bermula semula selepasnya.'; },
+  'w.nofc': function(){ return '⚠ Ramalan tiba tanpa nilai hujan atau sejatpeluhan yang boleh digunakan, jadi tiada unjuran ke hadapan dibuat.'; },
+  'ir.short': function(n){ return '⚠ '+n+' daripada 7 hari akan datang mempunyai nilai ramalan; jumlah mingguan meliputi '+n+' hari itu.'; },
+  'ir.todayNA': function(){ return 'hari ini belum ada nilai hujan atau ET₀ ramalan'; },
+  'fc.partialT': function(){ return 'Sesetengah hari ramalan tiada nilai'; },
+  'fc.partial': function(n,t){ return '<b>'+n+'</b> daripada '+t+' hari tiba tanpa nilai hujan. Angka dan nasihat di sini dikira daripada '+(t-n)+' hari yang selebihnya.'; },
+  'fc.tail': function(n,k){ return n+' hari terakhir belum ada nilai — itu had liputan model cuaca pada waktu ini. Semua di sini dikira daripada '+k+' hari yang mempunyai nilai.'; },
+  'fc.na': function(){ return 'belum ada data'; },
+  'fc.none': function(n){ return 'Tiada isyarat haba, kemarau atau hujan sangat lebat dalam '+n+' hari akan datang.'; },
   'st.powerkept': function(la,lo){ return 'POWER gagal — masih memaparkan '+la+', '+lo; },
   'w.gap': function(n){ return '⚠ '+n+' hari antara hari cerapan terakhir dan hari ini tiada data. Kiraan hari tegasan berturut-turut bermula semula selepasnya, dan susutan yang dipaparkan ialah anggaran. Ambil semula apabila sumber boleh dihubungi.'; },
   'a.chronic': function(dep,run,trig,max){ return 'Zon akar <b>susut '+dep+'%</b> dan telah melepasi ambang tegasan selama <b>'+run+' hari berturut-turut</b>. Tetingkap aruhan ialah kira-kira '+trig+'–'+max+' hari tegasan; selama ini ialah defisit berpanjangan yang menjejaskan pertumbuhan dan buah. Pastikan Tetapan kebun sepadan dengan pokok dan tanah anda, kemudian siram.'; },
@@ -2697,13 +2706,18 @@ const fmtD = t => T('date', t);
 /* A forecast day is usable for the water balance only if BOTH its rain and its ET₀ are real
    numbers. A missing value is unknown — never "no rain" and never an assumed 4 mm of
    evaporation: advice built on invented numbers reads exactly like advice built on data.
-   The projections therefore run through the unbroken stretch of known days and stop at the
-   first unknown one; what they could not cover is reported. */
+   But one unknown day is no reason to say nothing about the others. Every projection works
+   through all the days that DO have values: a hole is passed over (the soil state is carried
+   across it and any count of consecutive days restarts), and what was passed over is stated. */
 const known = x => x && typeof x.rain === 'number' && isFinite(x.rain) && typeof x.et0 === 'number' && isFinite(x.et0);
-function knownAhead(){                       // the leading run of usable forecast days
-  const out = [];
-  for (let i = 0; S.fc && i < S.fc.length && known(S.fc[i]); i++) out.push(S.fc[i]);
-  return out;
+// The forecast service routinely sends its final day with no values — the edge of what the
+// weather models cover at that hour. Those trailing empty days are simply not part of the
+// outlook: fcSpan() is the number of days up to and including the last one with values.
+// A day with no values INSIDE that span is a real hole and is handled day by day.
+function fcSpan(){
+  let n = S.fc ? S.fc.length : 0;
+  while (n > 0 && !known(S.fc[n - 1])) n--;
+  return n;
 }
 /* The days between the last observed POWER day and today, in calendar order, one entry per
    day: {date, row} where row is that day's Open-Meteo values, or null if the day is missing
@@ -2727,10 +2741,10 @@ function forwardDry(){                       // extend the current dry spell usi
   if (!S.fc || !S.derived) return null;
   let spell = S.derived.dry;
   bridgeDays(S.derived.dryDate).forEach(b => { if (b.row && b.row.rain < 1) spell++; else spell = 0; });   // rain OR an unknown day ends the spell
-  const ahead = knownAhead();
+  const span = fcSpan();
   let d = 0;
-  for (let i = 0; i < ahead.length; i++){
-    if (ahead[i].rain < 1) d++; else break;
+  for (let i = 0; i < span; i++){
+    if (known(S.fc[i]) && S.fc[i].rain < 1) d++; else break;     // rain, or a day with no value, ends the run
   }
   return {extra: d, total: spell + d,
           reaches: spell + d >= AG.dryTrigger,
@@ -2743,8 +2757,8 @@ function forwardDry(){                       // extend the current dry spell usi
    depToday / runToday describe today rather than three days ago. */
 function forwardStress(){
   const d = S.derived;
-  const ahead = knownAhead();
-  if (!d || !S.fc || d.depNow == null || !ahead.length) return null;   // nothing known to project with
+  const span = fcSpan();
+  if (!d || !S.fc || d.depNow == null || !span) return null;           // nothing known to project with
   const f = d.farm, taw = d.taw, raw = d.raw;
   let Dr = d.depNow * taw;
   let run = d.stressNow;
@@ -2764,15 +2778,17 @@ function forwardStress(){
   bridgeDays(d.wbDate).forEach(b => { if (b.row) step(b.row); else { gap++; run = 0; } });
   const depToday = Dr / taw, runToday = run, ksToday = ksOf();
   const path = [];
-  let hitDay = null;
-  for (let i = 0; i < ahead.length; i++){
-    const x = ahead[i];
-    const stressed = step(x);
-    if (run >= AG.stressTrigger && hitDay == null) hitDay = x.date;
-    path.push({date:x.date, dep: Dr/taw, stressed, run});
+  let hitDay = null, holes = 0;
+  for (let i = 0; i < span; i++){
+    const x = S.fc[i];
+    if (known(x)){
+      step(x);
+      if (run >= AG.stressTrigger && hitDay == null) hitDay = x.date;
+    } else { holes++; run = 0; }                     // passed over: soil state carried, consecutive count restarts
+    path.push({date:x.date, dep: Dr/taw, run});
   }
-  return {path, hitDay, endRun: run, endDep: Dr / taw, depToday, runToday, ksToday, gap,
-          short: S.fc.length - ahead.length, endDate: ahead[ahead.length - 1].date,
+  return {path, hitDay, endRun: run, endDep: Dr / taw, depToday, runToday, ksToday, gap, holes,
+          endDate: S.fc[span - 1].date,
           maxRun: Math.max.apply(null, path.map(p2 => p2.run).concat([runToday]))};
 }
 
@@ -2889,7 +2905,7 @@ function renderDurian(){
     + '<tr><td>Consecutive stress days</td><td class="num"><b>' + T('d.days', cur.run) + '</b>'
       + (fs && fs.hitDay && cur.run < AG.stressTrigger ? T('w.trig', fs.hitDay) : fs ? T('w.fcst', fs.endRun) : '') + '</td></tr>'
     + (fs && fs.gap ? '<tr><td colspan="2" style="color:var(--warn)">' + T('w.gap', fs.gap) + '</td></tr>' : '')
-    + (fs && fs.short ? '<tr><td colspan="2" style="color:var(--warn)">' + T('w.short', fs.endDate) + '</td></tr>' : '')
+    + (fs && fs.holes ? '<tr><td colspan="2" style="color:var(--warn)">' + T('w.holes', fs.holes) + '</td></tr>' : '')
     + (!fs && S.fc ? '<tr><td colspan="2" style="color:var(--warn)">' + T('w.nofc') + '</td></tr>' : '')
     + '<tr><td>Longest stress run in window</td><td class="num">' + T('d.days', d.bestStress) + '</td></tr>'
     + '<tr><td>TAW / RAW</td><td class="num">' + fx(d.taw,0) + ' / ' + fx(d.raw,0) + ' mm</td></tr>'
@@ -2945,12 +2961,13 @@ function renderIrrigation(){
     return {x, etc, need: mm * f.canopyArea / f.eff};
   };
   let today, tSrc, week = null;
-  const ahead = knownAhead();
-  if (ahead.length){
+  const span = fcSpan();
+  if (span){
     bridgeDays(dd.wbDate).forEach(b => { if (b.row) irrStep(b.row); });      // known days only; unknown ones leave the store as it was
-    week = ahead.slice(0, 7).map(irrStep);
+    week = S.fc.slice(0, Math.min(7, span)).map(x => known(x) ? irrStep(x) : {x, etc: null, need: null});
     today = week[0].need;
-    tSrc = T('ir.todaySrc', fx(week[0].etc,1), fx(week[0].x.rain,1), fx(f.canopyArea,0), Math.round(f.eff*100));
+    tSrc = today == null ? T('ir.todayNA')
+         : T('ir.todaySrc', fx(week[0].etc,1), fx(week[0].x.rain,1), fx(f.canopyArea,0), Math.round(f.eff*100));
   } else {
     today = dd.litres[dd.litres.length-1];
     tSrc = T('ir.lastSrc', S.power.date[S.power.date.length-1]);
@@ -2962,7 +2979,8 @@ function renderIrrigation(){
   if (kcSrc) kcSrc.textContent = T('ir.kcSrc', f.age, f.canopy, fx(f.canopyArea, 0));
 
   // what the same weather asks of a tree at every age — this is the answer to "does age matter?"
-  const et0now = (S.fc && S.fc.length && known(S.fc[0])) ? S.fc[0].et0
+  const firstKnown = S.fc ? S.fc.filter(known)[0] : null;
+  const et0now = firstKnown ? firstKnown.et0
                : (dd.et0[dd.et0.length-1] || 4);
   const ages = [1, 2, 3, 5, 8, 12, 20];
   const ageRows = ages.map(a => {
@@ -2999,6 +3017,10 @@ function renderIrrigation(){
   if (week){
     week.forEach(w => {
       const x = w.x, etc = w.etc, need = w.need;
+      if (need == null){                                // no values for this day: shown as unknown, left out of the total
+        rows += '<tr><td>' + T('wdate', new Date(x.date + 'T00:00:00')) + '</td><td class="num muted">?</td><td class="num muted">?</td><td class="num muted">?</td></tr>';
+        return;
+      }
       wk += need;
       rows += '<tr><td>' + T('wdate', new Date(x.date + 'T00:00:00')) + '</td>'
         + '<td class="num">' + fx(x.rain, 1) + '</td><td class="num">' + fx(etc, 1) + '</td>'
@@ -3009,8 +3031,9 @@ function renderIrrigation(){
       + '<th class="num">ETc mm</th><th class="num">Water/tree</th></tr></thead><tbody>' + rows + '</tbody></table>'
       + '<p class="muted" style="font-size:11px;margin-top:8px">Counts 80% of forecast rain and the water already in the soil. '
       + 'If you are trying to induce flowering, ignore this table and let the trees dry out.</p>';
-    if (week.length < 7) $('iSched').insertAdjacentHTML('beforeend',
-      '<p style="font-size:11px;color:var(--warn)">' + T('ir.short', week.length) + '</p>');
+    const usable = week.filter(w => w.need != null).length;
+    if (usable < 7) $('iSched').insertAdjacentHTML('beforeend',
+      '<p style="font-size:11px;color:var(--warn)">' + T('ir.short', usable) + '</p>');
   } else {
     wk = 7 * (dd.litres30 || 0);
     $('iSched').innerHTML = '<p class="muted">Forecast unavailable — showing the 30-day average instead.</p>';
@@ -3027,6 +3050,9 @@ function renderIrrigation(){
 function renderForecast(){
   if (!S.fc){ $('fcCards').innerHTML = '<div class="err">Forecast unavailable.</div>'; return; }
   $('fcCards').innerHTML = S.fc.map(x => {
+    if (x.rain == null && x.tmax == null)             // a day the models have not reached yet
+      return '<div class="fcd"><b>' + T('wd', new Date(x.date + 'T00:00:00').getDay()) + '</b>'
+        + '<div class="muted">' + x.date.slice(5) + '</div><div class="muted" style="margin-top:6px">' + T('fc.na') + '</div></div>';
     const dry = x.rain != null && x.rain < 1, hot = x.tmax != null && x.tmax > 35;
     return '<div class="fcd ' + (hot ? 'hot' : dry ? 'dry' : 'wet') + '">'
       + '<b>' + T('wd', new Date(x.date + 'T00:00:00').getDay()) + '</b>'
@@ -3036,24 +3062,27 @@ function renderForecast(){
   }).join('');
 
   const A = [], fd = forwardDry();
-  // Totals are only stated when every day's rain is known: a sum with holes in it would
-  // read as "very little rain" when the truth is "we were not told".
-  const rainKnown = S.fc.every(x => typeof x.rain === 'number');
-  const rain16 = sum(S.fc.map(x => x.rain || 0));
+  // Everything is worked out from the days that have values, and says how many that is.
+  // Thresholds written for a full 16 days are scaled to that number.
+  const withRain = S.fc.filter(x => typeof x.rain === 'number'), nR = withRain.length;
+  const span = fcSpan(), tail = S.fc.length - span;             // trailing days with no values yet
+  const holes = S.fc.slice(0, span).filter(x => typeof x.rain !== 'number').length;   // missing days INSIDE the outlook
+  const rain16 = sum(withRain.map(x => x.rain));
   const hotDays = S.fc.filter(x => x.tmax != null && x.tmax > 35).length;
-  const wetDays = S.fc.filter(x => x.rain != null && x.rain >= 10).length;
-  if (!rainKnown) A.push(['warn', T('fc.partialT'), T('fc.partial', S.fc.filter(x => typeof x.rain !== 'number').length, S.fc.length)]);
+  const wetDays = withRain.filter(x => x.rain >= 10).length;
+  if (holes) A.push(['warn', T('fc.partialT'), T('fc.partial', holes, span)]);
   if (fd && fd.extra >= 3) A.push(['warn','Dry run ahead',
     T('fc.dry', fd.extra, fd.total, fd.reaches)]);
   if (hotDays >= 3) A.push(['bad','Heat event',
     T('fc.heat', hotDays)]);
-  if (rainKnown && rain16 > 250) A.push(['warn','Heavy rain incoming',
-    T('fc.heavy', fx(rain16,0), wetDays)]);
-  if (rainKnown && rain16 < 20) A.push(['warn','Very little rain forecast',
-    T('fc.little', fx(rain16,0))]);
-  if (!A.length) A.push(['good','Nothing notable','No heat, drought or deluge signal in the next 16 days.']);
+  if (nR && rain16 > 250 * nR / 16) A.push(['warn','Heavy rain incoming',
+    T('fc.heavy', fx(rain16,0), wetDays, nR)]);
+  if (nR && rain16 < 20 * nR / 16) A.push(['warn','Very little rain forecast',
+    T('fc.little', fx(rain16,0), nR)]);
+  if (!A.length) A.push(['good','Nothing notable', T('fc.none', nR)]);
   $('fcAlerts').innerHTML = A.map(a =>
-    '<div class="alert ' + a[0] + '"><div><b>' + a[1] + '</b><small>' + a[2] + '</small></div></div>').join('');
+    '<div class="alert ' + a[0] + '"><div><b>' + a[1] + '</b><small>' + a[2] + '</small></div></div>').join('')
+    + (tail ? '<p class="muted" style="font-size:11px;margin:8px 0 0">' + T('fc.tail', tail, span) + '</p>' : '');
 
   chart('cFc', {type:'bar', data:{labels:S.fc.map(x => x.date.slice(5)), datasets:[
     {label:T('ch','Rain mm'), data:S.fc.map(x => x.rain), backgroundColor:K.water, borderWidth:0, order:3},
