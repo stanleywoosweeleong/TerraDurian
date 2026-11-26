@@ -1523,14 +1523,18 @@ guard('controls', () => {
 /* ═════════ MAP + GIBS ═════════ */
 const GIBS_URL = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/{layer}/default/{time}/{tms}/{z}/{y}/{x}.{ext}';
 const LAYERS = [
-  {n:'VIIRS true colour', l:'VIIRS_SNPP_CorrectedReflectance_TrueColor',   tms:'GoogleMapsCompatible_Level9', ext:'jpg', z:9, daily:true},
+  // Checked against NASA's layer catalogue (WMTSCapabilities.xml). Suomi-NPP imagery stops on
+  // 2026-11-02 there, so the newest satellite, NOAA-21, leads instead.
+  {n:'VIIRS NOAA-21',     l:'VIIRS_NOAA21_CorrectedReflectance_TrueColor', tms:'GoogleMapsCompatible_Level9', ext:'jpg', z:9, daily:true},
   {n:'VIIRS NOAA-20',     l:'VIIRS_NOAA20_CorrectedReflectance_TrueColor', tms:'GoogleMapsCompatible_Level9', ext:'jpg', z:9, daily:true},
   {n:'MODIS true colour', l:'MODIS_Terra_CorrectedReflectance_TrueColor',  tms:'GoogleMapsCompatible_Level9', ext:'jpg', z:9, daily:true},
-  {n:'Landsat WELD 30 m', l:'Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual', tms:'GoogleMapsCompatible_Level12', ext:'jpg', z:12, daily:false, time:'2011-01-01'},
-  {n:'MODIS NDVI',        l:'MODIS_Terra_NDVI_8Day',                       tms:'GoogleMapsCompatible_Level7', ext:'png', z:7, daily:true},
+  {n:'Landsat WELD 30 m', l:'Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual', tms:'GoogleMapsCompatible_Level12', ext:'jpg', z:12, daily:false, time:'2000-12-01'},   // the annual mosaic NASA serves is the year 2000
+  {n:'MODIS NDVI',        l:'MODIS_Terra_NDVI_8Day',                       tms:'GoogleMapsCompatible_Level9', ext:'png', z:9, daily:true},
   {n:'Land surface temp', l:'MODIS_Terra_Land_Surface_Temp_Day',           tms:'GoogleMapsCompatible_Level7', ext:'png', z:7, daily:true},
   {n:'🌃 Night lights',    l:'VIIRS_Black_Marble',                          tms:'GoogleMapsCompatible_Level8', ext:'png', z:8, daily:false, time:'2016-01-01'},
-  {n:'🔥 Active fires',    l:'VIIRS_NOAA20_Thermal_Anomalies_375m_All',     tms:'GoogleMapsCompatible_Level7', ext:'png', z:7, daily:true, overlay:true}
+  // Fire detections are published as vector tiles only, which Leaflet cannot draw unaided;
+  // NASA's WMS endpoint renders the same layer to a transparent image instead.
+  {n:'🔥 Active fires',    l:'VIIRS_NOAA20_Thermal_Anomalies_375m_All',     wms:true, daily:true, overlay:true}
 ];
 let gibsLayer = null, fireLayer = null, activeIdx = 0, tileErrors = 0;
 const dayAgo = n => new Date(Date.now() - n*864e5).toISOString().slice(0,10);
@@ -1539,9 +1543,13 @@ const tileUrl = cfg => GIBS_URL.replace('{layer}', cfg.l)
   .replace('{time}', cfg.daily ? gibsDate() : cfg.time)
   .replace('{tms}', cfg.tms).replace('{ext}', cfg.ext);
 
+const GIBS_WMS = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
 function buildTile(cfg){
-  const t = L.tileLayer(tileUrl(cfg), {maxNativeZoom:cfg.z, maxZoom:19, tileSize:256,
-    opacity: cfg.overlay ? 1 : 0.92, attribution:'NASA GIBS / EOSDIS'});
+  const t = cfg.wms
+    ? L.tileLayer.wms(GIBS_WMS, {layers:cfg.l, format:'image/png', transparent:true, version:'1.1.1',
+        time:gibsDate(), maxZoom:19, attribution:'NASA GIBS / EOSDIS'})
+    : L.tileLayer(tileUrl(cfg), {maxNativeZoom:cfg.z, maxZoom:19, tileSize:256,
+        opacity: cfg.overlay ? 1 : 0.92, attribution:'NASA GIBS / EOSDIS'});
   t.on('tileerror', () => { tileErrors++;
     if (tileErrors % 8 === 1) setTile(() => T('tile.none', cfg.l), true); });
   t.on('tileload', () => setTile(null));
@@ -1559,6 +1567,10 @@ function applyLayers(){
   tileErrors = 0;
   const cfg = LAYERS[activeIdx];
   if (cfg){ gibsLayer = buildTile(cfg); gibsLayer.addTo(S.map); }
+  if (fireLayer){                                   // the fire overlay follows the imagery date too
+    S.map.removeLayer(fireLayer);
+    fireLayer = buildTile(LAYERS.find(c => c.overlay)); fireLayer.addTo(S.map);
+  }
 }
 function tileXY(lat, lon, z){
   const n = Math.pow(2, z);
@@ -1572,8 +1584,11 @@ function probeLayers(){
   const live = new Array(LAYERS.length).fill(false);
   let done = 0;
   LAYERS.forEach((cfg, i) => {
-    const z = Math.min(cfg.z, 6), t = tileXY(S.lat, S.lon, z);
-    const url = tileUrl(cfg).replace('{z}', z).replace('{y}', t.y).replace('{x}', t.x);
+    const z = Math.min(cfg.z || 6, 6), t = tileXY(S.lat, S.lon, z);
+    const url = cfg.wms
+      ? GIBS_WMS + '?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:3857&STYLES='
+          + '&WIDTH=32&HEIGHT=32&BBOX=-20037508,-20037508,20037508,20037508&LAYERS=' + cfg.l + '&TIME=' + gibsDate()
+      : tileUrl(cfg).replace('{z}', z).replace('{y}', t.y).replace('{x}', t.x);
     const img = new Image();
     const finish = good => {
       done++; live[i] = good;
