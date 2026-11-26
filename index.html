@@ -46,7 +46,9 @@
   .farmbar{display:none;gap:10px;align-items:center;padding:9px 18px;background:var(--panel2);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:12px}
   .farmbar.on{display:flex}
   .farmbar input{width:74px;padding:4px 6px}
-  nav{display:flex;gap:2px;padding:0 18px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+  nav{display:flex;gap:2px;padding:0 18px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;
+      position:sticky;top:0;z-index:1100;scrollbar-width:none}      /* above the map's own controls (z ≤ 1000) */
+  nav::-webkit-scrollbar{display:none}
   nav button{border:none;background:none;border-radius:0;border-bottom:2px solid transparent;padding:10px 13px;color:var(--dim);white-space:nowrap}
   nav button.on{color:var(--txt);border-bottom-color:var(--accent)}
   main{padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));max-width:1400px;margin:0 auto}
@@ -186,6 +188,77 @@
     .hmc{ font-size:9px; }
     table{ font-size:12px; }
     th, td{ padding:6px 6px; }
+
+    /* ── header: brand and language on one line, status underneath ── */
+    header{ flex-wrap:wrap; }
+    #langToggle{ margin-left:0 !important; padding:6px 8px; min-height:40px; }
+    #status{ font-size:11px; }
+
+    /* ── top controls: a tidy grid instead of ragged wrapping ──
+       8 columns:  [ 📍 location …………… ][ coordinates ]
+                   [Lat][ input ……… ][Lon][ input ……… ]
+                   [ history ……… ][ Fetch all data ………… ]
+                   [ Farm setup ……… ][ Save plot ………… ]
+                   [ CSV …………………… ][ Report …………… ]            */
+    .bar{ display:grid; grid-template-columns:repeat(8, minmax(0, 1fr)); align-items:center; gap:8px; }
+    .bar > *{ min-width:0; }
+    .bar button, .bar select, .bar input{ min-height:44px; width:100%; }
+    .bar button{ padding:8px 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #gps{ grid-column:span 5; order:1; }
+    #place{ grid-column:span 3; order:2; font-family:var(--mono); font-size:10.5px; line-height:1.35; text-align:right; }
+    .bar label[for="lat"], .bar label[for="lon"]{ grid-column:span 1; order:3; text-align:right; margin:0; }
+    #lat, #lon{ grid-column:span 3; order:3; width:100%; flex:none; }
+    /* the History caption is dropped on phones — the box itself reads "12 months" — but stays for screen readers */
+    .bar label[for="range"]{ position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; margin:0; }
+    #range{ grid-column:span 3; order:4; flex:none; }
+    #run{ grid-column:span 5; order:4; font-size:15px; }
+    #farmBtn, #saveBtn, #csv, #printBtn{ grid-column:span 4; order:5; }
+    #installBtn{ grid-column:1 / -1; order:6; }
+
+    /* ── farm setup: two fields per row, each as  label | box | unit ── */
+    .farmbar.on{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(64px,1fr) auto minmax(0,1.15fr) minmax(64px,1fr) auto;
+                 align-items:center; gap:8px 6px; }
+    .farmbar > *{ min-width:0; }
+    .farmbar label{ margin:0; line-height:1.25; }
+    .farmbar input[type=number], .farmbar input[type=text]{ width:100% !important; min-height:42px; padding:6px 6px; }
+    .farmbar input[type=number]{ -moz-appearance:textfield; appearance:textfield; }          /* no spinner arrows eating the box */
+    .farmbar input[type=number]::-webkit-inner-spin-button, .farmbar input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+    .farmbar > span[style*="flex-basis"]{ display:none; }                    /* desktop line-breaks */
+    #fName{ grid-column:span 5; }
+    #mPh{ grid-column:span 2; }                                             /* pH has no unit */
+    .farmbar > label:not([for]){ grid-column:span 3; }                      /* "from age" tick sits beside Canopy */
+    .farmbar > label:not([for]):has(#mSoilOn){ grid-column:1 / -1; padding-top:6px; border-top:1px solid var(--line); }
+    #fSummary, .farmbar > span.muted[style*="font-size"]{ grid-column:1 / -1; }
+    .farmbar > label[for="smapUrl"]{ grid-column:1 / -1; padding-top:6px; border-top:1px solid var(--line); }
+    #smapUrl{ grid-column:1 / -1; }
+    .farmbar input[type=checkbox]{ width:20px !important; height:20px; vertical-align:-4px !important; }
+
+    /* ── tabs: a little larger, and the chosen one is scrolled into view ── */
+    nav{ scroll-snap-type:x proximity; }
+    nav button{ padding:13px 12px; scroll-snap-align:center; }
+
+    /* ── cards ── */
+    .g3{ grid-template-columns:1fr 1fr; gap:10px; }                         /* the four headline numbers: 2 × 2 */
+    .g3 .card{ padding:10px; }
+    .g3 .card h3{ font-size:11px; }
+    .g3 .big{ font-size:22px; }
+    .g3 .src{ font-size:10px; overflow-wrap:anywhere; }
+    .score{ flex-direction:column; align-items:stretch; gap:10px; }           /* ring on top, factor list full width */
+    .score .ring{ align-self:center; width:112px; height:112px; }
+    .score > div{ min-width:0 !important; }
+    #verdict{ text-align:center; }
+    #verdictNote{ text-align:center; }
+    .brow{ grid-template-columns:minmax(0,1fr) 84px 30px; }
+    .fc{ gap:6px; }
+
+    /* ── update bar spans the screen ── */
+    .toast{ left:10px; right:10px; transform:none; max-width:none; }
+    .toast button{ min-height:40px; }
+  }
+  @media (max-width: 360px){
+    .g3{ grid-template-columns:1fr; }
+    #place{ display:none; }
+    #gps{ grid-column:1 / -1; }
   }
 </style>
 </head>
@@ -1244,6 +1317,13 @@ guard('controls', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
     b.classList.add('on');
     $('tab-' + b.dataset.tab).classList.add('on');
+    // phones: keep the chosen tab visible in the strip, and start the new tab at its top
+    // (the strip is sticky, so otherwise you land mid-way down a different page)
+    try {
+      b.scrollIntoView({inline:'center', block:'nearest'});
+      const navEl = b.parentNode, top = document.querySelector('main').offsetTop - navEl.offsetHeight;
+      if (window.scrollY > top) window.scrollTo(0, top);
+    } catch(e){}
     if (b.dataset.tab === 'map' && S.map) setTimeout(() => {
       S.map.invalidateSize();
       S.map.setView([S.lat, S.lon], Math.max(S.map.getZoom(), 11));   // Leaflet can't size a hidden div

@@ -24,9 +24,10 @@
   'use strict';
   var LS = 'td_lang';
   var LANGS = {
-    en: { label: 'English',       html: 'en' },
-    zh: { label: '中文',           html: 'zh-CN', file: './zh.json' },
-    ms: { label: 'Bahasa Melayu', html: 'ms',    file: './ms.json' }
+    // `label` is what the header picker shows: short codes, so it stays small on a phone.
+    ms: { label: 'BM',   html: 'ms',    file: './ms.json' },
+    en: { label: 'EN',   html: 'en' },
+    zh: { label: '中文', html: 'zh-CN', file: './zh.json' }
   };
   var lang = null;
   try { lang = localStorage.getItem(LS); } catch (e) {}           // storage can be blocked
