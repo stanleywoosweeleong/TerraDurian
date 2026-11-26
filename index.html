@@ -1081,6 +1081,7 @@ var TPL = {
   'val.caveat':{ en:function(vwc){return '<br><br><b>Caveat that cuts both ways:</b> NASA flags most of these SMAP retrievals as unreliable because your canopy (VWC '+vwc+' kg/m²) is far above the ~5 kg/m² limit for a clean L-band retrieval. A <b>high</b> correlation is therefore strong evidence the model is right — two independent, noisy methods agreeing is hard to fake. A <b>low</b> correlation proves little: it may be my model, or it may be SMAP struggling to see your soil at all. Do not throw away the water balance on the strength of a bad score here.';}, zh:function(vwc){return '<br><br><b>双向的注意事项：</b>NASA 将其中大部分 SMAP 反演标记为不可靠，因为你的冠层（植被含水量 '+vwc+' kg/m²）远超干净 L 波段反演约 5 kg/m² 的上限。因此<b>高</b>相关是模型正确的有力证据——两种独立且带噪声的方法达成一致很难是巧合。<b>低</b>相关则说明不了什么：可能是模型的问题，也可能是 SMAP 根本看不清你的土壤。不要因为这里分数差就抛弃水分平衡模型。';} },
 
   /* ── site soil-fail & pills & compare ── */
+  'site.soilretry':{ en:function(){return 'The app keeps retrying in the background for a few minutes and will fill this in if SoilGrids answers.';}, zh:function(){return '应用会在后台继续重试几分钟；SoilGrids 一有响应就会自动填入。';} },
   'site.soilfail':{ en:function(err){return 'Soil lookup failed'+(err?': '+err:'');}, zh:function(err){return '土壤查询失败'+(err?'：'+err:'');} },
   'pill.mean':{ en:function(v){return v+' °C mean';}, zh:function(v){return '平均 '+v+' °C';} },
   'pill.root':{ en:function(v){return v+' root sat.';}, zh:function(v){return '根区饱和度 '+v;} },
@@ -1303,6 +1304,7 @@ var TPL_MS = {
   'val.caveat': function(vwc){ return '<br><br><b>Kaveat yang berlaku dua hala:</b> NASA menandakan kebanyakan bacaan SMAP ini sebagai tidak boleh dipercayai kerana kanopi anda (VWC '+vwc+' kg/m²) jauh melebihi had ~5 kg/m² untuk bacaan jalur-L yang bersih. Oleh itu korelasi yang <b>tinggi</b> ialah bukti kukuh bahawa model itu betul — dua kaedah bebas yang hingar tetapi bersetuju sukar dipalsukan. Korelasi yang <b>rendah</b> tidak membuktikan banyak: mungkin model saya, atau mungkin SMAP sukar melihat tanah anda sama sekali. Jangan buang imbangan air hanya kerana skor yang buruk di sini.'; },
 
   'site.soilfail': function(err){ return 'Carian tanah gagal'+(err?': '+err:''); },
+  'site.soilretry': function(){ return 'Aplikasi terus mencuba semula di latar belakang selama beberapa minit dan akan mengisinya jika SoilGrids menjawab.'; },
   'pill.mean': function(v){ return 'purata '+v+' °C'; },
   'pill.root': function(v){ return v+' tepu akar'; },
   'pill.rh': function(rh,w){ return rh+'% RH · puncak '+w+' m/s'; },
@@ -3120,7 +3122,7 @@ function renderSite(){
       + '</tbody>';
   } else {
     $('sSoilTbl').innerHTML = '<tbody><tr><td class="err">' + T('site.soilfail', S.errs.soil ? esc(T('err', S.errs.soil)) : '') + '</td></tr>'
-      + '<tr><td class="muted">Both ISRIC SoilGrids and the OpenEPI mirror refused the request, while other hosts '
+      + '<tr><td class="muted"><b>' + T('site.soilretry') + '</b><br><br>Both ISRIC SoilGrids and the OpenEPI mirror refused the request, while other hosts '
       + 'answered fine — so this is those servers, not your connection. Soil is simply <b>excluded from the score</b>: '
       + 'the total is computed from the remaining factors, not penalised.<br><br>'
       + '<b>Better option:</b> tick <b>“Enter my own soil test”</b> in Farm setup and type your real pH and texture. '
@@ -3461,6 +3463,30 @@ function exportCsv(){
 /* ═════════ ORCHESTRATE ═════════ */
 // One run at a time. A request that arrives mid-run (GPS fix, a second click) is queued and
 // starts when the current run has finished, against the then-current pin.
+/* SoilGrids is the one source with no alternative, and it is intermittent: a request that is
+   refused now often succeeds a minute later. Soil also sets the available water that the
+   whole stress model rests on. So when it fails, the app keeps trying quietly after the
+   run has finished — the Fetch button is free meanwhile — and repaints when it arrives. */
+const SOIL_WAITS = [20000, 60000, 180000];
+function soilRetryLater(runId, n){
+  if (n >= SOIL_WAITS.length) return;
+  setTimeout(async () => {
+    if (S.runId !== runId || S.soil || !S.power) return;        // a newer run, or soil has arrived another way
+    log('soil: automatic retry ' + (n + 1) + ' of ' + SOIL_WAITS.length);
+    try {
+      const so = await fetchSoil();
+      if (S.runId !== runId || (S.soil && S.soil.manual)) return;
+      S.soil = S.soilGrid = so; S.errs.soil = null;
+      S.bad = (S.bad || []).filter(x => x !== 'soil');
+      log('soil ok on automatic retry');
+      soilChanged(); markSaved();
+      if (S.finalStatus && !running) setStatus(S.finalStatus());
+    } catch(e){
+      S.errs.soil = e.message; log('soil retry failed: ' + e.message);
+      soilRetryLater(runId, n + 1);
+    }
+  }, SOIL_WAITS[n]);
+}
 async function run(){
   if (running){ rerun = true; return; }
   running = true;
@@ -3473,6 +3499,7 @@ async function runOnce(){
   $('banner').className = '';
   $('run').disabled = true;
   const prevQ = {lat:Q.lat, lon:Q.lon}, prevSaved = S.saved;
+  const runId = S.runId = (S.runId || 0) + 1;        // lets late background work tell it has been superseded
   Q.lat = S.lat; Q.lon = S.lon;                     // freeze the point for this run
   rawMemo.clear();
   S.saved = {};
@@ -3580,13 +3607,14 @@ async function runOnce(){
     }
   }));
   guard('render', () => { renderSite(); renderSmap(); renderDurian(); });   // repaint with whatever did arrive
-  const bad = results.filter(Boolean);
+  S.bad = results.filter(Boolean);                   // mutable: a background retry can clear an entry
   markSaved();
   // kept as a function so the language toggle can rebuild it in the other language
-  S.finalStatus = () => (bad.length ? T('st.failed', bad.map(n => T('dsname', n)).join(', ')) : T('st.ok'))
+  S.finalStatus = () => (S.bad.length ? T('st.failed', S.bad.map(n => T('dsname', n)).join(', ')) : T('st.ok'))
                       + (Object.keys(S.saved).length ? T('st.saved', savedList()) : '');
   setStatus(S.finalStatus());
-  if (bad.length) log('NOTE: ' + bad.join(', ') + ' failed — see the panels for the reason. Pressing Fetch again often clears rate-limit errors.');
+  if (S.bad.length) log('NOTE: ' + S.bad.join(', ') + ' failed — see the panels for the reason. Pressing Fetch again often clears rate-limit errors.');
+  if (S.bad.indexOf('soil') >= 0) soilRetryLater(runId, 0);
 }
 
 /* Keep what the grower typed for the life of this tab, so pressing Refresh on the update bar
