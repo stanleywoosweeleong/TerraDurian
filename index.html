@@ -111,6 +111,10 @@
   .fcd .r{font-family:var(--mono);color:var(--accent2)}
   .saved{font-size:10px;color:var(--warn);border:1px solid var(--warn);border-radius:20px;padding:1px 6px;margin-left:6px;
          font-weight:400;letter-spacing:0;text-transform:none;white-space:nowrap}
+  /* header language picker: just the short name in a button-like box. The browser's own
+     drop-down arrow is removed — on a phone it doubled the width of the control. */
+  #langToggle{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:none;
+              padding:6px 12px;text-align:center;text-align-last:center;cursor:pointer}
   /* "new version is ready" bar */
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9000;
          display:flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);padding:10px 12px 10px 16px;
@@ -191,7 +195,7 @@
 
     /* ── header: brand and language on one line, status underneath ── */
     header{ flex-wrap:wrap; }
-    #langToggle{ margin-left:0 !important; padding:6px 8px; min-height:40px; }
+    #langToggle{ margin-left:0 !important; padding:6px 12px; min-height:40px; }
     #status{ font-size:11px; }
 
     /* ── top controls: a tidy grid instead of ragged wrapping ──
