@@ -35,6 +35,7 @@
   if (firstLaunch) lang = 'en';    // what shows behind the picker
   window.__tdLang = lang;          // the app's templates read this (kept in memory if storage is blocked)
   var dicts = { en: {} };          // language code -> {english: translation}
+  var retried = {};                // languages whose file has already had its one automatic retry
   var dict = {};                   // the active one
   var observer = null;
   var orig = new WeakMap();        // text node -> its English text
@@ -47,7 +48,7 @@
       acceptNode: function (n) {
         var p = n.parentNode;
         if (!p || SKIP[p.tagName]) return NodeFilter.FILTER_REJECT;
-        if (p.closest && p.closest('#langToggle, #langpick, #log, #map, code')) return NodeFilter.FILTER_REJECT;
+        if (p.closest && p.closest('#langToggle, #langpick, #log, #map, code, [data-notr]')) return NodeFilter.FILTER_REJECT;   // data-notr: the user's own words
         return (n.nodeValue && n.nodeValue.trim()) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       }
     });
@@ -106,7 +107,14 @@
     return fetch(LANGS[l].file)
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (d) { dicts[l] = d; return d; })
-      .catch(function () { return {}; });
+      .catch(function () {
+        // Not cached, so the next attempt fetches again. Try once more shortly, and again
+        // when the connection returns — otherwise the app would sit half-translated
+        // (templates switched, labels still English) until the next launch.
+        var again = function () { if (lang === l && !dicts[l]) load(l).then(function (d) { if (dicts[l] && lang === l) apply(l, d); }); };
+        if (!retried[l]) { retried[l] = true; setTimeout(again, 4000); window.addEventListener('online', again, { once: true }); }
+        return {};
+      });
   }
 
   function apply(l, d) {
@@ -191,7 +199,8 @@
       if (lang !== 'en') translateAll();
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    if (lang !== 'en') load(lang).then(function (d) { apply(lang, d); });
+    var first = lang;               // captured: `lang` may change while the file is loading
+    if (first !== 'en') load(first).then(function (d) { if (lang === first) apply(first, d); });
   }
 
   if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', start);

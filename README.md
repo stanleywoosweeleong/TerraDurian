@@ -58,6 +58,11 @@ and `EARTHDATA_PASSWORD` — and deploy the current `tools/smap-worker.js`. The 
 asks Earthdata Login for a valid token itself and renews it when it expires. Prefer a
 separate Earthdata account made only for this Worker (it must accept the NSIDC DAAC EULA).
 
+Two optional plain variables harden the Worker (see its header for details):
+`ALLOWED_ORIGINS` (e.g. `https://stanleywoosweeleong.github.io`) refuses requests from
+other websites, and `DEBUG=1` turns on the `?debug=1` / `?probe=1` diagnostics, which are
+off by default.
+
 The desktop helpers (`fetch_smap.py`, `diagnose_smap.py`, `Get SMAP data.bat`) are not
 included in this repository.
 

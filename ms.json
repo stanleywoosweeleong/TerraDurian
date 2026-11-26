@@ -239,8 +239,6 @@
  "ETc × canopy area ÷ efficiency": "ETc × luas kanopi ÷ kecekapan",
  "Next 7 days, rain-adjusted": "7 hari akan datang, dilaras ikut hujan",
  "By tree age": "Mengikut umur pokok",
- "Litres per tree per day actually needed after effective rainfall (80% of gross rain; the rest runs off or drains past the roots).": "Liter sepokok sehari yang benar-benar diperlukan selepas hujan berkesan (80% daripada hujan kasar; selebihnya mengalir di permukaan atau meresap melepasi akar).",
- "Rain-adjusted at 80% effectiveness. If you are trying to induce flowering, ignore this table and let the trees dry out.": "Dilaras ikut hujan pada keberkesanan 80%. Jika anda sedang cuba mengaruh bunga, abaikan jadual ini dan biarkan pokok kering.",
  "Forecast unavailable — showing the 30-day average instead.": "Ramalan tidak tersedia — purata 30 hari dipaparkan sebagai ganti.",
  "none": "tiada",
  "Leaf area": "Luas daun",
@@ -274,7 +272,6 @@
  "retrying…": "mencuba semula…",
  "Bars = 10-year monthly mean. Line = the last 12 months. Where the line sits well below the bars, the season ran dry.": "Bar = purata bulanan 10 tahun. Garisan = 12 bulan lepas. Apabila garisan berada jauh di bawah bar, musim itu kering.",
  "Days with <1 mm rain. The months with the tallest bars are when a durian flowering trigger is most likely to occur naturally.": "Hari dengan hujan <1 mm. Bulan dengan bar tertinggi ialah masa pencetus bunga durian paling berkemungkinan berlaku secara semula jadi.",
- "Each cell is the longest run of <1 mm days starting in that month, that year. Green = reached the ~10-day induction threshold.": "Setiap sel ialah tempoh terpanjang hari <1 mm yang bermula pada bulan itu, tahun itu. Hijau = mencapai ambang aruhan ~10 hari.",
  "A single year against a 10-year mean is weather, not climate. It tells you whether this season was unusual — not where the climate is heading.": "Satu tahun berbanding purata 10 tahun ialah cuaca, bukan iklim. Ia memberitahu sama ada musim ini luar biasa — bukan ke mana arah iklim.",
  "Yrs w/ 10 d STRESS": "Tahun dgn 10 hari TEGASAN",
  "Old rain rule": "Petua hujan lama",
@@ -426,5 +423,15 @@
  "Calculated in the app: a running total of rainfall minus crop water demand at your point. Not a satellite measurement.": "Dikira dalam aplikasi: jumlah berterusan hujan tolak keperluan air tanaman pada titik anda. Bukan ukuran satelit.",
  "Computed": "Dikira",
  "Soil, the forecast, the ERA5-Land soil-moisture line, the terrain model and the base map are not NASA data. The soil and forecast panels are badged": "Tanah, ramalan, garisan lembapan tanah ERA5-Land, model rupa bumi dan peta asas bukan data NASA. Panel tanah dan ramalan dilabel",
- "wherever they appear. Every other number comes from NASA.": "di mana-mana ia muncul. Setiap angka lain datang daripada NASA."
+ "wherever they appear. Every other number comes from NASA.": "di mana-mana ia muncul. Setiap angka lain datang daripada NASA.",
+ "Litres per tree per day needed to keep the root zone out of stress, after effective rainfall (80% of gross) and the water already stored in the soil. Rain is banked: after a wet spell nothing is needed until the soil has dried back to the refill point.": "Liter sepokok sehari yang diperlukan supaya zon akar tidak mengalami tegasan, selepas hujan berkesan (80% daripada kasar) dan air yang sudah tersimpan dalam tanah. Hujan disimpan: selepas tempoh basah, tiada apa diperlukan sehingga tanah kering semula ke titik isi semula.",
+ "Each cell is the longest unbroken run reached during that month, that year; a run that began the month before carries over. Green = reached the ~10-day induction threshold.": "Setiap sel ialah tempoh tanpa putus terpanjang yang dicapai dalam bulan itu, tahun itu; tempoh yang bermula pada bulan sebelumnya dibawa ke hadapan. Hijau = mencapai ambang aruhan ~10 hari.",
+ "Counts 80% of forecast rain and the water already in the soil. If you are trying to induce flowering, ignore this table and let the trees dry out.": "Mengambil kira 80% hujan ramalan dan air yang sudah ada dalam tanah. Jika anda sedang cuba mengaruh bunga, abaikan jadual ini dan biarkan pokok kering.",
+ "Standing water deficit — too long to be an induction window": "Defisit air berpanjangan — terlalu lama untuk menjadi tetingkap aruhan",
+ "Irrigation refill point": "Titik isi semula pengairan",
+ "⅔ of readily available water": "⅔ daripada air mudah tersedia",
+ "The litres shown are what is needed beyond the water already in the soil. The ⅔ margin before stress is my judgement": "Liter yang dipaparkan ialah yang diperlukan selepas mengambil kira air yang sudah ada dalam tanah. Margin ⅔ sebelum tegasan ialah pertimbangan saya",
+ "Standing deficit": "Defisit berpanjangan",
+ "> 45 stress days": "> 45 hari tegasan",
+ "Beyond this the app stops calling it an induction window. A rule of thumb, not measured on durian": "Melebihi ini aplikasi tidak lagi menganggapnya tetingkap aruhan. Petua am, bukan diukur pada durian"
 }

@@ -40,7 +40,16 @@
  * instead of locking a bad NASA moment in for a month. A couple of timeouts out of 25
  * is normal NASA weather and still caches long.
  * A rejected token is never cached at all: once the secret is replaced, the very next
- * call works.
+ * call works. A window in which NASA's data host answered with errors is treated like
+ * timeouts (short cache), and an entirely empty answer is never kept longer than 6 hours.
+ *
+ * OPTIONAL HARDENING (both are plain variables, not secrets):
+ *   ALLOWED_ORIGINS  comma-separated list, e.g. "https://you.github.io". When set, requests
+ *                    from web pages on any other site are refused. Requests with no Origin
+ *                    (typing the address into a browser, curl) are still allowed, so this
+ *                    stops other sites using your worker, not a determined individual.
+ *   DEBUG            set to "1" to enable ?debug=1 and ?probe=1. They bypass the cache and
+ *                    spend NASA requests, so they are off unless you turn them on.
  */
 
 const CMR = 'https://cmr.earthdata.nasa.gov/search/granules.json';
@@ -102,6 +111,16 @@ async function timedFetch(url, opts, ms) {
   try { return await fetch(url, { ...opts, signal: c.signal }); }
   finally { clearTimeout(t); }
 }
+// Like timedFetch, but the clock also covers reading the body — a response whose headers
+// arrive promptly and whose data then stalls would otherwise hang the whole invocation.
+async function timedBytes(url, opts, ms) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms || 8000);
+  try {
+    const r = await fetch(url, { ...opts, signal: c.signal });
+    return { status: r.status, ok: r.ok, bytes: r.ok ? new Uint8Array(await r.arrayBuffer()) : null };
+  } finally { clearTimeout(t); }
+}
 
 // find the OPeNDAP base for a granule from its CMR links.
 // NSIDC's Hyrax link is a "service#" rel whose href points at opendap.earthdata.nasa.gov/collections/
@@ -109,7 +128,8 @@ async function timedFetch(url, opts, ms) {
 function opendapBase(entry) {
   for (const l of (entry.links || [])) {
     const h = l.href || '';
-    if (/opendap\.earthdata\.nasa\.gov\/collections\//i.test(h)) return h.replace(/\.html$/i, '');
+    // anchored: the bearer token is sent to this address, so it must BE NASA's host, not merely mention it
+    if (/^https:\/\/opendap\.earthdata\.nasa\.gov\/collections\//i.test(h)) return h.replace(/\.html$/i, '');
   }
   return null;
 }
@@ -132,7 +152,7 @@ function readDap(buf, nVars) {
   const pick = (a, b) => {                              // one AM/PM pair -> {sm, vwc} or null
     let sm = null, vwc = null;
     for (const x of [v(a), v(b)]) {
-      if (x >= 0 && x <= 1) sm = x;
+      if (x >= 0.01 && x <= 1) sm = x;                 // below 0.01 is not a soil-moisture value (or is stray bytes)
       else if (x > 1 && x < 100) vwc = x;
     }
     return sm != null ? { sm, vwc } : null;
@@ -152,6 +172,11 @@ function pickEvenly(arr, k) {
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
+    // optional: refuse other websites (see ALLOWED_ORIGINS in the header)
+    const origin = request.headers.get('Origin');
+    const allowed = String(env.ALLOWED_ORIGINS || '').split(',').map(x => x.trim()).filter(Boolean);
+    if (allowed.length && origin && allowed.indexOf(origin) < 0)
+      return json({ error: 'This SMAP worker does not serve requests from ' + origin + '.' }, 403);
     if (!canRenew(env) && !env.EARTHDATA_TOKEN)
       return json({ error: 'Worker has no credentials: set EARTHDATA_USERNAME and EARTHDATA_PASSWORD (automatic renewal), or EARTHDATA_TOKEN.' }, 500);
 
@@ -160,7 +185,9 @@ export default {
     const days = intParam(u.searchParams.get('days'), 365, 1, 1460);
     const max = intParam(u.searchParams.get('max'), 18, 1, 30);
     const loose = u.searchParams.get('loose') !== '0';
-    const debug = u.searchParams.get('debug') === '1';
+    const diag = env.DEBUG === '1';                                   // diagnostics are opt-in
+    const debug = diag && u.searchParams.get('debug') === '1';
+    const probe = diag && u.searchParams.get('probe') === '1';
     if (!isFinite(lat) || !isFinite(lon)) return json({ error: 'need ?lat= and ?lon=' }, 400);
     const rc = easeRowCol(lat, lon);
     if (!rc) return json({ error: 'coordinates outside the EASE grid' }, 400);
@@ -175,7 +202,7 @@ export default {
     const cacheKey = new Request(u.origin + u.pathname
       + '?lat=' + lat.toFixed(4) + '&lon=' + lon.toFixed(4) + '&days=' + days
       + '&max=' + max + '&loose=' + (loose ? 1 : 0) + '&end=' + end.toISOString().slice(0, 10));
-    if (!debug && u.searchParams.get('probe') !== '1') {
+    if (!debug && !probe) {
       const hit = await caches.default.match(cacheKey);
       if (hit) {
         const h = new Response(hit.body, hit);
@@ -183,12 +210,13 @@ export default {
         return h;
       }
     }
-    const cachePut = async (resp, unhealthy) => {
+    const cachePut = async (resp, unhealthy, empty) => {
       const c = resp.clone();
       const cc = new Response(c.body, c);
       cc.headers.set('Cache-Control',
         unhealthy ? 'public, max-age=3600'                    // partial result — let a retry improve it soon
-        : historical ? 'public, max-age=2592000' : 'public, max-age=21600');
+        : (historical && !empty) ? 'public, max-age=2592000'  // an empty answer is never locked in for a month
+        : 'public, max-age=21600');
       await caches.default.put(cacheKey, cc);
       return resp;
     };
@@ -232,7 +260,7 @@ export default {
 
     // PROBE: the ONLY working format is the DAP4 binary `.dap`. Fetch it as raw bytes and scan
     // for the soil-moisture float directly — this both extracts the value and reveals the layout.
-    if (u.searchParams.get('probe') === '1') {
+    if (probe) {
       const base = opendapBase(entries[0]);
       if (!base) return json({ probe: true, error: 'no opendap base' });
       const R = rc.row, C = rc.col;
@@ -269,7 +297,7 @@ export default {
     }
 
     const chosen = pickEvenly(entries, max);
-    const stats = { chosen: chosen.length, kept: 0, flagged: 0, nodata: 0, no_opendap: 0, errors: 0, auth: 0 };
+    const stats = { chosen: chosen.length, kept: 0, flagged: 0, nodata: 0, no_opendap: 0, errors: 0, http: 0, auth: 0 };
     const px = '[' + rc.row + '][' + rc.col + ']';
     // 4 Float32 variables (soil moisture + vegetation water content, AM & PM) via DAP4 BINARY.
     const AM = '/Soil_Moisture_Retrieval_Data_AM/';
@@ -283,10 +311,11 @@ export default {
       const obase = opendapBase(g);
       if (!obase) { stats.no_opendap++; return null; }
       try {
-        const r = await timedFetch(obase + ce, auth, 12000);
+        const r = await timedBytes(obase + ce, auth, 12000);
         if (isAuthFail(r.status)) { stats.auth++; return null; }
-        if (!r.ok) { stats.nodata++; return null; }
-        const p = readDap(new Uint8Array(await r.arrayBuffer()), 4);
+        // the host answered with an error: a failure of NASA's server, NOT "no data here"
+        if (!r.ok) { stats.http++; return null; }
+        const p = readDap(r.bytes, 4);
         if (!p) { stats.nodata++; return null; }
         if (p.flag) { stats.flagged++; if (!loose) return null; }
         stats.kept++;
@@ -307,11 +336,11 @@ export default {
     const obs = results.filter(Boolean).sort((a, b) => a.date < b.date ? -1 : 1);
     if (!obs.length) return cachePut(json({
       error: 'no usable retrievals', window: win, stats,
-      hint: stats.errors ? 'Mostly timeouts — try a smaller &max=.' : 'No valid pixels for this point/period.'
-    }, 200), stats.errors > 0);                       // empty because of timeouts -> short cache only
+      hint: (stats.errors + stats.http) ? 'NASA\'s data host timed out or answered with errors — try again later.' : 'No valid pixels for this point/period.'
+    }, 200), (stats.errors + stats.http) > 0, true);  // empty because of failures -> 1 h; empty otherwise -> 6 h at most
 
     const newest = new Date(obs[obs.length - 1].date);
-    const unhealthy = stats.errors * 5 > stats.chosen;   // >20% timeouts -> don't lock this in for a month
+    const unhealthy = (stats.errors + stats.http) * 5 > stats.chosen;   // >20% timeouts or server errors -> don't lock this in for a month
     return cachePut(json({
       product: SHORT_NAME, lat, lon, ease_row: rc.row, ease_col: rc.col,
       qa: loose ? 'loose (flagged kept)' : 'strict',

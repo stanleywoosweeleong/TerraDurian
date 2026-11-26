@@ -486,7 +486,7 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
     <div class="card">
       <h3 data-src="POWER">Daily water requirement — last 90 days</h3>
       <div class="chartbox"><canvas id="cIrr"></canvas></div>
-      <div class="legend">Litres per tree per day actually needed after effective rainfall (80% of gross rain; the rest runs off or drains past the roots).</div>
+      <div class="legend">Litres per tree per day needed to keep the root zone out of stress, after effective rainfall (80% of gross) and the water already stored in the soil. Rain is banked: after a wet spell nothing is needed until the soil has dried back to the refill point.</div>
     </div>
   </div>
 </section>
@@ -573,7 +573,7 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
     <div class="card" style="grid-column:1/-1">
       <h3 data-src="baseline">Longest dry spell by month — 10-year record</h3>
       <div id="bHeat"></div>
-      <div class="legend">Each cell is the longest run of &lt;1 mm days starting in that month, that year. Green = reached the ~10-day induction threshold.</div>
+      <div class="legend">Each cell is the longest unbroken run reached during that month, that year; a run that began the month before carries over. Green = reached the ~10-day induction threshold.</div>
     </div>
   </div>
 </section>
@@ -715,6 +715,8 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
         <tr><td>Available water capacity</td><td class="num">60–175 mm/m by texture (FAO-56 Table 19)</td><td class="muted">Set your soil texture in Farm setup — it changes TAW and therefore the whole stress model</td></tr>
         <tr><td>Root depth / p-factor</td><td class="num">1.0 m · p = 0.5</td><td class="muted">Durian is shallow-rooted and drought-sensitive. <b>Both are estimates</b></td></tr>
         <tr><td>Effective rainfall</td><td class="num">80% of gross</td><td class="muted">Rough — the single crudest number in the balance</td></tr>
+        <tr><td>Irrigation refill point</td><td class="num">⅔ of readily available water</td><td class="muted">The litres shown are what is needed beyond the water already in the soil. The ⅔ margin before stress is my judgement</td></tr>
+        <tr><td>Standing deficit</td><td class="num">&gt; 45 stress days</td><td class="muted">Beyond this the app stops calling it an induction window. A rule of thumb, not measured on durian</td></tr>
         <tr><td>Flower → harvest</td><td class="num">≈ 100 – 130 d, GDD-adjusted</td><td class="muted"><b>Heuristic</b> — GDD target calibrated to reproduce this range at 26.5 °C, not independently validated</td></tr>
         <tr><td>Kcb per unit canopy</td><td class="num">0.85 / 0.92 / 0.98</td><td class="muted">Near-constant by design — age enters through canopy area, not Kc</td></tr>
         <tr><td>Canopy Ø from age</td><td class="num">≈ 0.55 × age + 0.8 m, capped at 0.9 × spacing and 10 m</td><td class="muted"><b>Rough growth curve.</b> Measure your actual canopy and override it</td></tr>
@@ -866,12 +868,17 @@ function log(m){
   logLines.unshift(new Date().toLocaleTimeString() + '  ' + m);
   const el = $('log'); if (el) el.textContent = logLines.slice(0, 80).join('\n');
 }
+function showFail(){
+  const b = $('banner'), f = S.lastFail; if (!b || !f) return;
+  b.className = 'on';
+  let shown = f.where + ': ' + f.text;               // the log keeps the English original
+  try { shown = T('where', f.where) + ': ' + T('err', f.text); } catch(x){}
+  b.textContent = '⚠ ' + shown;
+}
 function fail(where, e){
   const msg = where + ': ' + (e && e.message ? e.message : e);
-  const b = $('banner'); b.className = 'on';
-  let shown = msg;                                   // the log keeps the English original
-  try { shown = T('where', where) + ': ' + T('err', e && e.message ? e.message : e); } catch(x){}
-  b.textContent = '⚠ ' + shown;
+  S.lastFail = {where, text: e && e.message ? e.message : e};       // kept so a language switch can redraw it
+  showFail();
   log('ERROR ' + msg);
   console.error(where, e);
 }
@@ -1008,7 +1015,7 @@ var TPL = {
   'w.gdd':    { en:function(g){return g+' GDD/day (base 10 °C)';}, zh:function(g){return '每天 '+g+' GDD（基点 10 °C）';} },
 
   /* ── irrigation ── */
-  'ir.todaySrc':{ en:function(etc,rain,area,eff){return 'today: ETc '+etc+' mm − 80% of '+rain+' mm rain, × '+area+' m² canopy ÷ '+eff+'% efficiency (forecast)';}, zh:function(etc,rain,area,eff){return '今日：ETc '+etc+' 毫米 − 降雨 '+rain+' 毫米的 80%，× 树冠 '+area+' m² ÷ 效率 '+eff+'%（预报）';} },
+  'ir.todaySrc':{ en:function(etc,rain,area,eff){return 'today: ETc '+etc+' mm, rain '+rain+' mm, less the water already in the root zone; × '+area+' m² canopy ÷ '+eff+'% efficiency (forecast)';}, zh:function(etc,rain,area,eff){return '今日：ETc '+etc+' 毫米，降雨 '+rain+' 毫米，先扣除根区已有的水；× 树冠 '+area+' m² ÷ 效率 '+eff+'%（预报）';} },
   'ir.lastSrc': { en:function(d){return 'last observed day ('+d+') — POWER lags ~3 days';}, zh:function(d){return '最近观测日（'+d+'）——POWER 滞后约 3 天';} },
   'ir.kcUnit':  { en:function(st){return 'Kcb · '+st;}, zh:function(st){return 'Kcb · '+T('stage',st);} },
   'ir.kcSrc':   { en:function(age,c,a){return 'Age '+age+' yr → canopy '+c+' m Ø → '+a+' m² of leaf. Age sets the canopy; the canopy sets the water.';}, zh:function(age,c,a){return '树龄 '+age+' 年 → 树冠直径 '+c+' 米 → 叶面积 '+a+' m²。树龄决定树冠，树冠决定用水。';} },
@@ -1049,19 +1056,19 @@ var TPL = {
         +(cat ? 'ORNL answered, and its catalogue is:<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>If SMAP is genuinely not in that list, no amount of retrying will help — it is not served here.<br><br>'
               : 'ORNL did not even return a catalogue, so we learned nothing about whether it carries SMAP.<br><br>')
         +'Falling back to <b>POWER GWETTOP/GWETROOT</b> — MERRA-2 land-model wetness at ~50 km. That is a <i>model</i>, not a measurement, and 5× coarser than SMAP. A serviceable proxy that has never once observed your field.<br><br>'
-        +'<b>The reliable route:</b> run <code>fetch_smap.py</code> (in the project\'s <code>tools/</code> folder). It logs into <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a> — free — pulls the genuine SPL3SMP_E granules server-side, where Earthdata\'s CORS block does not apply, and writes <code>smap.json</code> beside this page. This app looks for that file first and will use it automatically on the next Fetch.<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; },
+        +'<b>What to do:</b> the message above says why the live SMAP source failed. An expired NASA Earthdata token on the SMAP worker is the usual cause — renew it (or check the worker\'s username and password secrets), then press <b>Fetch all data</b> again.'; },
     zh: function(err,cat,lat,lon){
       return (err ? '<span class="err">'+err+'</span><br><br>' : '')
         +(cat ? 'ORNL 有响应，其目录为：<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>如果 SMAP 确实不在该列表中，再多重试也没用——此服务不提供它。<br><br>'
               : 'ORNL 连目录都没有返回，因此我们无从得知它是否提供 SMAP。<br><br>')
         +'回退到 <b>POWER GWETTOP/GWETROOT</b>——约 50 公里的 MERRA-2 陆面模型湿度。那是<i>模型</i>而非测量，比 SMAP 粗 5 倍。是个可用的替代，但从未真正观测过你的田块。<br><br>'
-        +'<b>可靠的途径：</b>运行 <code>fetch_smap.py</code>（在项目的 <code>tools/</code> 文件夹中）。它登录 <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a>（免费），在服务器端拉取真正的 SPL3SMP_E 颗粒（Earthdata 的 CORS 限制在那里不适用），并在页面旁写出 <code>smap.json</code>。本应用会优先查找该文件，下次「获取」时自动使用。<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; } },
+        +'<b>怎么办：</b>上面的信息说明了实时 SMAP 数据源失败的原因。最常见的是 SMAP Worker 上的 NASA Earthdata 令牌过期——请更新令牌（或检查 Worker 的用户名和密码密钥），然后再次点击<b>获取所有数据</b>。'; } },
 
   /* ── baseline ── */
   'bl.anomT': { en:function(wet,p){return (wet?'Wetter':'Drier')+' than normal by '+p+'%';}, zh:function(wet,p){return '比常值'+(wet?'偏湿':'偏干')+' '+p+'%';} },
   'bl.anomB': { en:function(cur,nor,ta,nt){return 'The last 12 months delivered <b>'+cur+' mm</b> against a 10-year normal of <b>'+nor+' mm</b>. Temperature ran <b>'+ta+' °C</b> against the 10-year mean of '+nt+' °C.';}, zh:function(cur,nor,ta,nt){return '过去 12 个月降雨 <b>'+cur+' 毫米</b>，10 年常值为 <b>'+nor+' 毫米</b>。气温相对 10 年均值（'+nt+' °C）偏差 <b>'+ta+' °C</b>。';} },
   'bl.winT':  { en:function(m){return 'Your induction window: '+m;}, zh:function(m){return '你的催花窗口：'+m;} },
-  'bl.win':   { en:function(trig,mon,pct,mean){return 'Using the root-zone water balance, the trees reached <b>'+trig+'+ consecutive days of real water stress</b> starting in <b>'+mon+'</b> in <b>'+pct+'% of the last 10 years</b> (mean longest stress run '+mean+' days). Stop irrigating going into this month and let the root zone draw down.';}, zh:function(trig,mon,pct,mean){return '按根区水分平衡计算，过去 10 年中有 <b>'+pct+'%</b> 的年份，树木自 <b>'+mon+'</b> 起达到<b>连续 '+trig+' 天以上的真实水分胁迫</b>（最长胁迫期平均 '+mean+' 天）。进入该月前停止灌溉，让根区水分消耗下去。';} },
+  'bl.win':   { en:function(trig,mon,pct,mean){return 'Using the root-zone water balance, the trees reached <b>'+trig+'+ consecutive days of real water stress</b> during <b>'+mon+'</b> in <b>'+pct+'% of the last 10 years</b> (mean longest stress run '+mean+' days). Withhold water in the weeks leading into this month and let the root zone draw down.';}, zh:function(trig,mon,pct,mean){return '按根区水分平衡计算，过去 10 年中有 <b>'+pct+'%</b> 的年份，树木在 <b>'+mon+'</b> 期间达到<b>连续 '+trig+' 天以上的真实水分胁迫</b>（最长胁迫期平均 '+mean+' 天）。在进入该月前的几周停止灌溉，让根区水分消耗下去。';} },
   'bl.nowinT':{ en:function(){return 'No reliable natural induction window — even on the stress model';}, zh:function(){return '没有可靠的自然催花窗口——即使按胁迫模型也是如此';} },
   'bl.nowin': { en:function(trig,mon,pct,mean){return 'No month reaches '+trig+'+ consecutive stress days in 30% of years. Best is <b>'+mon+'</b> at <b>'+pct+'%</b> (mean longest run '+mean+' d). Flowering will stay erratic unless you force it.';}, zh:function(trig,mon,pct,mean){return '没有任何月份能在 30% 的年份达到连续 '+trig+' 天以上胁迫。最佳是 <b>'+mon+'</b>，占 <b>'+pct+'%</b>（最长连续期平均 '+mean+' 天）。除非人工催花，开花将持续不稳定。';} },
   'bl.foot':  { en:function(pd,trig,taw){return '<b>Yrs w/ 10 d STRESS</b> is the number that matters: years in which the root zone actually stayed past '+pd+'% depletion for '+trig+'+ straight days (TAW '+taw+' mm). The <b>old rain rule</b> column counts consecutive rainless days — it resets on 1 mm of drizzle, which the tree does not even notice. Where Δ is positive, the naive rule was <b>hiding a real window from you</b>.';}, zh:function(pd,trig,taw){return '<b>「达 10 天胁迫的年数」</b>才是关键数字：即根区真正超过 '+pd+'% 亏缺并持续 '+trig+' 天以上的年份（总可利用水 '+taw+' 毫米）。<b>「旧降雨规则」</b>一栏数的是连续无雨天数——1 毫米的毛毛雨就会把它清零，而树根本感觉不到。凡 Δ 为正的地方，都是简单规则<b>把真实窗口藏了起来</b>。';} },
@@ -1133,6 +1140,7 @@ var TPL = {
       'archive returned no soil block':'存档接口未返回土壤数据',
       'Open-Meteo returned no daily block':'Open-Meteo 未返回逐日数据',
       'gaps in the Copernicus response':'Copernicus 的响应中有缺口',
+      'the saved forecast is too old to use':'保存的预报太旧，无法使用',
       'not a plot array':'这不是地块列表文件',
       'no plots found in that file':'该文件中没有地块',
       'ORNL serves only SPL4CMDL (carbon), which is not soil moisture':'ORNL 只提供 SPL4CMDL（碳产品），那不是土壤湿度',
@@ -1151,6 +1159,12 @@ var TPL = {
       if ((m = /^no recognisable soil-moisture band in (\S+)$/.exec(s))) return m[1] + ' 中没有可识别的土壤湿度波段';
       return s; } },
   'where': { en:function(s){return s;}, zh:function(s){ return ({Import:'导入', Uncaught:'未捕获的错误', Promise:'异步错误', render:'渲染', controls:'控件', map:'地图', POWER:'POWER'})[s] || s; } },
+  'st.powerkept': { en:function(la,lo){return 'POWER failed — still showing '+la+', '+lo;}, zh:function(la,lo){return 'POWER 获取失败——仍显示 '+la+', '+lo+' 的数据';} },
+  'w.gap': { en:function(n){return '⚠ '+n+' day'+(n===1?'':'s')+' between the last observed day and the forecast have no data, so the projection skips them. Fetch again when the sources are reachable.';},
+             zh:function(n){return '⚠ 最近观测日与预报之间有 '+n+' 天没有数据，推算跳过了这些天。数据源恢复后请重新获取。';} },
+  'a.chronic': { en:function(dep,run,trig,max){return 'Root zone is <b>'+dep+'% depleted</b> and has been past the stress threshold for <b>'+run+' consecutive days</b>. An induction window is roughly '+trig+'–'+max+' days of stress; this long is a standing deficit that costs growth and fruit. Check that Farm setup matches your trees and soil, then irrigate.';},
+                 zh:function(dep,run,trig,max){return '根区已亏缺 <b>'+dep+'%</b>，且已连续 <b>'+run+' 天</b>超过胁迫阈值。催花窗口大约是 '+trig+'–'+max+' 天的胁迫；持续这么久已属长期缺水，会影响生长和结果。请确认农场设置与你的树和土壤相符，然后灌溉。';} },
+  'fl.cTitle': { en:function(n){return 'Stressed for '+n+' days — past any induction window';}, zh:function(n){return '已胁迫 '+n+' 天——早已超过催花窗口';} },
   'st.located': { en:function(n){return 'located ±'+n+' m';}, zh:function(n){return '已定位 ±'+n+' 米';} },
   'geo.none':   { en:function(){return 'This browser has no Geolocation API.';}, zh:function(){return '此浏览器不支持定位功能。';} },
   'geo.insecure':{ en:function(){return 'Geolocation needs a secure context. Open this page via http://localhost:8000 or https://, not file://.';},
@@ -1240,7 +1254,7 @@ var TPL_MS = {
   'd.days': function(v){ return v+' hari'; },
   'w.gdd': function(g){ return g+' GDD/hari (asas 10 °C)'; },
 
-  'ir.todaySrc': function(etc,rain,area,eff){ return 'hari ini: ETc '+etc+' mm − 80% daripada hujan '+rain+' mm, × kanopi '+area+' m² ÷ kecekapan '+eff+'% (ramalan)'; },
+  'ir.todaySrc': function(etc,rain,area,eff){ return 'hari ini: ETc '+etc+' mm, hujan '+rain+' mm, ditolak air yang sudah ada dalam zon akar; × kanopi '+area+' m² ÷ kecekapan '+eff+'% (ramalan)'; },
   'ir.lastSrc': function(d){ return 'hari cerapan terakhir ('+d+') — POWER lewat ~3 hari'; },
   'ir.kcUnit': function(st){ return 'Kcb · '+T('stage',st); },
   'ir.kcSrc': function(age,c,a){ return 'Umur '+age+' tahun → kanopi Ø '+c+' m → '+a+' m² daun. Umur menentukan kanopi; kanopi menentukan air.'; },
@@ -1272,12 +1286,12 @@ var TPL_MS = {
         +(cat ? 'ORNL menjawab, dan katalognya ialah:<br><code style="display:block;margin:6px 0;white-space:normal;line-height:1.7">'+cat+'</code>Jika SMAP memang tiada dalam senarai itu, mencuba berulang kali tidak akan membantu — ia tidak dibekalkan di sini.<br><br>'
               : 'ORNL langsung tidak memulangkan katalog, jadi kita tidak tahu sama ada ia membawa SMAP.<br><br>')
         +'Beralih kepada <b>POWER GWETTOP/GWETROOT</b> — kelembapan model darat MERRA-2 pada ~50 km. Itu sebuah <i>model</i>, bukan ukuran, dan 5× lebih kasar daripada SMAP. Proksi yang boleh digunakan, tetapi tidak pernah sekali pun mencerap kebun anda.<br><br>'
-        +'<b>Laluan yang boleh diharap:</b> jalankan <code>fetch_smap.py</code> (dalam folder <code>tools/</code> projek). Ia log masuk ke <a href="https://urs.earthdata.nasa.gov/users/new" target="_blank">NASA Earthdata</a> — percuma — menarik granul SPL3SMP_E yang tulen di sebelah pelayan, di mana sekatan CORS Earthdata tidak terpakai, dan menulis <code>smap.json</code> di sebelah halaman ini. Aplikasi ini mencari fail itu dahulu dan akan menggunakannya secara automatik pada pengambilan seterusnya.<br><code style="display:block;margin-top:6px">pip install earthaccess h5py<br>python fetch_smap.py '+lat+' '+lon+' 730</code>'; },
+        +'<b>Apa perlu dibuat:</b> mesej di atas menyatakan sebab sumber SMAP langsung gagal. Punca biasa ialah token NASA Earthdata pada Worker SMAP telah tamat tempoh — perbaharuinya (atau semak rahsia nama pengguna dan kata laluan Worker), kemudian tekan <b>Ambil semua data</b> sekali lagi.'; },
 
   'bl.anomT': function(wet,p){ return (wet?'Lebih basah':'Lebih kering')+' daripada normal sebanyak '+p+'%'; },
   'bl.anomB': function(cur,nor,ta,nt){ return '12 bulan lepas mencatat <b>'+cur+' mm</b> berbanding normal 10 tahun <b>'+nor+' mm</b>. Suhu berbeza <b>'+ta+' °C</b> berbanding purata 10 tahun '+nt+' °C.'; },
   'bl.winT': function(m){ return 'Tetingkap aruhan anda: '+m; },
-  'bl.win': function(trig,mon,pct,mean){ return 'Berdasarkan imbangan air zon akar, pokok mencapai <b>'+trig+'+ hari tegasan air sebenar berturut-turut</b> bermula pada bulan <b>'+mon+'</b> dalam <b>'+pct+'% daripada 10 tahun lepas</b> (purata tempoh tegasan terpanjang '+mean+' hari). Hentikan pengairan menjelang bulan ini dan biarkan air zon akar menyusut.'; },
+  'bl.win': function(trig,mon,pct,mean){ return 'Berdasarkan imbangan air zon akar, pokok mencapai <b>'+trig+'+ hari tegasan air sebenar berturut-turut</b> dalam bulan <b>'+mon+'</b> pada <b>'+pct+'% daripada 10 tahun lepas</b> (purata tempoh tegasan terpanjang '+mean+' hari). Tahan air pada minggu-minggu menjelang bulan ini dan biarkan air zon akar menyusut.'; },
   'bl.nowinT': function(){ return 'Tiada tetingkap aruhan semula jadi yang boleh diharap — walaupun dengan model tegasan'; },
   'bl.nowin': function(trig,mon,pct,mean){ return 'Tiada bulan yang mencapai '+trig+'+ hari tegasan berturut-turut dalam 30% tahun. Yang terbaik ialah <b>'+mon+'</b> pada <b>'+pct+'%</b> (purata tempoh terpanjang '+mean+' hari). Pembungaan akan kekal tidak menentu melainkan anda memaksanya.'; },
   'bl.foot': function(pd,trig,taw){ return '<b>Tahun dgn 10 hari TEGASAN</b> ialah angka yang penting: tahun apabila zon akar benar-benar kekal melepasi susutan '+pd+'% selama '+trig+'+ hari berturut-turut (TAW '+taw+' mm). Lajur <b>petua hujan lama</b> mengira hari tanpa hujan berturut-turut — ia kembali ke sifar dengan 1 mm gerimis, yang langsung tidak dirasai pokok. Apabila Δ positif, petua mudah itu <b>menyembunyikan tetingkap sebenar daripada anda</b>.'; },
@@ -1302,6 +1316,10 @@ var TPL_MS = {
   'st.saved': function(list){ return ' · salinan tersimpan: '+list; },
   'st.failed': function(list){ return 'dimuatkan · gagal: '+list; },
   'st.located': function(n){ return 'lokasi dikesan ±'+n+' m'; },
+  'st.powerkept': function(la,lo){ return 'POWER gagal — masih memaparkan '+la+', '+lo; },
+  'w.gap': function(n){ return '⚠ '+n+' hari antara hari cerapan terakhir dan ramalan tiada data, jadi unjuran melangkaunya. Ambil semula apabila sumber boleh dihubungi.'; },
+  'a.chronic': function(dep,run,trig,max){ return 'Zon akar <b>susut '+dep+'%</b> dan telah melepasi ambang tegasan selama <b>'+run+' hari berturut-turut</b>. Tetingkap aruhan ialah kira-kira '+trig+'–'+max+' hari tegasan; selama ini ialah defisit berpanjangan yang menjejaskan pertumbuhan dan buah. Pastikan Tetapan kebun sepadan dengan pokok dan tanah anda, kemudian siram.'; },
+  'fl.cTitle': function(n){ return 'Dalam tegasan selama '+n+' hari — sudah melepasi mana-mana tetingkap aruhan'; },
 
   'ch': function(s){ return ({
       'Rainfall-model depletion %':'Susutan model hujan %','ERA5-Land 9 km (independent)':'ERA5-Land 9 km (bebas)',
@@ -1341,6 +1359,7 @@ var TPL_MS = {
       'archive returned no soil block':'arkib tidak memulangkan data tanah',
       'Open-Meteo returned no daily block':'Open-Meteo tidak memulangkan data harian',
       'gaps in the Copernicus response':'terdapat jurang dalam respons Copernicus',
+      'the saved forecast is too old to use':'ramalan tersimpan terlalu lama untuk digunakan',
       'not a plot array':'ini bukan fail senarai plot',
       'no plots found in that file':'tiada plot ditemui dalam fail itu',
       'ORNL serves only SPL4CMDL (carbon), which is not soil moisture':'ORNL hanya membekalkan SPL4CMDL (karbon), yang bukan lembapan tanah',
@@ -1376,13 +1395,20 @@ Object.keys(TPL_MS).forEach(function(k){ if (TPL[k]) TPL[k].ms = TPL_MS[k]; });
 
 /* ═════════ CONTROLS (wired first — they must survive any later failure) ═════════ */
 function setPoint(lat, lon, fly){
-  S.lat = +(+lat).toFixed(4); S.lon = +(+lon).toFixed(4);
+  lat = parseFloat(lat); lon = parseFloat(lon);
+  if (!isFinite(lat) || !isFinite(lon)){            // empty or junk: put the boxes back and change nothing
+    $('lat').value = S.lat; $('lon').value = S.lon; return;
+  }
+  lat = Math.max(-85, Math.min(85, lat));           // the map projection ends at ±85°
+  lon = ((lon + 180) % 360 + 360) % 360 - 180;      // wrap into −180…180
+  S.lat = +lat.toFixed(4); S.lon = +lon.toFixed(4);
   $('lat').value = S.lat; $('lon').value = S.lon;
   $('place').textContent = Math.abs(S.lat).toFixed(3) + '°' + (S.lat >= 0 ? 'N' : 'S') + ', '
                          + Math.abs(S.lon).toFixed(3) + '°' + (S.lon >= 0 ? 'E' : 'W');
   if (S.marker) S.marker.setLatLng([S.lat, S.lon]);
   if (fly && S.map) S.map.setView([S.lat, S.lon], Math.max(S.map.getZoom(), 11));
   if (S.keepForm) S.keepForm();
+  if (S.onPin) S.onPin();
   if (S.derived && !running && (S.lat !== Q.lat || S.lon !== Q.lon)){
     S.finalStatus = null;
     setStatus('pin moved — press Fetch all data to update');
@@ -1513,6 +1539,12 @@ guard('controls', () => {
       }
     } else if (S.soil && S.soil.manual){
       S.soil = S.soilGrid || null;                         // back to the last SoilGrids answer, if any
+      if (!S.soil && S.power && !S.soilAsking){            // none was ever fetched (the test was on) → fetch now
+        S.soilAsking = true; S.errs.soil = null;
+        fetchSoil().then(so => { S.soilGrid = so; if (!$('mSoilOn').checked){ S.soil = so; S.errs.soil = null; } },
+                         e => { S.errs.soil = e.message; })
+          .then(() => { S.soilAsking = false; soilChanged(); markSaved(); });
+      }
     }
     soilChanged();
   };
@@ -1559,9 +1591,10 @@ const LAYERS = [
   // NASA's WMS endpoint renders the same layer to a transparent image instead.
   {n:'🔥 Active fires',    l:'VIIRS_NOAA20_Thermal_Anomalies_375m_All',     wms:true, daily:true, overlay:true}
 ];
-let gibsLayer = null, fireLayer = null, activeIdx = 0, tileErrors = 0;
+let gibsLayer = null, fireLayer = null, activeIdx = 0, tileErrors = 0, layerReq = 0;
 const dayAgo = n => new Date(Date.now() - n*864e5).toISOString().slice(0,10);
-const gibsDate = () => ($('gibsDate') && $('gibsDate').value) || dayAgo(2);
+const gibsDate = () => { const v = $('gibsDate') && $('gibsDate').value;          // never a date in the future
+  return (v && ISO_DAY.test(v)) ? (v > dayAgo(0) ? dayAgo(0) : v) : dayAgo(2); };
 const tileUrl = cfg => GIBS_URL.replace('{layer}', cfg.l)
   .replace('{time}', cfg.daily ? gibsDate() : (cfg.time || gibsDate()))
   .replace('{tms}', cfg.tms).replace('{ext}', cfg.ext);
@@ -1582,7 +1615,7 @@ function fireNote(){
 function buildTile(cfg){
   const t = cfg.wms
     ? L.tileLayer.wms(GIBS_WMS, {layers:cfg.l, format:'image/png', transparent:true, version:'1.1.1',
-        time:gibsDate(), minZoom:FIRE_MIN_ZOOM, maxZoom:19, attribution:'NASA GIBS / EOSDIS'})
+        time:gibsDate(), minZoom:FIRE_MIN_ZOOM, maxZoom:19, zIndex:20, attribution:'NASA GIBS / EOSDIS'})   // zIndex: always above the imagery, whichever is added last
     : L.tileLayer(tileUrl(cfg), {maxNativeZoom:cfg.z, maxZoom:19, tileSize:256,
         opacity: cfg.overlay ? 1 : 0.92, attribution:'NASA GIBS / EOSDIS'});
   t.on('tileerror', () => { tileErrors++;
@@ -1600,14 +1633,15 @@ function applyLayers(){
   if (!S.map) return;
   if (gibsLayer) S.map.removeLayer(gibsLayer);
   tileErrors = 0;
-  const cfg = LAYERS[activeIdx], idx = activeIdx;
+  const cfg = LAYERS[activeIdx], my = ++layerReq;   // a token: only the newest request may draw
   gibsLayer = null;
   if (cfg && cfg.sparse){
     // find the newest real pass first, then draw that date
     setTile(() => T('tile.search', tr(cfg.n)));
     const asked = gibsDate();
     latestPass(cfg).then(day => {
-      if (activeIdx !== idx || gibsDate() !== asked) return;         // the user moved on meanwhile
+      if (my !== layerReq) return;                                   // superseded: another layer, date or pin since
+      if (gibsLayer){ S.map.removeLayer(gibsLayer); gibsLayer = null; }
       if (!day){ setTile(() => T('tile.nopass', tr(cfg.n), PASS_WINDOW, asked), true); return; }
       cfg.time = day;
       gibsLayer = buildTile(cfg); gibsLayer.addTo(S.map);
@@ -1708,7 +1742,7 @@ guard('map', () => {
     b.textContent = cfg.n;
     if (cfg.overlay){
       b.classList.add('overlay');
-      b.title = T('tile.overlaytip');
+      b.title = T('tile.overlaytip'); S.overlayBtn = b;
       b.onclick = () => {
         b.classList.toggle('on');
         if (fireLayer){ S.map.removeLayer(fireLayer); fireLayer = null; }
@@ -1725,11 +1759,16 @@ guard('map', () => {
     $('layers').appendChild(b);
   });
   $('gibsDate').value = dayAgo(2);
+  $('gibsDate').max = dayAgo(0);
+  // a sparse layer's "latest pass" belongs to a pin: look again when the pin moves
+  let pinTimer = null;
+  S.onPin = () => { if (LAYERS[activeIdx] && LAYERS[activeIdx].sparse){ clearTimeout(pinTimer); pinTimer = setTimeout(applyLayers, 500); } };
   $('gibsDate').onchange = () => { applyLayers(); probeLayers(); };
-  $('gibsBack').onclick = () => { const d = new Date($('gibsDate').value); d.setDate(d.getDate()-1);
+  $('gibsBack').onclick = () => { const d = new Date(gibsDate()); d.setDate(d.getDate()-1);
     $('gibsDate').value = d.toISOString().slice(0,10); applyLayers(); probeLayers(); };
-  $('gibsFwd').onclick = () => { const d = new Date($('gibsDate').value); d.setDate(d.getDate()+1);
-    $('gibsDate').value = d.toISOString().slice(0,10); applyLayers(); probeLayers(); };
+  $('gibsFwd').onclick = () => { const d = new Date(gibsDate()); d.setDate(d.getDate()+1);
+    const next = d.toISOString().slice(0,10); if (next > dayAgo(0)) return;        // there is no imagery of tomorrow
+    $('gibsDate').value = next; applyLayers(); probeLayers(); };
   $('probe').onclick = probeLayers;
   applyLayers(); probeLayers();
 });
@@ -1798,6 +1837,8 @@ const P_PARAMS = ['T2M','T2M_MAX','T2M_MIN','RH2M','PRECTOTCORR','ALLSKY_SFC_SW_
                   'WS2M','WS10M_MAX','PS','GWETTOP','GWETROOT','GWETPROF'];
 const FILL = -999;
 const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;                 // every date taken from a server is checked against this
+const dayDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5);
 const isoOf = k => k.slice(0,4) + '-' + k.slice(4,6) + '-' + k.slice(6,8);
 
 async function fetchPower(days, params){
@@ -1901,7 +1942,7 @@ async function modisBand(prod, band, allDates, want, qaBand, km){
       }
       const clear = rel ? rel.filter(v => v != null && v >= 0 && v <= 1).length : px.length;
       const minPx = /SPL/i.test(prod) ? 1 : 5;                 // SMAP returns few, huge pixels
-      out.push({date: s.calendar_date, n: good.length, clear: clear, total: px.length,
+      out.push({date: ISO_DAY.test(String(s.calendar_date)) ? String(s.calendar_date) : '', n: good.length, clear: clear, total: px.length,
                 v: good.length >= minPx ? median(good) * d.scale : null});
     });
   }
@@ -1921,6 +1962,14 @@ async function modisBand(prod, band, allDates, want, qaBand, km){
 // field pre-fills to this and can override it (or be cleared to skip live SMAP entirely).
 const DEFAULT_SMAP_URL = 'https://smap-worker.standphoto.workers.dev';
 
+// Observations from a worker or a local file: keep only rows with a real date and numeric
+// (or absent) values, so nothing but dates and numbers can travel on to the page.
+function cleanObs(obs){
+  const num = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  return (Array.isArray(obs) ? obs : []).filter(o => o && ISO_DAY.test(String(o.date))).map(o => ({
+    date: String(o.date), sm_surface: num(o.sm_surface), sm_rootzone: num(o.sm_rootzone),
+    flagged: !!o.flagged, vwc: num(o.vwc)}));
+}
 async function fetchSmap(){
   // 1. a Cloudflare Worker endpoint (real SMAP, CORS-clean, works on mobile). Best option.
   // The field pre-fills to DEFAULT_SMAP_URL; if the field is missing entirely, fall back to it.
@@ -1955,8 +2004,9 @@ async function fetchSmap(){
       if (!w) return;
       if (w.error && !w.obs) { log('SMAP worker window: ' + w.error); return; }
       product = w.product || product; qa = w.qa || qa;
-      if (w.lag_days != null) lag = (lag == null) ? w.lag_days : Math.min(lag, w.lag_days);
-      (w.obs || []).forEach(o => { byDate[o.date] = o; });
+      const wl = Number(w.lag_days);                               // a number or nothing — never raw server text
+      if (w.lag_days != null && isFinite(wl)) lag = (lag == null) ? wl : Math.min(lag, wl);
+      cleanObs(w.obs).forEach(o => { byDate[o.date] = o; });
     });
     const merged = Object.keys(byDate).sort().map(d => byDate[d]);
     if (merged.length){
@@ -1977,6 +2027,7 @@ async function fetchSmap(){
   // 2. a local smap.json from fetch_smap.py (desktop power-user path)
   try {
     const local = await jfetch('./smap.json', 8000);
+    if (local && Array.isArray(local.obs)) local.obs = cleanObs(local.obs);
     if (local && local.obs && local.obs.length){
       const surf = local.obs.map(o => ({date:o.date, v:o.sm_surface, n:1, flagged:o.flagged, vwc:o.vwc}));
       S.smapQA = local.qa || '';
@@ -1984,7 +2035,7 @@ async function fetchSmap(){
       S.smapVWC = median(local.obs.map(o => o.vwc).filter(v => v != null));
       const root = local.obs.some(o => o.sm_rootzone != null)
                  ? local.obs.map(o => ({date:o.date, v:o.sm_rootzone, n:1})) : null;
-      S.smapLag = local.lag_days || null;
+      S.smapLag = isFinite(Number(local.lag_days)) && local.lag_days != null ? Number(local.lag_days) : null;
       log('SMAP loaded from local smap.json — ' + surf.length + ' observations (' + local.product + ')');
       return {prod: local.product + ' (Earthdata, via fetch_smap.py)', bSurf:'soil_moisture', bRoot: root ? 'rootzone' : null,
               surf, root, latest: surf.filter(r => r.v != null).slice(-1)[0],
@@ -2175,16 +2226,21 @@ async function fetchSoil(){
   out.texture = textureOf(out.sand, out.silt, out.clay);
   return out;
 }
-// USDA texture triangle, reduced to the classes that matter for drainage
+// USDA soil texture triangle — the standard class boundaries, tested in an order that makes
+// them mutually exclusive. (An earlier shortcut tested sand first and filed sandy loams and
+// sandy clay loams under "Loamy sand", understating their water-holding capacity.)
 function textureOf(sand, silt, clay){
-  if (sand == null || clay == null) return null;
-  const si = silt == null ? Math.max(0, 100 - sand - clay) : silt;
-  if (clay >= 40) return 'Clay';
-  if (clay >= 27) return sand >= 45 ? 'Sandy clay loam' : 'Clay loam';
-  if (sand >= 85) return 'Sand';
-  if (sand >= 70) return 'Loamy sand';
-  if (si >= 50 && clay < 27) return 'Silt loam';
-  if (sand >= 45) return 'Sandy loam';
+  if (sand == null || clay == null || !isFinite(sand) || !isFinite(clay)) return null;
+  const si = (silt == null || !isFinite(silt)) ? Math.max(0, 100 - sand - clay) : silt;
+  if (si + 1.5 * clay < 15) return 'Sand';
+  if (si + 2 * clay < 30) return 'Loamy sand';
+  if (clay >= 40) return sand > 45 ? 'Sandy clay' : si >= 40 ? 'Silty clay' : 'Clay';
+  if (clay >= 35 && sand > 45) return 'Sandy clay';
+  if (clay >= 27) return sand <= 20 ? 'Silty clay loam' : sand <= 45 ? 'Clay loam' : 'Sandy clay loam';
+  if (clay >= 20 && si < 28 && sand > 45) return 'Sandy clay loam';
+  if (si >= 80 && clay < 12) return 'Silt';
+  if (si >= 50) return 'Silt loam';
+  if ((clay >= 7 && sand > 52) || (clay < 7 && si < 50)) return 'Sandy loam';
   return 'Loam';
 }
 
@@ -2203,7 +2259,7 @@ async function fetchEra5Soil(days){
   const dd = j && j.daily;
   if (!dd || !dd.time) throw new Error('archive returned no soil block');
   const w0 = 7/28, w1 = 21/28;                                // root zone ≈ top 28 cm, depth-weighted
-  return dd.time.map((t, i) => {
+  return dd.time.filter(t => ISO_DAY.test(String(t))).map((t, i) => {
     const a = dd.soil_moisture_0_to_7cm_mean[i];
     const b2 = dd.soil_moisture_7_to_28cm_mean[i];
     const deep = dd.soil_moisture_28_to_100cm_mean[i];
@@ -2231,14 +2287,13 @@ async function fetchForecast(){
   // POWER lags ~3 days. The past_days rows fill that gap so the forward projection starts
   // from today's estimated state, not from one that is three days old.
   const rows = d.time.map((t, i) => ({
-    date: t,
+    date: String(t),
     tmax: d.temperature_2m_max[i], tmin: d.temperature_2m_min[i],
     rain: d.precipitation_sum[i], rh: d.relative_humidity_2m_mean[i],
     wind: d.wind_speed_10m_max[i] / 3.6,                        // km/h → m/s
     et0: d.et0_fao_evapotranspiration[i]
   }));
-  const nPast = Math.max(0, rows.length - 16);
-  return {fc: rows.slice(nPast), past: rows.slice(0, nPast)};
+  return {rows: rows.filter(x => ISO_DAY.test(x.date)), offset: +j.utc_offset_seconds || 0};
 }
 
 /* ═════════ AGRONOMY ═════════ */
@@ -2279,6 +2334,11 @@ function ET0pm(tmax, tmin, tmean, rh, u2, rsMJ, psKpa, lat, doy){
   const den = D + g * (1 + 0.34 * u);
   return den > 0 ? Math.max(0, num / den) : null;
 }
+// POWER publishes sunshine a couple of days after temperature and rain, so the newest days
+// arrive with radiation missing. FAO-56 eq. 50 estimates it from the day's temperature range,
+// which lets those days still use Penman-Monteith instead of the rougher Hargreaves formula.
+const rsOr = (rs, tmax, tmin, lat, doy) => rs != null ? rs
+  : (tmax == null || tmin == null) ? null : 0.17 * Math.sqrt(Math.max(0, tmax - tmin)) * Ra(lat, doy);
 function ET0hs(tmax, tmin, tmean, lat, doy){               // fallback when radiation/RH/wind missing
   if (tmax == null || tmin == null || tmean == null) return null;
   return 0.0023 * (tmean + 17.8) * Math.sqrt(Math.max(0, tmax - tmin)) * Ra(lat, doy) * 0.408;
@@ -2296,7 +2356,8 @@ const gddOf = (tmax, tmin) => (tmax == null || tmin == null) ? null
 const AG = {tOptLo:24, tOptHi:32, tHeat:35, rhLo:75, rhHi:85, rainLo:1500, rainHi:3000,
             wetLog:0.90, dryTrigger:10, phLo:5.5, phHi:6.5,
             slopeLo:3, slopeHi:15, elevBest:600, elevMax:800,
-            stressTrigger:10};        // consecutive days of real water stress needed to induce
+            stressTrigger:10,         // consecutive days of real water stress needed to induce
+            stressMax:45};            // beyond this it is no longer an induction window but a standing deficit
 
 /* ══════════════════════════════════════════════════════════════════════════
    FAO-56 SOIL WATER BALANCE — the physiologically honest induction model.
@@ -2320,7 +2381,8 @@ const AG = {tOptLo:24, tOptHi:32, tHeat:35, rhLo:75, rhHi:85, rainLo:1500, rainH
    ══════════════════════════════════════════════════════════════════════════ */
 const AWC = {  // plant-available water, mm per metre of soil depth (FAO-56 Table 19)
   'Sand':60, 'Loamy sand':80, 'Sandy loam':110, 'Sandy clay loam':130,
-  'Loam':150, 'Silt loam':175, 'Clay loam':150, 'Clay':145
+  'Loam':150, 'Silt loam':175, 'Silt':180, 'Clay loam':150, 'Silty clay loam':155,
+  'Sandy clay':130, 'Silty clay':160, 'Clay':145
 };
 const ROOT_DEPTH = 1.0;   // m — durian is shallow-rooted; feeder roots sit in the top metre
 const P_DEPLETE  = 0.5;   // FAO p-factor: durian is drought-sensitive, stress starts at 50% depletion
@@ -2334,8 +2396,9 @@ function waterBalance(rain, et0, kc, taw){
   let Dr = 0.30 * taw;                       // spin-up: start moderately moist
   const dep = [], ks = [], etcA = [];
   for (let i = 0; i < rain.length; i++){
-    if (et0[i] == null){ dep.push(null); ks.push(null); etcA.push(null); continue; }
-    const peff = 0.8 * (rain[i] || 0);        // 80% of gross rain reaches the root zone
+    // a day with no rain value is unknown, not dry: the balance waits rather than assume 0 mm
+    if (et0[i] == null || rain[i] == null){ dep.push(null); ks.push(null); etcA.push(null); continue; }
+    const peff = 0.8 * rain[i];               // 80% of gross rain reaches the root zone
     const k = Dr > raw ? Math.max(0, (taw - Dr) / (taw - raw)) : 1;
     const etc = k * kc * et0[i];
     Dr = Dr - peff + etc;
@@ -2344,6 +2407,27 @@ function waterBalance(rain, et0, kc, taw){
     dep.push(Dr / taw); ks.push(k); etcA.push(etc);
   }
   return {dep, ks, etc: etcA, taw, raw};
+}
+/* Irrigation requirement that counts the water already in the soil.
+   Judging each day alone (ETc minus that day's rain) asks for a full dose the morning after a
+   storm and ignores that rain is banked in the root zone. Instead a second, MANAGED balance
+   is run: the soil is allowed to dry to a refill point — two thirds of the readily available
+   water, so there is a margin before stress begins — and only the depletion beyond that
+   point is asked for. Surplus rain still drains away at field capacity.
+   Returns mm/day (null where inputs are missing) and the final depletion, so the forecast
+   schedule can carry on from where the record stops. */
+const REFILL = 2 / 3;
+function irrigationNeed(rain, et0, kc, taw, Dr0){
+  const limit = REFILL * P_DEPLETE * taw;
+  let Dr = Math.min(limit, Dr0 == null ? 0.30 * taw : Dr0);
+  const need = [];
+  for (let i = 0; i < rain.length; i++){
+    if (et0[i] == null || rain[i] == null){ need.push(null); continue; }
+    Dr = Math.max(0, Dr - 0.8 * rain[i] + kc * et0[i]);
+    const irr = Math.max(0, Dr - limit);
+    Dr -= irr; need.push(irr);
+  }
+  return {need, Dr, limit};
 }
 // runs of consecutive real-stress days (Dr past RAW)
 function stressRuns(dep){
@@ -2371,7 +2455,7 @@ function derive(p){
   for (let i = 0; i < n; i++){
     const doy = doyOf(p.date[i]);
     let e = ET0pm(p.T2M_MAX[i], p.T2M_MIN[i], p.T2M[i], p.RH2M[i], p.WS2M[i],
-                  p.ALLSKY_SFC_SW_DWN[i], p.PS[i], Q.lat, doy);
+                  rsOr(p.ALLSKY_SFC_SW_DWN[i], p.T2M_MAX[i], p.T2M_MIN[i], Q.lat, doy), p.PS[i], Q.lat, doy);
     if (e == null){ e = ET0hs(p.T2M_MAX[i], p.T2M_MIN[i], p.T2M[i], Q.lat, doy); if (e != null) nHS++; }
     else nPM++;
     et0.push(e);
@@ -2414,13 +2498,9 @@ function derive(p){
   const wind = tail(p.WS10M_MAX && p.WS10M_MAX.some(v => v != null) ? p.WS10M_MAX : p.WS2M, 30);
   const etc30 = sum(tail(etc, 30));
 
-  // litres per tree per day, net of effective rainfall (80% of gross reaches the root zone)
-  const litres = [];
-  for (let i = 0; i < n; i++){
-    const need = (etc[i] == null) ? null
-      : Math.max(0, etc[i] - 0.8 * (p.PRECTOTCORR[i] || 0)) * f.canopyArea / f.eff;
-    litres.push(need);
-  }
+  // litres per tree per day: what the managed balance asks for, over the canopy area
+  const irr = irrigationNeed(p.PRECTOTCORR, et0, f.kc, taw);
+  const litres = irr.need.map(v => v == null ? null : v * f.canopyArea / f.eff);
 
   return {
     et0, etc, bal, tws, gdd, litres, farm: f,
@@ -2434,11 +2514,11 @@ function derive(p){
     waterlogDays: tail(p.GWETROOT, 30).filter(v => v > AG.wetLog).length,
     dry, dryDate: p.date[ri], bestDry: best, lastInduct, elev: p.elev,
     wb, taw: wb.taw, raw: wb.raw,
-    depNow: wb.dep[li], ksNow: wb.ks[li], wbDate: p.date[li],
+    depNow: wb.dep[li], ksNow: wb.ks[li], wbDate: p.date[li], irrDr: irr.Dr, irrLimit: irr.limit,
     stressNow: sr.now, bestStress: sr.best, lastStressInduct, stressArr: sr.stress,
     et0Method: nPM >= nHS ? 'Penman-Monteith' : 'Hargreaves',
     litres30: avg(tail(litres, 30)),
-    deficit30: Math.max(0, etc30 - sum(tail(p.PRECTOTCORR, 30)))
+    deficit30: Math.max(0, etc30 - 0.8 * sum(tail(p.PRECTOTCORR, 30)))       // against EFFECTIVE rain, like everything else
   };
 }
 
@@ -2452,15 +2532,17 @@ function baseline(b){
   const et0b = b.date.map((d, i) => {
     const doy = doyOf(d);
     const e = ET0pm(b.T2M_MAX[i], b.T2M_MIN[i], b.T2M[i], b.RH2M[i], b.WS2M[i],
-                    b.ALLSKY_SFC_SW_DWN[i], b.PS[i], Q.lat, doy);
+                    rsOr(b.ALLSKY_SFC_SW_DWN[i], b.T2M_MAX[i], b.T2M_MIN[i], Q.lat, doy), b.PS[i], Q.lat, doy);
     return e != null ? e : ET0hs(b.T2M_MAX[i], b.T2M_MIN[i], b.T2M[i], Q.lat, doy);
   });
   const wbB = waterBalance(b.PRECTOTCORR, et0b, f.kc, tawOf(S.soil));
   const stressB = wbB.dep.map(v => v == null ? false : v > P_DEPLETE);
 
-  // Runs are counted continuously across month boundaries and credited to the month they
-  // STARTED in — a spell from 25 Jan to 7 Feb is one 14-day run for January, not 7 + 7.
-  let run = 0, runCell = null, srun = 0, srunCell = null;
+  // Runs are counted continuously across month boundaries. Each month records the longest
+  // unbroken count REACHED during it — a spell from 25 Jan to 7 Feb gives January 7 and
+  // February 14, so February (when day 10 actually arrives) is the month credited, and a
+  // month spent entirely under stress shows its full length rather than zero.
+  let run = 0, srun = 0;
   for (let i = 0; i < b.date.length; i++){
     const d = b.date[i], m = +d.slice(5,7) - 1, y = d.slice(0,4);
     if (!years[y]) years[y] = Array.from({length:12},
@@ -2469,10 +2551,10 @@ function baseline(b){
     cell.days++;
     if (r != null){
       cell.rain += r;
-      if (r < 1){ cell.dry++; if (!run) runCell = cell; run++; runCell.best = Math.max(runCell.best, run); }
+      if (r < 1){ cell.dry++; run++; cell.best = Math.max(cell.best, run); }
       else run = 0;
     }
-    if (stressB[i]){ if (!srun) srunCell = cell; srun++; srunCell.sbest = Math.max(srunCell.sbest, srun); }
+    if (stressB[i]){ srun++; cell.sbest = Math.max(cell.sbest, srun); }
     else srun = 0;
     if (b.T2M[i] != null) byMonth[m].t.push(b.T2M[i]);
   }
@@ -2492,7 +2574,9 @@ function baseline(b){
   // The last 12 months come from this same record, so the comparison is always a full year
   // against a full-year normal, whatever History range the dashboard is showing.
   const curRain = Array.from({length:12}, () => 0), curSeen = Array.from({length:12}, () => 0);
-  for (let i = Math.max(0, b.date.length - 365); i < b.date.length; i++){
+  let lastRain = b.date.length - 1;                 // the newest days arrive without a rain value
+  while (lastRain > 0 && b.PRECTOTCORR[lastRain] == null) lastRain--;
+  for (let i = Math.max(0, lastRain - 364); i <= lastRain; i++){
     const m = +b.date[i].slice(5,7) - 1;
     if (b.PRECTOTCORR[i] != null){ curRain[m] += b.PRECTOTCORR[i]; curSeen[m]++; }
   }
@@ -2627,7 +2711,12 @@ function forwardStress(){
     if (stressed) run++; else run = 0;
     return stressed;
   };
-  bridgeDays(d.wbDate).forEach(step);
+  // Days with no data between the last computed day and the first day we can step through.
+  // The past_days bridge covers a week; an old saved POWER copy, or a forecast that came
+  // back without past days, leaves a hole — reported, never silently skipped.
+  const br = bridgeDays(d.wbDate);
+  const gap = Math.max(0, dayDiff(d.wbDate, (br[0] || S.fc[0]).date) - 1);
+  br.forEach(step);
   const depToday = Dr / taw, runToday = run, ksToday = ksOf();
   const path = [];
   let hitDay = null;
@@ -2637,7 +2726,7 @@ function forwardStress(){
     if (run >= AG.stressTrigger && hitDay == null) hitDay = x.date;
     path.push({date:x.date, dep: Dr/taw, stressed, run});
   }
-  return {path, hitDay, endRun: run, endDep: Dr / taw, depToday, runToday, ksToday,
+  return {path, hitDay, endRun: run, endDep: Dr / taw, depToday, runToday, ksToday, gap,
           maxRun: Math.max.apply(null, path.map(p2 => p2.run).concat([runToday]))};
 }
 
@@ -2687,7 +2776,7 @@ function renderDurian(){
     + '<div class="unit" style="font-size:11px">' + T('kpi.ks', fx(cur.ks, 2), cur.dep > P_DEPLETE) + '</div>';
   $('kRain').innerHTML = fx(d.rain30, 0) + '<span class="unit"> mm</span>';
   $('kDry').innerHTML  = cur.run + '<span class="unit"> stress days</span>'
-    + (fs && fs.hitDay ? '<div class="unit" style="font-size:11px;color:var(--good)">' + T('kpi.trig', fs.hitDay) + '</div>'
+    + (fs && fs.hitDay && cur.run < AG.stressTrigger ? '<div class="unit" style="font-size:11px;color:var(--good)">' + T('kpi.trig', fs.hitDay) + '</div>'
        : fs ? '<div class="unit" style="font-size:11px">' + T('kpi.by', fs.endRun, S.fc[S.fc.length-1].date) + '</div>' : '');
 
   const A = [];
@@ -2703,7 +2792,9 @@ function renderDurian(){
     T('a.alk', fx(S.soil.phh2o,1))]);
   if (d.heatDays30 >= 8) A.push(['warn','Heat stress',
     T('a.heat', d.heatDays30)]);
-  if (cur.run >= AG.stressTrigger) A.push(['good','Induction window OPEN — trees are under real stress',
+  if (cur.run > AG.stressMax) A.push(['bad','Standing water deficit — too long to be an induction window',
+    T('a.chronic', fx(cur.dep*100,0), cur.run, AG.stressTrigger, AG.stressMax)]);
+  else if (cur.run >= AG.stressTrigger) A.push(['good','Induction window OPEN — trees are under real stress',
     T('a.open', fx(cur.dep*100,0), fx(cur.ks,2), cur.run)]);
   else if (fs && fs.hitDay) A.push(['good', T('t.willOpen', fs.hitDay),
     T('a.willOpen', AG.stressTrigger, fs.hitDay, fx(fs.endDep*100,0))]);
@@ -2723,7 +2814,11 @@ function renderDurian(){
   const devLo   = (g && g > 1) ? Math.round(GDD_LO / g) : 100;
   const devHi   = (g && g > 1) ? Math.round(GDD_HI / g) : 130;
   let f;
-  if (cur.run >= AG.stressTrigger){
+  if (cur.run > AG.stressMax){
+    f = '<div class="alert bad"><div><b>' + T('fl.cTitle', cur.run) + '</b><small>'
+      + T('a.chronic', fx(cur.dep*100,0), cur.run, AG.stressTrigger, AG.stressMax)
+      + '</small></div></div>';
+  } else if (cur.run >= AG.stressTrigger){
     f = '<div class="alert good"><div><b>' + T('fl.uTitle', cur.run) + '</b><small>'
       + T('fl.uBody', fx(cur.dep*100,0), fx(g,1), devDays,
           fmtD(new Date(Date.now() + (devLo+28)*864e5)), fmtD(new Date(Date.now() + (devHi+35)*864e5)))
@@ -2746,7 +2841,8 @@ function renderDurian(){
       + (cur.dep > P_DEPLETE ? 'var(--warn)' : 'var(--good)') + '">' + T('w.taw', fx(cur.dep*100,0)) + '</td></tr>'
     + '<tr><td>Stress coefficient Ks</td><td class="num">' + T('w.ksrow', fx(cur.ks,2), cur.ks < 1) + '</td></tr>'
     + '<tr><td>Consecutive stress days</td><td class="num"><b>' + T('d.days', cur.run) + '</b>'
-      + (fs && fs.hitDay ? T('w.trig', fs.hitDay) : fs ? T('w.fcst', fs.endRun) : '') + '</td></tr>'
+      + (fs && fs.hitDay && cur.run < AG.stressTrigger ? T('w.trig', fs.hitDay) : fs ? T('w.fcst', fs.endRun) : '') + '</td></tr>'
+    + (fs && fs.gap ? '<tr><td colspan="2" style="color:var(--warn)">' + T('w.gap', fs.gap) + '</td></tr>' : '')
     + '<tr><td>Longest stress run in window</td><td class="num">' + T('d.days', d.bestStress) + '</td></tr>'
     + '<tr><td>TAW / RAW</td><td class="num">' + fx(d.taw,0) + ' / ' + fx(d.raw,0) + ' mm</td></tr>'
     + '<tr><th colspan="2" style="padding-left:0">For comparison — the naive rainfall rule</th></tr>'
@@ -2790,13 +2886,22 @@ function renderIrrigation(){
   const d = S.derived; if (!d) return;
   S.derived = derive(S.power);                     // farm inputs may have changed → recompute Kc etc.
   const dd = S.derived, f = dd.farm;
-  // POWER lags ~3 days, so its last row is not "today". Prefer the forecast's day 0.
-  let today, tSrc;
+  // Carry the managed balance on from the end of the record, across the POWER lag, into the
+  // forecast: each day's figure is what is needed AFTER the water already in the soil.
+  let irrDr = dd.irrDr;
+  const irrStep = x => {
+    const etc = (x.et0 != null ? x.et0 : 4) * f.kc;
+    irrDr = Math.max(0, irrDr - 0.8 * (x.rain || 0) + etc);
+    const mm = Math.max(0, irrDr - dd.irrLimit);
+    irrDr -= mm;
+    return {x, etc, need: mm * f.canopyArea / f.eff};
+  };
+  let today, tSrc, week = null;
   if (S.fc && S.fc.length){
-    const x = S.fc[0];
-    const etcT = (x.et0 != null ? x.et0 : 4) * f.kc;
-    today = Math.max(0, etcT - 0.8 * (x.rain || 0)) * f.canopyArea / f.eff;
-    tSrc = T('ir.todaySrc', fx(etcT,1), fx(x.rain,1), fx(f.canopyArea,0), Math.round(f.eff*100));
+    bridgeDays(dd.wbDate).forEach(irrStep);
+    week = S.fc.slice(0, 7).map(irrStep);
+    today = week[0].need;
+    tSrc = T('ir.todaySrc', fx(week[0].etc,1), fx(week[0].x.rain,1), fx(f.canopyArea,0), Math.round(f.eff*100));
   } else {
     today = dd.litres[dd.litres.length-1];
     tSrc = T('ir.lastSrc', S.power.date[S.power.date.length-1]);
@@ -2842,21 +2947,18 @@ function renderIrrigation(){
 
   // next 7 days from the forecast; fall back to the last 7 observed days
   let wk = 0, rows = '';
-  if (S.fc){
-    for (let i = 0; i < 7 && i < S.fc.length; i++){
-      const x = S.fc[i];
-      const etc = (x.et0 != null ? x.et0 : 4) * f.kc;
-      const need = Math.max(0, etc - 0.8 * (x.rain || 0)) * f.canopyArea / f.eff;
+  if (week){
+    week.forEach(w => {
+      const x = w.x, etc = w.etc, need = w.need;
       wk += need;
-      const cls = need <= 0 ? 'good' : need > 40 ? 'bad' : '';
       rows += '<tr><td>' + T('wdate', new Date(x.date + 'T00:00:00')) + '</td>'
         + '<td class="num">' + fx(x.rain, 1) + '</td><td class="num">' + fx(etc, 1) + '</td>'
-        + '<td class="num" style="color:' + (need <= 0 ? 'var(--good)' : need > 40 ? 'var(--bad)' : 'var(--txt)') + '">'
-        + (need <= 0 ? 'none' : fx(need, 0) + ' L') + '</td></tr>';
-    }
+        + '<td class="num" style="color:' + (need < 0.5 ? 'var(--good)' : need > 40 ? 'var(--bad)' : 'var(--txt)') + '">'
+        + (need < 0.5 ? 'none' : fx(need, 0) + ' L') + '</td></tr>';
+    });
     $('iSched').innerHTML = '<table><thead><tr><th>Day</th><th class="num">Rain mm</th>'
       + '<th class="num">ETc mm</th><th class="num">Water/tree</th></tr></thead><tbody>' + rows + '</tbody></table>'
-      + '<p class="muted" style="font-size:11px;margin-top:8px">Rain-adjusted at 80% effectiveness. '
+      + '<p class="muted" style="font-size:11px;margin-top:8px">Counts 80% of forecast rain and the water already in the soil. '
       + 'If you are trying to induce flowering, ignore this table and let the trees dry out.</p>';
   } else {
     wk = 7 * (dd.litres30 || 0);
@@ -3142,7 +3244,12 @@ function readTheme(){
 }
 readTheme();
 function chart(id, cfg){
-  if (typeof Chart === 'undefined') throw new Error('Chart.js failed to load.');
+  // No charting library: say so once and carry on. Throwing here used to abort whichever
+  // render was running, and the data set behind it was then reported as "failed".
+  if (typeof Chart === 'undefined'){
+    if (!S.noChart){ S.noChart = true; fail('render', new Error('Chart.js failed to load.')); }
+    return;
+  }
   if (!$(id)) return;
   if (S.charts[id]) S.charts[id].destroy();
   cfg.options = Object.assign({
@@ -3198,7 +3305,7 @@ function renderCharts(){
       const observed = labels.map(dt => byDate[dt] != null ? byDate[dt] : null);
       const pts = labels.map((dt, i) => (observed[i] != null && modelled[i] != null) ? [modelled[i], observed[i]] : null)
                         .filter(Boolean);
-      let r2txt = T('val.noov', vals[0].date, vals[vals.length-1].date, labels[0], labels[labels.length-1]);
+      let r2txt = T('val.noov', esc(vals[0].date), esc(vals[vals.length-1].date), labels[0], labels[labels.length-1]);
       if (pts.length >= 6){
         const mx = avg(pts.map(p2 => p2[0])), my = avg(pts.map(p2 => p2[1]));
         let sxy = 0, sxx = 0, syy = 0;
@@ -3281,7 +3388,7 @@ function renderCompare(){
   $('cmpTbl').innerHTML = '<thead><tr><th>Plot</th><th class="num">Score</th><th class="num">Rain</th>'
     + '<th class="num">Temp</th><th class="num">Slope</th><th class="num">Elev</th><th class="num">pH</th>'
     + '<th class="num">Dry spell</th><th class="num">L/tree/d</th><th></th></tr></thead><tbody>'
-    + S.plots.map((p, i) => '<tr><td><b>' + esc(p.name) + '</b><div class="muted" style="font-size:11px">'
+    + S.plots.map((p, i) => '<tr><td><b data-notr>' + esc(p.name) + '</b><div class="muted" style="font-size:11px">'
       + fx(p.lat,3) + ', ' + fx(p.lon,3) + '</div></td>'
       + '<td class="num" style="color:' + col(p.total) + ';font-weight:700">' + fx(p.total,0) + '</td>'
       + '<td class="num">' + fx(p.rain,0) + '</td><td class="num">' + fx(p.tMean,1) + '</td>'
@@ -3357,42 +3464,64 @@ function exportCsv(){
 async function run(){
   if (running){ rerun = true; return; }
   running = true;
-  try { await runOnce(); } finally { running = false; }
+  try { await runOnce(); }
+  catch(e){ fail('run', e); }
+  finally { running = false; $('run').disabled = false; }      // whatever happened, the button comes back
   if (rerun){ rerun = false; run(); }
 }
 async function runOnce(){
   $('banner').className = '';
   $('run').disabled = true;
+  const prevQ = {lat:Q.lat, lon:Q.lon}, prevSaved = S.saved;
   Q.lat = S.lat; Q.lon = S.lon;                     // freeze the point for this run
   rawMemo.clear();
+  S.saved = {};
+  setStatus('NASA POWER…', true);
+  // Fetch POWER BEFORE discarding anything. If it fails, the screen still holds a complete,
+  // consistent picture of the previous point — so Q goes back to that point, and Save / CSV
+  // keep describing what is actually shown instead of pairing old numbers with new coordinates.
+  let power;
+  try { power = await fetchPower(+$('range').value); }
+  catch(e){
+    Q.lat = prevQ.lat; Q.lon = prevQ.lon; S.saved = prevSaved; markSaved();
+    fail('POWER', e);
+    if (S.derived){
+      S.finalStatus = () => T('st.powerkept', fx(Q.lat,3), fx(Q.lon,3));
+      setStatus(S.finalStatus());
+    } else {
+      S.finalStatus = null;
+      setStatus('POWER failed');
+      $('verdict').textContent = 'POWER fetch failed';
+      $('verdictNote').innerHTML = '<span class="err">' + esc(T('err', e.message)) + '</span>';
+    }
+    return;
+  }
   const manualSoil = (S.soil && S.soil.manual) ? S.soil : null;   // a typed-in soil test outlives a re-fetch
   S.ndvi = S.evi = S.lstD = S.lstN = S.terr = S.fc = S.fcPast = S.base = S.baseRaw = S.smap = S.era = null;
   S.soil = manualSoil; S.soilGrid = null;
-  S.saved = {}; S.finalStatus = null; markSaved();
+  S.finalStatus = null; markSaved();
   S.smapLag = S.smapQA = S.smapFlagged = S.smapVWC = S.ornlProducts = S.ndviKeep = S.smapWorkerErr = null;
-  setStatus('NASA POWER…', true);
-  try {
-    S.power = await fetchPower(+$('range').value);
-    S.derived = derive(S.power);
-    log('POWER ok — ' + S.power.date.length + ' days, elevation ' + fx(S.power.elev, 0) + ' m');
-    $('csv').disabled = $('saveBtn').disabled = $('printBtn').disabled = false;
-    markSaved();
-    // Rendering is reported under its own name: a drawing problem (e.g. Chart.js blocked)
-    // must not be announced as "POWER failed" when the data arrived fine.
-    guard('render', () => { renderDurian(); renderIrrigation(); renderSite(); renderCharts(); });
-  } catch(e){
-    fail('POWER', e);
-    setStatus('POWER failed');
-    $('verdict').textContent = 'POWER fetch failed';
-    $('verdictNote').innerHTML = '<span class="err">' + esc(T('err', e.message)) + '</span>';
-    $('run').disabled = false;
-    return;
-  }
+  S.power = power;
+  S.derived = derive(S.power);
+  log('POWER ok — ' + S.power.date.length + ' days, elevation ' + fx(S.power.elev, 0) + ' m');
+  $('csv').disabled = $('saveBtn').disabled = $('printBtn').disabled = false;
+  markSaved();
+  // Rendering is reported under its own name: a drawing problem (e.g. Chart.js blocked)
+  // must not be announced as a data failure when the data arrived fine.
+  guard('render', () => { renderDurian(); renderIrrigation(); renderSite(); renderCharts(); });
 
   // everything below is best-effort: a failure degrades one panel, never the app
   const jobs = [
-    ['forecast', async () => { const r = await fetchForecast(); S.fc = r.fc; S.fcPast = r.past;
-                              renderForecast(); renderIrrigation(); renderDurian(); }],
+    ['forecast', async () => {
+        const r = await fetchForecast();
+        // Split by DATE, not by position. A saved copy served while Open-Meteo is down can be
+        // days old: its early rows are then in the past and must not be replayed as "today".
+        const today = new Date(Date.now() + r.offset * 1000).toISOString().slice(0, 10);   // today at the site
+        const fc = r.rows.filter(x => x.date >= today), past = r.rows.filter(x => x.date < today);
+        if (!fc.length) throw new Error('the saved forecast is too old to use');
+        S.fc = fc; S.fcPast = past;
+        renderForecast(); renderIrrigation(); renderDurian();
+      }],
     ['ERA5-Land soil', async () => { S.era = await fetchEra5Soil(+$('range').value); renderCharts(); renderDurian(); }],
     ['terrain',  async () => { S.terr = await fetchTerrain(); renderSite(); renderDurian(); }],
     ['soil',     async () => {
@@ -3446,11 +3575,11 @@ async function runOnce(){
       S.pending.delete(name); pills(); markSaved();
       S.errs[name] = (name === 'SMAP' && S.smapWorkerErr ? 'SMAP worker: ' + S.smapWorkerErr + ' · then ORNL: ' : '') + e.message;
       log(name + ' unavailable: ' + e.message);
-      renderSite(); renderSmap();                     // show the reason now, not after everything else
+      guard('render', () => { renderSite(); renderSmap(); });   // show the reason now, not after everything else
       return name;
     }
   }));
-  renderSite(); renderSmap(); renderDurian();       // repaint with whatever did arrive
+  guard('render', () => { renderSite(); renderSmap(); renderDurian(); });   // repaint with whatever did arrive
   const bad = results.filter(Boolean);
   markSaved();
   // kept as a function so the language toggle can rebuild it in the other language
@@ -3458,7 +3587,6 @@ async function runOnce(){
                       + (Object.keys(S.saved).length ? T('st.saved', savedList()) : '');
   setStatus(S.finalStatus());
   if (bad.length) log('NOTE: ' + bad.join(', ') + ' failed — see the panels for the reason. Pressing Fetch again often clears rate-limit errors.');
-  $('run').disabled = false;
 }
 
 /* Keep what the grower typed for the life of this tab, so pressing Refresh on the update bar
@@ -3498,7 +3626,8 @@ log('boot ok · secureContext=' + window.isSecureContext
 window.__tdRerender = function(){
   try { farmSummary(); } catch(e){}
   try { markSaved(); if (S.finalStatus && !running) setStatus(S.finalStatus()); } catch(e){}
-  try { if (S.tileFn) setTile(S.tileFn, S.tileErr); } catch(e){}
+  try { if (S.tileFn) setTile(S.tileFn, S.tileErr); if (S.overlayBtn) S.overlayBtn.title = T('tile.overlaytip'); } catch(e){}
+  try { if (S.lastFail && $('banner').className === 'on') showFail(); } catch(e){}
   if (!(S.derived || S.terr || S.soil || S.smap || S.fc || S.base)) return;
   try { renderSite(); } catch(e){}
   try { renderSmap(); } catch(e){}

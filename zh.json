@@ -239,8 +239,6 @@
  "ETc × canopy area ÷ efficiency": "ETc × 树冠面积 ÷ 效率",
  "Next 7 days, rain-adjusted": "未来 7 天，已扣除降雨",
  "By tree age": "按树龄",
- "Litres per tree per day actually needed after effective rainfall (80% of gross rain; the rest runs off or drains past the roots).": "扣除有效降雨（毛降雨的 80%，其余流失或渗过根区）后每株每天实际所需升数。",
- "Rain-adjusted at 80% effectiveness. If you are trying to induce flowering, ignore this table and let the trees dry out.": "按 80% 有效性扣除降雨。若你正在催花，请忽略此表，让树木干燥。",
  "Forecast unavailable — showing the 30-day average instead.": "预报不可用——改为显示 30 天平均值。",
  "none": "无需",
  "Leaf area": "叶面积",
@@ -274,7 +272,6 @@
  "retrying…": "重试中…",
  "Bars = 10-year monthly mean. Line = the last 12 months. Where the line sits well below the bars, the season ran dry.": "柱 = 10 年月均值。线 = 近 12 个月。线明显低于柱之处，该季偏干。",
  "Days with <1 mm rain. The months with the tallest bars are when a durian flowering trigger is most likely to occur naturally.": "降雨 <1 毫米的天数。柱最高的月份最有可能自然出现榴莲催花触发。",
- "Each cell is the longest run of <1 mm days starting in that month, that year. Green = reached the ~10-day induction threshold.": "每格为该年该月起始的 <1 毫米连续天数最长值。绿色 = 达到约 10 天的催花阈值。",
  "A single year against a 10-year mean is weather, not climate. It tells you whether this season was unusual — not where the climate is heading.": "单独一年与 10 年均值相比是天气，不是气候。它只说明本季是否异常，不说明气候走向。",
  "Yrs w/ 10 d STRESS": "达 10 天胁迫的年数",
  "Old rain rule": "旧降雨规则",
@@ -426,5 +423,15 @@
  "Calculated in the app: a running total of rainfall minus crop water demand at your point. Not a satellite measurement.": "由本应用计算：你所在点的降雨减去作物需水的累计值。并非卫星测量。",
  "Computed": "计算值",
  "Soil, the forecast, the ERA5-Land soil-moisture line, the terrain model and the base map are not NASA data. The soil and forecast panels are badged": "土壤、预报、ERA5-Land 土壤湿度线、地形模型和底图不是 NASA 数据。土壤与预报面板凡出现处均标注",
- "wherever they appear. Every other number comes from NASA.": "。其余所有数字均来自 NASA。"
+ "wherever they appear. Every other number comes from NASA.": "。其余所有数字均来自 NASA。",
+ "Litres per tree per day needed to keep the root zone out of stress, after effective rainfall (80% of gross) and the water already stored in the soil. Rain is banked: after a wet spell nothing is needed until the soil has dried back to the refill point.": "为使根区不受胁迫，每株每天所需的升数——已扣除有效降雨（毛降雨的 80%）和土壤中已储存的水。降雨会被“存”起来：一段湿润天气之后，直到土壤干回补水点之前都不需要灌溉。",
+ "Each cell is the longest unbroken run reached during that month, that year; a run that began the month before carries over. Green = reached the ~10-day induction threshold.": "每个格子是该年该月内达到的最长不间断天数；上个月开始的连续期会延续计入。绿色 = 达到约 10 天的催花阈值。",
+ "Counts 80% of forecast rain and the water already in the soil. If you are trying to induce flowering, ignore this table and let the trees dry out.": "已计入 80% 的预报降雨和土壤中已有的水。如果你正在催花，请忽略此表，让树干下去。",
+ "Standing water deficit — too long to be an induction window": "长期缺水——时间太长，已不是催花窗口",
+ "Irrigation refill point": "灌溉补水点",
+ "⅔ of readily available water": "易利用水的 ⅔",
+ "The litres shown are what is needed beyond the water already in the soil. The ⅔ margin before stress is my judgement": "显示的升数是扣除土壤中已有水分后仍需补充的量。在胁迫出现前留出 ⅔ 的余量属于我的判断",
+ "Standing deficit": "长期缺水",
+ "> 45 stress days": "> 45 个胁迫日",
+ "Beyond this the app stops calling it an induction window. A rule of thumb, not measured on durian": "超过此天数，应用不再称之为催花窗口。这是经验法则，并非在榴莲上实测"
 }
