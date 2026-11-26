@@ -683,16 +683,17 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
         <tr><td>🌧️ GPM precipitation</td><td>POWER <code>PRECTOTCORR</code> — MERRA-2 bias-corrected with GPM/IMERG-class data</td><td>Yes</td></tr>
         <tr><td>🌬️ MERRA-2</td><td>POWER: <code>T2M</code>, <code>RH2M</code>, <code>WS2M</code>, <code>WS10M_MAX</code>, <code>PS</code></td><td>Yes</td></tr>
         <tr><td>☀️ POWER API</td><td><code>power.larc.nasa.gov</code> daily point + 10-year baseline, community=AG</td><td>Yes</td></tr>
-        <tr><td>⛰️ Elevation</td><td>POWER returns site elevation in the response geometry</td><td>Yes</td></tr>
+        <tr><td>⛰️ Elevation</td><td>Copernicus GLO-90 at your point. POWER's ~50 km grid-cell elevation is shown beside it for comparison.</td><td>Partly</td></tr>
         <tr><td>📐 Slope / aspect</td><td>Copernicus GLO-90 sampled 3×3 via Open-Meteo, Horn's method. <i>Falls back to NASA SRTM 30 m via OpenTopoData where that host allows it.</i></td><td>Mostly no</td></tr>
         <tr><td>🧪 Soil pH / texture</td><td><b>ISRIC SoilGrids</b> 250 m, 0–30 cm</td><td><b>No</b></td></tr>
         <tr><td>🔮 16-day forecast</td><td><b>Open-Meteo</b> (ECMWF/GFS). POWER is a reanalysis and cannot forecast.</td><td><b>No</b></td></tr>
-        <tr><td>🌎 Landsat 8/9 · 🛰️ VIIRS</td><td>GIBS WMTS tiles on the map</td><td>Yes</td></tr>
-        <tr><td>🌊 SWOT</td><td>Not point-queryable without auth — <a href="https://podaac.jpl.nasa.gov/SWOT" target="_blank">PO.DAAC</a></td><td>Needs key</td></tr>
-        <tr><td>🧊 GRACE-FO</td><td><b>Proxy.</b> Cumulative P−ETc anomaly, <i>not</i> GRACE-FO TWS</td><td>Proxy only</td></tr>
+        <tr><td>💧 ERA5-Land soil moisture</td><td>Open-Meteo archive (ECMWF reanalysis), 9 km. The independent blue line on the root-zone stress chart.</td><td><b>No</b></td></tr>
+        <tr><td>🛰️ Map imagery</td><td>NASA GIBS: daily true colour from VIIRS (NOAA-20, NOAA-21) and MODIS; Landsat 8/9 and Sentinel-2 at 30 m (Harmonized Landsat Sentinel-2); MODIS NDVI and land surface temperature; VIIRS night lights and active fires. Sentinel-2 is a European satellite; NASA produces the harmonized imagery.</td><td>Yes</td></tr>
+        <tr><td>🗺️ Base map and place names</td><td>Esri light and dark grey canvas</td><td><b>No</b></td></tr>
+        <tr><td>🧊 Water storage trend</td><td>Computed in the app: cumulative rainfall minus crop water demand. A proxy, not GRACE-FO satellite data.</td><td>Computed</td></tr>
       </tbody>
     </table>
-    <p class="muted" style="font-size:12px">Two panels are deliberately non-NASA and are badged <span class="nonasa">non-NASA</span> wherever they appear: soil and forecast. NASA has no free, key-free, point-queryable equivalent for either.</p>
+    <p class="muted" style="font-size:12px">Soil, the forecast, the ERA5-Land soil-moisture line, the terrain model and the base map are not NASA data. The soil and forecast panels are badged <span class="nonasa">non-NASA</span> wherever they appear. Every other number comes from NASA.</p>
   </div>
 
   <div class="card" style="margin-top:14px">
