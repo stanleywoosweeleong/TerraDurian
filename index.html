@@ -905,6 +905,10 @@ const median = a => {
   return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
 };
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Defined up here, with the other helpers, because the map is set up early in this script
+// and already needs them. (Declared further down, they were not yet initialised at that point.)
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;                 // every date taken from a server is checked against this
+const dayDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5);
 
 /* ── language-aware templates for number-bearing dynamic strings ──
    The app owns the numbers; each template supplies English and Chinese here, and Malay
@@ -1839,8 +1843,6 @@ const P_PARAMS = ['T2M','T2M_MAX','T2M_MIN','RH2M','PRECTOTCORR','ALLSKY_SFC_SW_
                   'WS2M','WS10M_MAX','PS','GWETTOP','GWETROOT','GWETPROF'];
 const FILL = -999;
 const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;                 // every date taken from a server is checked against this
-const dayDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5);
 const isoOf = k => k.slice(0,4) + '-' + k.slice(4,6) + '-' + k.slice(6,8);
 
 async function fetchPower(days, params){
