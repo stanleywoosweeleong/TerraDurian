@@ -36,7 +36,8 @@ const OWN = CODE.concat([
   './icon-512.png',
   './icon-192-maskable.png',
   './icon-512-maskable.png',
-  './apple-touch-icon.png'
+  './apple-touch-icon.png',
+  './barlow-semi-condensed-600.woff2'
 ]);
 const CDN = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',

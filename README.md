@@ -9,6 +9,8 @@ Three languages: English / 简体中文 / Bahasa Melayu.
 1. Put every file in this repository into your repo root.
    Required for the website:
      index.html   manifest.webmanifest   sw.js   i18n.js   zh.json   ms.json
+     barlow-semi-condensed-600.woff2   (the typeface for figures; SIL Open Font License,
+                                        see barlow-semi-condensed-LICENSE.txt)
      icon-192.png   icon-512.png
      icon-192-maskable.png   icon-512-maskable.png   apple-touch-icon.png
    `TerraDurian.html` is only a redirect to `index.html`, kept so old links still work.

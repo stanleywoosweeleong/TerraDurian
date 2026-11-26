@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="./manifest.webmanifest">
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#11150f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -20,25 +20,37 @@
         integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous"></script>
 <style>
   :root{
-    --bg:#0d1117; --panel:#161b22; --panel2:#1c2430; --line:#2b3542;
-    --txt:#dcd6c8; --dim:#9a968b; --accent:#4ade80; --accent2:#38bdf8;
-    --warn:#fbbf24; --bad:#f87171; --good:#4ade80; --purple:#a78bfa;
+    --bg:#11150f; --panel:#191f16; --panel2:#222a1d; --line:#34402d;
+    --txt:#f1e8c9; --dim:#a3aa90; --accent:#f2cf4a; --accent2:#38bdf8;
+    --warn:#f59a3c; --bad:#f87171; --good:#4ade80; --purple:#a78bfa;
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    /* figures: a condensed instrument-panel face, bundled so it works offline. Latin only —
+       Chinese text beside a number falls through to the system font. */
+    --num:"Barlow Semi Condensed",var(--font);
+    color-scheme:dark;                 /* native pickers, date boxes and scrollbars drawn for a dark page */
   }
+  /* Palette, from the fruit: husk night (page) · bark (surfaces) · thorn (lines) · flesh cream
+     (text) · Musang gold (the one main action, and the brand). Green / orange / red are kept
+     for good / caution / bad and blue for water, so colour always means something. */
+  @font-face{font-family:"Barlow Semi Condensed";font-weight:600;font-style:normal;font-display:swap;
+             src:url("./barlow-semi-condensed-600.woff2") format("woff2")}
   *{box-sizing:border-box}
+  input[type=checkbox]{accent-color:var(--accent)}
   body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:14px;line-height:1.5}
-  header{display:flex;align-items:center;gap:14px;padding:calc(12px + env(safe-area-inset-top,0px)) calc(18px + env(safe-area-inset-right,0px)) 12px calc(18px + env(safe-area-inset-left,0px));background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
-  .logo{font-weight:700;font-size:17px;letter-spacing:-.3px}
+  #moreBtn{display:none}                /* phones only: opens the less-used controls */
+  header{display:flex;align-items:center;gap:14px;padding:calc(12px + env(safe-area-inset-top,0px)) calc(18px + env(safe-area-inset-right,0px)) 12px calc(18px + env(safe-area-inset-left,0px));background:var(--bg);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .logo{font-family:var(--num);font-weight:600;font-size:22px;letter-spacing:0;line-height:1.1}
   .logo span{color:var(--accent)}
   .sub{color:var(--dim);font-size:12px}
   .spacer{flex:1}
   input,select,button{font-family:var(--font);font-size:13px}
-  input,select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:6px 8px}
-  input:focus,select:focus{outline:1px solid var(--accent2)}
-  button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:6px 12px;cursor:pointer}
-  button:hover{border-color:var(--accent2)}
-  button.primary{background:var(--accent);color:#07130c;border-color:var(--accent);font-weight:600}
+  input,select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:6px 8px}
+  input:focus,select:focus{outline:1px solid var(--accent)}
+  button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:6px 12px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button.primary{background:var(--accent);color:#1b1602;border-color:var(--accent);font-weight:700}
   button.primary:hover{filter:brightness(1.1)}
   button:disabled{opacity:.45;cursor:not-allowed}
   .bar{display:flex;gap:8px;align-items:center;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -50,31 +62,35 @@
       position:sticky;top:0;z-index:1100;scrollbar-width:none}      /* above the map's own controls (z ≤ 1000) */
   nav::-webkit-scrollbar{display:none}
   nav button{border:none;background:none;border-radius:0;border-bottom:2px solid transparent;padding:10px 13px;color:var(--dim);white-space:nowrap}
-  nav button.on{color:var(--txt);border-bottom-color:var(--accent)}
+  nav button.on{color:var(--txt);border-bottom-color:var(--accent);font-weight:600}
   main{padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));max-width:1400px;margin:0 auto}
   .tab{display:none}.tab.on{display:block}
   .grid{display:grid;gap:14px}
   .g2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
   .g3{grid-template-columns:repeat(auto-fit,minmax(225px,1fr))}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
-  .card h3{margin:0 0 4px;font-size:13px;letter-spacing:.4px;text-transform:uppercase;color:var(--dim);font-weight:600}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .card h3{margin:0 0 6px;font-size:14px;line-height:1.3;color:var(--txt);font-weight:600}
   .card .src{font-size:11px;color:var(--dim);font-family:var(--mono);margin-top:8px;border-top:1px solid var(--line);padding-top:7px}
-  .big{font-size:30px;font-weight:700;letter-spacing:-1px;margin:2px 0}
+  .big{font-family:var(--num);font-size:36px;font-weight:600;line-height:1.1;margin:2px 0;font-variant-numeric:tabular-nums}
   .unit{font-size:14px;color:var(--dim);font-weight:400}
   .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
   .pill.good{color:var(--good);border-color:var(--good)}
   .pill.warn{color:var(--warn);border-color:var(--warn)}
   .pill.bad{color:var(--bad);border-color:var(--bad)}
   .pill.nn{color:var(--purple);border-color:var(--purple)}
-  #map{height:440px;border-radius:10px;border:1px solid var(--line);background:#0d1117}
-  .score{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-  .ring{width:120px;height:120px;flex:none}
+  #map{height:440px;border-radius:10px;border:1px solid var(--line);background:#11150f}
+  .score{display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap}
+  .ring{width:132px;height:132px;flex:none}
+  #ringTxt{font-family:var(--num)}
+  #thorns path{transition:fill .25s}
+  @media (prefers-reduced-motion:reduce){ #thorns path{transition:none} }
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
-  th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
-  td.num,th.num{text-align:right;font-family:var(--mono)}
+  th{color:var(--dim);font-weight:600;font-size:12px}
+  td.num,th.num{text-align:right}
+  td.num{font-family:var(--num);font-size:15px;font-variant-numeric:tabular-nums}
   .alert{display:flex;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);margin-bottom:8px}
-  .alert.warn{border-color:#7a5b12;background:#2a2110}
+  .alert.warn{border-color:#7a4a16;background:#2b1e10}
   .alert.bad{border-color:#7a2b2b;background:#2a1414}
   .alert.good{border-color:#245c39;background:#11251a}
   .alert b{display:block;margin-bottom:2px}
@@ -83,16 +99,17 @@
   .muted{color:var(--dim)}
   .chartbox{position:relative;height:220px}
   .chartbox.tall{height:300px}
-  #status{font-size:12px;font-family:var(--mono);color:var(--dim)}
+  #status{font-size:12px;color:var(--dim)}
   .bars{display:flex;flex-direction:column;gap:9px}
   .brow{display:grid;grid-template-columns:160px 1fr 46px;align-items:center;gap:10px;font-size:12px}
-  .track{height:8px;background:var(--panel2);border-radius:5px;overflow:hidden}
+  .track{height:6px;background:var(--panel2);border-radius:5px;overflow:hidden}
   .fill{height:100%;border-radius:5px}
   a{color:var(--accent2)}
   .legend{font-size:11px;color:var(--dim);margin-top:6px}
   .ds-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .lay{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .lay button.on{border-color:var(--accent);color:var(--accent)}
+  .farmbar label[style*="--accent)"]{color:var(--txt) !important}     /* tick-box captions read as text, not as actions */
   .lay button.dead{opacity:.35;text-decoration:line-through}
   code{font-family:var(--mono);font-size:11px;background:var(--panel2);padding:1px 5px;border-radius:4px}
   .err{color:var(--bad);font-size:12px;font-family:var(--mono)}
@@ -103,14 +120,14 @@
   #banner.on{display:block}
   .fc{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}
   .fcd{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 6px;text-align:center;font-size:11px}
-  .fcd.dry{border-color:#7a5b12}
+  .fcd.dry{border-color:#7a4a16}
   .fcd.wet{border-color:#1c4a63}
   .fcd.hot{border-color:#7a2b2b}
   .fcd b{display:block;font-size:12px;color:var(--txt)}
-  .fcd .t{font-family:var(--mono);font-size:12px;margin-top:3px}
-  .fcd .r{font-family:var(--mono);color:var(--accent2)}
+  .fcd .t{font-family:var(--num);font-size:15px;margin-top:3px}
+  .fcd .r{font-family:var(--num);font-size:14px;color:var(--accent2)}
   .saved{font-size:10px;color:var(--warn);border:1px solid var(--warn);border-radius:20px;padding:1px 6px;margin-left:6px;
-         font-weight:400;letter-spacing:0;text-transform:none;white-space:nowrap}
+         font-weight:400;white-space:nowrap}
   /* header language picker: just the short name in a button-like box. The browser's own
      drop-down arrow is removed — on a phone it doubled the width of the control. */
   #langToggle{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:none;
@@ -128,15 +145,15 @@
   #langpick[hidden]{display:none}
   #langpick:focus{outline:0}             /* the dialog takes focus, so no button looks pre-selected */
   #langpick img{width:88px;height:88px;border-radius:20px}
-  #langpick .lptitle{margin:0 0 10px;font-size:22px;font-weight:700;letter-spacing:.2px}
+  #langpick .lptitle{margin:0 0 10px;font-family:var(--num);font-size:30px;font-weight:600}
   #langpick .lptitle span{color:var(--accent)}
   #langpick button{width:min(18rem,84vw);min-height:58px;font-size:18px;font-weight:600;border-radius:12px}
   #langpick button:hover,#langpick button:focus-visible{border-color:var(--accent);outline:0}
   body.picking{overflow:hidden}
-  .nonasa{font-size:10px;color:var(--purple);border:1px solid var(--purple);border-radius:20px;padding:1px 6px;margin-left:6px}
+  .nonasa{font-weight:400;font-size:10px;color:var(--purple);border:1px solid var(--purple);border-radius:20px;padding:1px 6px;margin-left:6px}
   .hm{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:8px}
   .hmc{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;
-       font-size:10px;font-family:var(--mono);color:#07130c;font-weight:600}
+       font-size:12px;font-family:var(--num);color:#07130c;font-weight:600}
   .hml{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;font-size:10px;color:var(--dim);text-align:center}
   @media print{
     nav,.bar,.farmbar,header .spacer,button{display:none!important}
@@ -152,9 +169,9 @@
     body{ overflow-x:hidden; }
     main{ padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px)); }
     header{ padding:calc(10px + env(safe-area-inset-top,0px)) calc(12px + env(safe-area-inset-right,0px)) 10px calc(12px + env(safe-area-inset-left,0px)); gap:8px; }
-    .logo{ font-size:16px; }
-    .sub{ font-size:11px; }
-    #status{ width:100%; order:3; }
+    .logo{ font-size:22px; }
+    .sub{ display:none; }                              /* the status line takes its place under the name */
+    #status{ width:100%; order:3; font-size:12px; margin-top:-4px; }
 
     /* input bars stack and wrap; fields flex instead of fixed widths */
     .bar, .farmbar{ padding:8px calc(12px + env(safe-area-inset-right,0px)) 8px calc(12px + env(safe-area-inset-left,0px)); gap:7px 8px; }
@@ -180,7 +197,7 @@
     .chartbox{ height:200px; }
     .chartbox.tall{ height:240px; }
     #map{ height:320px; }
-    .big{ font-size:24px; }
+    .big{ font-size:30px; }
 
     /* score ring + factor bars fit a phone */
     .score{ gap:12px; }
@@ -196,7 +213,6 @@
     /* ── header: brand and language on one line, status underneath ── */
     header{ flex-wrap:wrap; }
     #langToggle{ margin-left:0 !important; padding:6px 12px; min-height:40px; }
-    #status{ font-size:11px; }
 
     /* ── top controls: a tidy grid instead of ragged wrapping ──
        8 columns:  [ 📍 location …………… ][ coordinates ]
@@ -204,20 +220,31 @@
                    [ history ……… ][ Fetch all data ………… ]
                    [ Farm setup ……… ][ Save plot ………… ]
                    [ CSV …………………… ][ Report …………… ]            */
-    .bar{ display:grid; grid-template-columns:repeat(8, minmax(0, 1fr)); align-items:center; gap:8px; }
+    .bar{ display:grid; grid-template-columns:repeat(8, minmax(0, 1fr)); align-items:center; gap:8px; background:var(--bg); }
     .bar > *{ min-width:0; }
-    .bar button, .bar select, .bar input{ min-height:44px; width:100%; }
+    .bar button, .bar select, .bar input{ min-height:46px; width:100%; }
     .bar button{ padding:8px 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* always shown:   [ 📍 location ……………… ][ coordinates ]
+                       [ history ][ Fetch all data ………………… ]
+                       [ Farm setup …………………………… ][ ⋯ ]            */
     #gps{ grid-column:span 5; order:1; }
-    #place{ grid-column:span 3; order:2; font-family:var(--mono); font-size:10.5px; line-height:1.35; text-align:right; }
-    .bar label[for="lat"], .bar label[for="lon"]{ grid-column:span 1; order:3; text-align:right; margin:0; }
-    #lat, #lon{ grid-column:span 3; order:3; width:100%; flex:none; }
+    #place{ grid-column:span 3; order:2; font-family:var(--num); font-size:14px; line-height:1.25; text-align:right; color:var(--txt); }
     /* the History caption is dropped on phones — the box itself reads "12 months" — but stays for screen readers */
     .bar label[for="range"]{ position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; margin:0; }
-    #range{ grid-column:span 3; order:4; flex:none; }
-    #run{ grid-column:span 5; order:4; font-size:15px; }
-    #farmBtn, #saveBtn, #csv, #printBtn{ grid-column:span 4; order:5; }
-    #installBtn{ grid-column:1 / -1; order:6; }
+    #range{ grid-column:span 3; order:3; flex:none; }
+    #run{ grid-column:span 5; order:3; font-size:16px; }
+    #farmBtn{ grid-column:span 6; order:4; }
+    #moreBtn{ display:block; grid-column:span 2; order:5; font-size:20px; line-height:1; }
+    #moreBtn[aria-expanded="true"]{ border-color:var(--accent); color:var(--accent); }
+    /* behind ⋯ :      [Lat][ box ……… ][Lon][ box ……… ]
+                       [ Save plot ………………………………………… ]
+                       [ CSV ………………… ][ Report …………… ]            */
+    .bar label[for="lat"], .bar label[for="lon"], #lat, #lon, #saveBtn, #csv, #printBtn, #installBtn{ display:none; }
+    .bar.more label[for="lat"], .bar.more label[for="lon"]{ display:block; grid-column:span 1; order:6; text-align:right; margin:0; }
+    .bar.more #lat, .bar.more #lon{ display:block; grid-column:span 3; order:6; width:100%; flex:none; }
+    .bar.more #saveBtn{ display:block; grid-column:1 / -1; order:7; }
+    .bar.more #csv, .bar.more #printBtn{ display:block; grid-column:span 4; order:8; }
+    .bar.more #installBtn:not([style*="none"]){ display:block; grid-column:1 / -1; order:9; }
 
     /* ── farm setup: two fields per row, each as  label | box | unit ── */
     .farmbar.on{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(64px,1fr) auto minmax(0,1.15fr) minmax(64px,1fr) auto;
@@ -244,11 +271,14 @@
     /* ── cards ── */
     .g3{ grid-template-columns:1fr 1fr; gap:10px; }                         /* the four headline numbers: 2 × 2 */
     .g3 .card{ padding:10px; }
-    .g3 .card h3{ font-size:11px; }
-    .g3 .big{ font-size:22px; }
+    .g3 .card h3{ font-size:12.5px; }
+    .g3 .big{ font-size:30px; }
     .g3 .src{ font-size:10px; overflow-wrap:anywhere; }
     .score{ flex-direction:column; align-items:stretch; gap:10px; }           /* ring on top, factor list full width */
-    .score .ring{ align-self:center; width:112px; height:112px; }
+    .score .ring{ align-self:center; width:168px; height:168px; }
+    #verdict{ font-family:var(--num); font-size:24px !important; line-height:1.15; }
+    .legend{ font-size:12px; }
+    .card{ border-radius:16px; }
     .score > div{ min-width:0 !important; }
     #verdict{ text-align:center; }
     #verdictNote{ text-align:center; }
@@ -290,6 +320,7 @@
     <option value="730">24 months</option>
   </select>
   <button class="primary" id="run">Fetch all data</button>
+  <button id="moreBtn" type="button" aria-label="More options" aria-expanded="false" aria-controls="lat lon saveBtn csv printBtn">⋯</button>
   <button id="farmBtn">🌳 Farm setup</button>
   <button id="saveBtn" disabled>💾 Save plot</button>
   <button id="csv" disabled>⬇ CSV</button>
@@ -343,11 +374,10 @@
       <h3 data-src="POWER">Site suitability — Durio zibethinus</h3>
       <div class="score">
         <svg class="ring" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="52" fill="none" stroke="#2b3542" stroke-width="12"/>
-          <circle id="ringArc" cx="60" cy="60" r="52" fill="none" stroke="#4ade80" stroke-width="12"
-                  stroke-linecap="round" stroke-dasharray="0 327" transform="rotate(-90 60 60)"/>
-          <text id="ringTxt" x="60" y="58" text-anchor="middle" font-size="27" font-weight="700" fill="#dcd6c8">–</text>
-          <text x="60" y="76" text-anchor="middle" font-size="10" fill="#8b98a5">/ 100</text>
+          <g id="thorns"></g>
+          <circle cx="60" cy="60" r="41.5" fill="#222a1d" stroke="#34402d" stroke-width="1"/>
+          <text id="ringTxt" x="60" y="66" text-anchor="middle" font-size="34" font-weight="600" fill="#f1e8c9">–</text>
+          <text x="60" y="80" text-anchor="middle" font-size="9" fill="#a3aa90">/ 100</text>
         </svg>
         <div style="flex:1;min-width:230px">
           <div id="verdict" class="big" style="font-size:19px">Awaiting data</div>
@@ -793,7 +823,7 @@ const Q = {lat:S.lat, lon:S.lon};
 let running = false, rerun = false;                 // see run()
 
 const fx  = (v, n) => (v == null || !isFinite(v)) ? '–' : (+v).toFixed(n);
-const col = s => s >= 75 ? '#4ade80' : s >= 50 ? '#fbbf24' : '#f87171';
+const col = s => s >= 75 ? '#4ade80' : s >= 50 ? '#f59a3c' : '#f87171';
 const sum = a => a.reduce((x, y) => x + y, 0);
 const avg = a => a.length ? sum(a) / a.length : null;
 const median = a => {
@@ -1367,6 +1397,10 @@ guard('controls', () => {
     setTimeout(() => { b.textContent = 'copy'; }, 1800);
   };
   $('farmBtn').onclick = () => { $('farmbar').classList.toggle('on'); farmSummary(); };
+  $('moreBtn').onclick = () => {
+    const open = document.querySelector('.bar').classList.toggle('more');
+    $('moreBtn').setAttribute('aria-expanded', open);
+  };
   $('printBtn').onclick = () => window.print();
   $('installBtn').onclick = async () => {
     if (!deferredPrompt) return;
@@ -2461,15 +2495,30 @@ function forwardStress(){
           maxRun: Math.max.apply(null, path.map(p2 => p2.run).concat([runToday]))};
 }
 
+/* The suitability gauge is drawn as a durian in cross-section: 40 thorns round a husk, lit
+   clockwise from the top in proportion to the score and in its colour. */
+const THORNS = 40;
+function setThorns(score){
+  const g = $('thorns'); if (!g) return;
+  if (!g.firstChild){
+    const NS = 'http://www.w3.org/2000/svg';
+    for (let i = 0; i < THORNS; i++){
+      const t = document.createElementNS(NS, 'path');
+      t.setAttribute('d', 'M-3.1 0 L0 -12 L3.1 0 Z');                    // base on the husk, tip outwards
+      t.setAttribute('transform', 'rotate(' + (i * 360 / THORNS) + ' 60 60) translate(60 17.5)');
+      g.appendChild(t);
+    }
+  }
+  const lit = score == null ? 0 : Math.round(score / 100 * THORNS), c = col(score || 0);
+  [].forEach.call(g.childNodes, (t, i) => t.setAttribute('fill', i < lit ? c : '#2c3626'));
+}
 function renderDurian(){
   const d = S.derived, p = S.power;
   if (!d) return;
   const nv = S.ndvi && S.ndvi.filter(x => x.v != null).slice(-1)[0];
   const sc = score(d, nv ? nv.v : null, S.terr, S.soil);
-  const C = 2 * Math.PI * 52;
 
-  $('ringArc').setAttribute('stroke-dasharray', (C * (sc.total || 0) / 100) + ' ' + C);
-  $('ringArc').setAttribute('stroke', col(sc.total || 0));
+  setThorns(sc.total);
   $('ringTxt').textContent = sc.total == null ? '–' : sc.total;
   const v = sc.total;
   $('verdict').textContent = v >= 80 ? 'Excellent durian ground'
@@ -2582,11 +2631,11 @@ function renderDurian(){
     datasets:[
       LN(T('ch','Rainfall-model depletion %'), depPct.concat(fcDep.map(() => null)), '#f87171', {fill:true, spanGaps:false}),
       LN(T('ch','ERA5-Land 9 km (independent)'), eraDep.concat(fcDep.map(() => null)), '#38bdf8', {borderDash:[2,2], spanGaps:true}),
-      LN(T('ch','Forecast'), new Array(N).fill(null).concat(fcDep), '#fbbf24', {borderDash:[4,3]}),
+      LN(T('ch','Forecast'), new Array(N).fill(null).concat(fcDep), '#f59a3c', {borderDash:[4,3]}),
       LN(T('ch','Stress threshold (RAW)'), new Array(N + fcDep.length).fill(P_DEPLETE*100), '#4ade80', {borderDash:[6,4], borderWidth:1})
     ]},
     options:{scales:{y:{min:0, max:100, grid:GRID, ticks:TICK,
-      title:{display:true, text:T('ch','% of available water used'), color:'#8b98a5'}},
+      title:{display:true, text:T('ch','% of available water used'), color:'#a3aa90'}},
       x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
 }
 
@@ -2621,7 +2670,7 @@ function renderIrrigation(){
     const ca = Math.PI * Math.pow(c/2, 2);
     const k = a < 3 ? 0.85 : a < 8 ? 0.92 : 0.98;
     const L = et0now * k * ca / f.eff;
-    return '<tr' + (Math.abs(a - f.age) < 1.5 ? ' style="background:#1c2430"' : '') + '>'
+    return '<tr' + (Math.abs(a - f.age) < 1.5 ? ' style="background:#222a1d"' : '') + '>'
       + '<td>' + T('ir.yr', a) + '<span class="muted">' + T('stage', stageOf(a)) + '</span></td>'
       + '<td class="num">' + c.toFixed(1) + ' m</td>'
       + '<td class="num">' + ca.toFixed(0) + ' m²</td>'
@@ -2708,8 +2757,8 @@ function renderForecast(){
     LN(T('ch','Tmax °C'), S.fc.map(x => x.tmax), '#f87171', {type:'line', yAxisID:'y1', order:1, pointRadius:2}),
     LN(T('ch','Tmin °C'), S.fc.map(x => x.tmin), '#38bdf8', {type:'line', yAxisID:'y1', order:2, pointRadius:2})]},
     options:{scales:{
-      y:{grid:GRID, ticks:TICK, title:{display:true, text:'mm', color:'#8b98a5'}},
-      y1:{position:'right', grid:{drawOnChartArea:false}, ticks:TICK, title:{display:true, text:'°C', color:'#8b98a5'}},
+      y:{grid:GRID, ticks:TICK, title:{display:true, text:'mm', color:'#a3aa90'}},
+      y1:{position:'right', grid:{drawOnChartArea:false}, ticks:TICK, title:{display:true, text:'°C', color:'#a3aa90'}},
       x:{grid:GRID, ticks:TICK}}}});
 }
 
@@ -2903,11 +2952,11 @@ function renderBaseline(){
 
   const monL = MONTHS.map((_, i) => T('mon', i));
   chart('cClim', {type:'bar', data:{labels:monL, datasets:[
-    {label:T('ch','10-yr normal mm'), data:b.normRain, backgroundColor:'#2b3542', borderWidth:0, order:2},
+    {label:T('ch','10-yr normal mm'), data:b.normRain, backgroundColor:'#34402d', borderWidth:0, order:2},
     LN(T('ch','Last 12 months mm'), b.curRain, '#38bdf8', {type:'line', order:1, pointRadius:3})]}});
   chart('cDryM', {type:'bar', data:{labels:monL, datasets:[
     {label:T('ch','Dry days (<1 mm), 10-yr mean'), data:b.normDry,
-     backgroundColor:b.normDry.map(v => v >= 8 ? '#fbbf24' : '#2b3542'), borderWidth:0}]}});
+     backgroundColor:b.normDry.map(v => v >= 8 ? '#f59a3c' : '#34402d'), borderWidth:0}]}});
 
   // heat map — stress runs by default, old rain rule available for comparison
   const drawHeat = (useStress) => {
@@ -2920,8 +2969,8 @@ function renderBaseline(){
     grid.forEach((row, i) => {
       g += '<div class="hm">' + row.map(v => {
         if (v == null) return '<div class="hmc" style="background:transparent"></div>';   // outside the record
-        const c = v >= 10 ? '#4ade80' : v >= 7 ? '#fbbf24' : v >= 4 ? '#3b4a5c' : '#1c2430';
-        const t = v >= 7 ? '#07130c' : '#8b98a5';
+        const c = v >= 10 ? '#4ade80' : v >= 7 ? '#f59a3c' : v >= 4 ? '#3d4a35' : '#222a1d';
+        const t = v >= 7 ? '#07130c' : '#a3aa90';
         return '<div class="hmc" style="background:' + c + ';color:' + t + '" title="' + b.years[i] + '">' + v + '</div>';
       }).join('') + '</div>';
     });
@@ -2935,7 +2984,7 @@ function renderBaseline(){
 }
 
 /* ═════════ CHARTS ═════════ */
-const GRID = {color:'#2b3542'}, TICK = {color:'#8b98a5', font:{size:10}};
+const GRID = {color:'#34402d'}, TICK = {color:'#a3aa90', font:{size:10}};
 function chart(id, cfg){
   if (typeof Chart === 'undefined') throw new Error('Chart.js failed to load.');
   if (!$(id)) return;
@@ -2944,7 +2993,7 @@ function chart(id, cfg){
     responsive:true, maintainAspectRatio:false,
     animation:false,     // charts are destroyed/recreated on every data arrival — replaying the entry animation each time reads as flicker
     interaction:{mode:'index', intersect:false},
-    plugins:{legend:{labels:{color:'#8b98a5', boxWidth:10, font:{size:10}}}},
+    plugins:{legend:{labels:{color:'#a3aa90', boxWidth:10, font:{size:10}}}},
     scales:{x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}, y:{grid:GRID, ticks:TICK}}
   }, cfg.options || {});
   S.charts[id] = new Chart($(id), cfg);
@@ -2955,16 +3004,16 @@ const LN = (label, data, color, extra) => Object.assign(
 
 function renderCharts(){
   const p = S.power, d = S.derived, x = p.date, t = (a, n) => a.slice(-n);
-  chart('cSolar', {type:'line', data:{labels:x, datasets:[LN(T('ch','Solar kWh/m²/d'), p.SOLAR_KWH, '#fbbf24', {fill:true})]}});
+  chart('cSolar', {type:'line', data:{labels:x, datasets:[LN(T('ch','Solar kWh/m²/d'), p.SOLAR_KWH, '#f59a3c', {fill:true})]}});
   chart('cTemp',  {type:'line', data:{labels:x, datasets:[
-    LN(T('ch','Tmax'), p.T2M_MAX, '#f87171'), LN(T('ch','Tmean'), p.T2M, '#dcd6c8'), LN(T('ch','Tmin'), p.T2M_MIN, '#38bdf8')]}});
+    LN(T('ch','Tmax'), p.T2M_MAX, '#f87171'), LN(T('ch','Tmean'), p.T2M, '#f1e8c9'), LN(T('ch','Tmin'), p.T2M_MIN, '#38bdf8')]}});
   chart('cRain',  {type:'bar',  data:{labels:x, datasets:[{label:T('ch','mm/day'), data:p.PRECTOTCORR, backgroundColor:'#38bdf8', borderWidth:0}]}});
   chart('cSoil',  {type:'line', data:{labels:x, datasets:[
     LN(T('ch','Surface'), p.GWETTOP, '#38bdf8'), LN(T('ch','Root zone'), p.GWETROOT, '#4ade80'), LN(T('ch','Profile'), p.GWETPROF, '#a78bfa')]},
     options:{scales:{y:{min:0, max:1, grid:GRID, ticks:TICK}, x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
   chart('cAtm',   {type:'line', data:{labels:x, datasets:[
     LN(T('ch','RH2M %'), p.RH2M, '#4ade80'),
-    LN(T('ch','WS2M m/s'), p.WS2M, '#fbbf24', {yAxisID:'y1'}),
+    LN(T('ch','WS2M m/s'), p.WS2M, '#f59a3c', {yAxisID:'y1'}),
     LN(T('ch','WS10M_MAX m/s'), p.WS10M_MAX, '#f87171', {yAxisID:'y1'})]},
     options:{scales:{y:{grid:GRID, ticks:TICK}, y1:{position:'right', grid:{drawOnChartArea:false}, ticks:TICK},
       x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
@@ -2975,7 +3024,7 @@ function renderCharts(){
     const sets = [LN(T('ch','SMAP surface m³/m³'), sm.surf.map(r => r.v), '#38bdf8', {pointRadius:2, spanGaps:true, fill:true})];
     if (sm.root) sets.push(LN(T('ch','SMAP root zone m³/m³'), sm.root.map(r => r.v), '#4ade80', {pointRadius:2, spanGaps:true}));
     chart('cSmap', {type:'line', data:{labels: sm.surf.map(r => r.date), datasets: sets},
-      options:{scales:{y:{grid:GRID, ticks:TICK, title:{display:true, text:'m³/m³', color:'#8b98a5'}},
+      options:{scales:{y:{grid:GRID, ticks:TICK, title:{display:true, text:'m³/m³', color:'#a3aa90'}},
         x:{grid:GRID, ticks:Object.assign({maxTicksLimit:8}, TICK)}}}});
 
     // Validation: does my modelled depletion actually track the real instrument?
@@ -3090,7 +3139,7 @@ function renderCompare(){
   });
   const keys = [];
   S.plots.forEach(p => p.items.forEach(i => { if (!keys.includes(i.k)) keys.push(i.k); }));
-  const cols = ['#4ade80','#38bdf8','#fbbf24','#a78bfa','#f87171','#dcd6c8'];
+  const cols = ['#4ade80','#38bdf8','#f59a3c','#a78bfa','#f87171','#f1e8c9'];
   chart('cCmp', {type:'bar', data:{labels:keys.map(k => T('ch', k)), datasets:S.plots.map((p, i) => ({
     label: p.name, backgroundColor: cols[i % cols.length], borderWidth:0,
     data: keys.map(k => { const it = p.items.find(x => x.k === k); return it && it.s != null ? Math.round(it.s) : null; })
@@ -3281,6 +3330,7 @@ guard('restore', () => {
   S.keepForm = keep;
 });
 
+setThorns(null);                                  // the empty gauge, before any data
 setStatus('ready — press Fetch all data');
 log('boot ok · secureContext=' + window.isSecureContext
   + ' · Leaflet=' + (typeof L !== 'undefined')
