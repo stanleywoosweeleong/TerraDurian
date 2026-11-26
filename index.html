@@ -628,9 +628,9 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
       <div class="src">MOD11A2 · 1 km · 8-day</div>
     </div>
     <div class="card">
-      <div class="ds-head"><h3 data-src="POWER">🧊 Water storage trend (GRACE-FO proxy)</h3><span class="pill" id="pTws">–</span></div>
+      <div class="ds-head"><h3 data-src="POWER">🧊 Water storage trend (calculated)</h3><span class="pill" id="pTws">–</span></div>
       <div class="chartbox"><canvas id="cTws"></canvas></div>
-      <div class="src">Cumulative P−ETc anomaly · proxy, not GRACE-FO</div>
+      <div class="src">Running total of rainfall minus crop demand (P−ETc) · calculated in the app</div>
     </div>
   </div>
   <div class="card" style="margin-top:14px">
@@ -695,7 +695,7 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
         <tr><td>💧 ERA5-Land soil moisture</td><td>Open-Meteo archive (ECMWF reanalysis), 9 km. The independent blue line on the root-zone stress chart.</td><td><b>No</b></td></tr>
         <tr><td>🛰️ Map imagery</td><td>NASA GIBS: daily true colour from VIIRS (NOAA-20, NOAA-21) and MODIS; Landsat 8/9 and Sentinel-2 at 30 m (Harmonized Landsat Sentinel-2); MODIS NDVI and land surface temperature; VIIRS night lights and active fires. Sentinel-2 is a European satellite; NASA produces the harmonized imagery.</td><td>Yes</td></tr>
         <tr><td>🗺️ Base map and place names</td><td>Esri light and dark grey canvas</td><td><b>No</b></td></tr>
-        <tr><td>🧊 Water storage trend</td><td>Computed in the app: cumulative rainfall minus crop water demand. A proxy, not GRACE-FO satellite data.</td><td>Computed</td></tr>
+        <tr><td>🧊 Water storage trend</td><td>Calculated in the app: a running total of rainfall minus crop water demand at your point. Not a satellite measurement.</td><td>Computed</td></tr>
       </tbody>
     </table>
     <p class="muted" style="font-size:12px">Soil, the forecast, the ERA5-Land soil-moisture line, the terrain model and the base map are not NASA data. The soil and forecast panels are badged <span class="nonasa">non-NASA</span> wherever they appear. Every other number comes from NASA.</p>
