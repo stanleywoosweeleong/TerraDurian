@@ -72,6 +72,11 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
   .logo{font-family:var(--num);font-weight:600;font-size:22px;letter-spacing:0;line-height:1.1}
   .logo span{color:var(--accent-ink)}
   .sub{color:var(--dim);font-size:12px}
+  .fsum{margin:10px 0 0;display:grid;gap:0}
+  .fsum>div{padding:9px 0;border-top:1px solid var(--line)}
+  .fsum>div:first-child{border-top:0;padding-top:2px}
+  .fsum dt{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);margin-bottom:2px}
+  .fsum dd{margin:0;font-size:13px;line-height:1.5}
   .spacer{flex:1}
   input,select,button{font-family:var(--font);font-size:13px}
   input,select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:6px 8px}
@@ -1186,6 +1191,36 @@ var TPL = {
   'fc.tail': { en:function(n,k){return 'The last '+(n===1?'day has':n+' days have')+' no values yet — that is the edge of what the weather models cover at this hour. Everything here is worked out from the '+k+' days that do.';},
                zh:function(n,k){return '最后 '+n+' 天暂无数值——这是天气模式此刻覆盖范围的边缘。这里的内容均按有数值的 '+k+' 天计算。';} },
   'fc.na': { en:function(){return 'no data yet';}, zh:function(){return '暂无数据';} },
+  'fs.rainL': { en:function(){return 'Rain';}, zh:function(){return '降雨';} },
+  'fs.rain': { en:function(mm,n,wet,pct,mx,md){return '<b>'+mm+' mm</b> over '+n+' days'+(pct!==''?' — about <b>'+pct+'%</b> of what this time of year normally brings (10-year record)':'')+'. Rain on '+wet+' of '+n+' days'+(+mx>0?'; wettest day '+mx+' mm on '+md:'')+'.';},
+               zh:function(mm,n,wet,pct,mx,md){return n+' 天共 <b>'+mm+' 毫米</b>'+(pct!==''?'——约为每年此时正常雨量的 <b>'+pct+'%</b>（10 年记录）':'')+'。'+n+' 天中有 '+wet+' 天下雨'+(+mx>0?'；雨量最大的一天是 '+md+'，'+mx+' 毫米':'')+'。';} },
+  'fs.workL': { en:function(){return 'Dry days for field work';}, zh:function(){return '适合田间作业的干爽日';} },
+  'fs.work': { en:function(c,n,dates,run,from){return '<b>'+c+'</b> of '+n+' days under 2 mm'+(dates?': '+dates:'')+'. Longest dry stretch: <b>'+run+' day'+(run===1?'':'s')+'</b> from '+from+'. These are the best days for spraying, fertilising and harvest work.';},
+               zh:function(c,n,dates,run,from){return n+' 天中有 <b>'+c+'</b> 天雨量低于 2 毫米'+(dates?'：'+dates:'')+'。最长连续干爽期：自 '+from+' 起 <b>'+run+' 天</b>。这些是喷药、施肥和采收作业的最佳日子。';} },
+  'fs.workNone': { en:function(n){return 'No day under 2 mm in the next '+n+' days. Sprays are likely to wash off — spray only what cannot wait, and give fertiliser in small split doses so the rain does not carry it away. Daily totals do not say what hour the rain falls.';},
+               zh:function(n){return '未来 '+n+' 天没有一天雨量低于 2 毫米。喷施的药剂很可能被冲掉——只喷不能再等的，肥料分次少量施用，以免被雨水带走。日雨量无法说明雨在几点下。';} },
+  'fs.waterL': { en:function(){return 'Water for the trees';}, zh:function(){return '树木用水';} },
+  'fs.water': { en:function(eff,etc,n){return 'Usable rain <b>'+eff+' mm</b> against crop demand <b>'+etc+' mm</b> over '+n+' days.';},
+               zh:function(eff,etc,n){return n+' 天内有效降雨 <b>'+eff+' 毫米</b>，作物需水 <b>'+etc+' 毫米</b>。';} },
+  'fs.root': { en:function(d0,d1,date){return ' Root zone: '+d0+'% depleted today → '+d1+'% by '+date+'.';},
+               zh:function(d0,d1,date){return ' 根区：今天亏缺 '+d0+'% → 到 '+date+' 为 '+d1+'%。';} },
+  'fs.wOk': { en:function(){return ' Rain covers what the trees use — no irrigation needed on this outlook.';}, zh:function(){return ' 降雨足以满足树木用水——按此预报无需灌溉。';} },
+  'fs.wShort': { en:function(mm){return ' Rain falls short by <b>'+mm+' mm</b> — see the Irrigation tab for litres per tree.';}, zh:function(mm){return ' 降雨缺口 <b>'+mm+' 毫米</b>——每棵树的升数请看灌溉页。';} },
+  'fs.wDry': { en:function(){return ' The root zone gets dry during this period — see the Irrigation tab.';}, zh:function(){return ' 这段时间内根区会偏干——请看灌溉页。';} },
+  'fs.indL': { en:function(){return 'Flower induction';}, zh:function(){return '催花';} },
+  'fs.indNo': { en:function(peak,thr){return 'Not on this outlook: the root zone stays wet (driest point '+peak+'% depleted; stress starts above '+thr+'%).';},
+               zh:function(peak,thr){return '按此预报不会发生：根区保持湿润（最干时亏缺 '+peak+'%；超过 '+thr+'% 才开始胁迫）。';} },
+  'fs.indHit': { en:function(date){return 'On the water balance the stress trigger is reached on <b>'+date+'</b> — see the Durian tab.';}, zh:function(date){return '按水分平衡，<b>'+date+'</b> 达到胁迫触发点——请看榴莲页。';} },
+  'fs.indOpen': { en:function(){return 'Trees are already at or past the stress trigger — see the Durian tab.';}, zh:function(){return '树木已达到或超过胁迫触发点——请看榴莲页。';} },
+  'fs.indBuild': { en:function(run,date,trig){return 'Stress is building: '+run+' consecutive stress days by '+date+', short of the '+trig+' needed.';}, zh:function(run,date,trig){return '胁迫正在累积：到 '+date+' 连续胁迫 '+run+' 天，尚未达到所需的 '+trig+' 天。';} },
+  'fs.disL': { en:function(){return 'Disease pressure';}, zh:function(){return '病害压力';} },
+  'fs.disHi': { en:function(run,from,to,rh){return '<b>'+run+' wet days in a row</b> ('+from+' to '+to+')'+(rh!==''?', mean humidity '+rh+'%':'')+'. This favours <i>Phytophthora</i>: keep drains running, keep mulch off the trunk and check trunks for canker.';},
+               zh:function(run,from,to,rh){return '<b>连续 '+run+' 天有雨</b>（'+from+' 至 '+to+'）'+(rh!==''?'，平均湿度 '+rh+'%':'')+'。这有利于<i>疫霉菌 (Phytophthora)</i>：保持排水沟畅通，覆盖物不要贴着树干，并检查树干有无溃疡。';} },
+  'fs.disLo': { en:function(run){return 'Longest run of wet days: '+run+'. No prolonged wet spell.';}, zh:function(run){return '最长连续雨日：'+run+' 天。没有持续的湿期。';} },
+  'fs.heatL': { en:function(){return 'Heat and wind';}, zh:function(){return '高温与风';} },
+  'fs.heat': { en:function(tmax,d1,tmin,wind,d2){return 'Hottest day <b>'+tmax+' °C</b> on '+d1+'; coolest night '+tmin+' °C.'+(wind!==''?' Strongest wind '+wind+' km/h on '+d2+(+wind>=40?' — strong enough to break laden branches; prop or tie them':'')+'.':'');},
+               zh:function(tmax,d1,tmin,wind,d2){return '最热的一天 '+d1+'，<b>'+tmax+' °C</b>；最凉的夜晚 '+tmin+' °C。'+(wind!==''?'最大风速 '+wind+' 公里/小时（'+d2+'）'+(+wind>=40?'——足以折断挂果的枝条，请支撑或绑扎':'')+'。':'');} },
+  'fs.warnL': { en:function(){return 'Warnings';}, zh:function(){return '警示';} },
   'fc.none': { en:function(n){return 'No heat, drought or deluge signal in the next '+n+' days.';}, zh:function(n){return '未来 '+n+' 天无高温、干旱或暴雨信号。';} },
   'kpi.unsure': { en:function(d){return 'unconfirmed since '+d;}, zh:function(d){return '自 '+d+' 起未确认';} },
   'w.unconf':   { en:function(){return ' (up to the last observed day; not confirmed since)';}, zh:function(){return '（截至最近观测日；其后未确认）';} },
@@ -1377,6 +1412,28 @@ var TPL_MS = {
   'fc.partial': function(n,t){ return '<b>'+n+'</b> daripada '+t+' hari tiba tanpa nilai hujan. Angka dan nasihat di sini dikira daripada '+(t-n)+' hari yang selebihnya.'; },
   'fc.tail': function(n,k){ return n+' hari terakhir belum ada nilai — itu had liputan model cuaca pada waktu ini. Semua di sini dikira daripada '+k+' hari yang mempunyai nilai.'; },
   'fc.na': function(){ return 'belum ada data'; },
+  'fs.rainL': function(){ return 'Hujan'; },
+  'fs.rain': function(mm,n,wet,pct,mx,md){ return '<b>'+mm+' mm</b> dalam '+n+' hari'+(pct!==''?' — kira-kira <b>'+pct+'%</b> daripada hujan biasa pada masa ini dalam setahun (rekod 10 tahun)':'')+'. Hujan pada '+wet+' daripada '+n+' hari'+(+mx>0?'; hari paling lebat '+mx+' mm pada '+md:'')+'.'; },
+  'fs.workL': function(){ return 'Hari kering untuk kerja ladang'; },
+  'fs.work': function(c,n,dates,run,from){ return '<b>'+c+'</b> daripada '+n+' hari di bawah 2 mm'+(dates?': '+dates:'')+'. Tempoh kering terpanjang: <b>'+run+' hari</b> mulai '+from+'. Inilah hari terbaik untuk menyembur, membaja dan kerja menuai.'; },
+  'fs.workNone': function(n){ return 'Tiada hari di bawah 2 mm dalam '+n+' hari akan datang. Semburan mungkin dibasuh hujan — sembur hanya yang tidak boleh ditangguh, dan beri baja sedikit-sedikit secara berperingkat supaya tidak dihanyutkan hujan. Jumlah harian tidak menunjukkan pukul berapa hujan turun.'; },
+  'fs.waterL': function(){ return 'Air untuk pokok'; },
+  'fs.water': function(eff,etc,n){ return 'Hujan berguna <b>'+eff+' mm</b> berbanding keperluan tanaman <b>'+etc+' mm</b> dalam '+n+' hari.'; },
+  'fs.root': function(d0,d1,date){ return ' Zon akar: susut '+d0+'% hari ini → '+d1+'% menjelang '+date+'.'; },
+  'fs.wOk': function(){ return ' Hujan mencukupi keperluan pokok — tiada pengairan diperlukan mengikut ramalan ini.'; },
+  'fs.wShort': function(mm){ return ' Hujan kurang sebanyak <b>'+mm+' mm</b> — lihat tab Pengairan untuk liter setiap pokok.'; },
+  'fs.wDry': function(){ return ' Zon akar menjadi kering dalam tempoh ini — lihat tab Pengairan.'; },
+  'fs.indL': function(){ return 'Aruhan bunga'; },
+  'fs.indNo': function(peak,thr){ return 'Tidak dalam ramalan ini: zon akar kekal lembap (paling kering susut '+peak+'%; tegasan bermula melebihi '+thr+'%).'; },
+  'fs.indHit': function(date){ return 'Berdasarkan imbangan air, pencetus tegasan dicapai pada <b>'+date+'</b> — lihat tab Durian.'; },
+  'fs.indOpen': function(){ return 'Pokok sudah mencapai atau melepasi pencetus tegasan — lihat tab Durian.'; },
+  'fs.indBuild': function(run,date,trig){ return 'Tegasan sedang meningkat: '+run+' hari tegasan berturut-turut menjelang '+date+', belum cukup '+trig+' hari yang diperlukan.'; },
+  'fs.disL': function(){ return 'Tekanan penyakit'; },
+  'fs.disHi': function(run,from,to,rh){ return '<b>'+run+' hari hujan berturut-turut</b> ('+from+' hingga '+to+')'+(rh!==''?', purata kelembapan '+rh+'%':'')+'. Ini menggalakkan <i>Phytophthora</i>: pastikan parit mengalir, jauhkan sungkupan daripada batang dan periksa batang untuk kanker.'; },
+  'fs.disLo': function(run){ return 'Hari hujan berturut-turut terpanjang: '+run+'. Tiada tempoh basah berpanjangan.'; },
+  'fs.heatL': function(){ return 'Haba dan angin'; },
+  'fs.heat': function(tmax,d1,tmin,wind,d2){ return 'Hari paling panas <b>'+tmax+' °C</b> pada '+d1+'; malam paling sejuk '+tmin+' °C.'+(wind!==''?' Angin paling kuat '+wind+' km/j pada '+d2+(+wind>=40?' — cukup kuat untuk mematahkan dahan berbuah; sokong atau ikat dahan':'')+'.':''); },
+  'fs.warnL': function(){ return 'Amaran'; },
   'fc.none': function(n){ return 'Tiada isyarat haba, kemarau atau hujan sangat lebat dalam '+n+' hari akan datang.'; },
   'st.powerkept': function(la,lo){ return 'POWER gagal — masih memaparkan '+la+', '+lo; },
   'w.gap': function(n){ return '⚠ '+n+' hari antara hari cerapan terakhir dan hari ini tiada data. Kiraan hari tegasan berturut-turut bermula semula selepasnya, dan susutan yang dipaparkan ialah anggaran. Ambil semula apabila sumber boleh dihubungi.'; },
@@ -3126,6 +3183,76 @@ function renderIrrigation(){
     {label:T('ch','L/tree/day needed'), data: dd.litres.slice(-90), backgroundColor:K.water, borderWidth:0}]}});
 }
 
+/* What the outlook means for the orchard, in plain rows — shown whether or not anything is
+   alarming, because "nothing notable" on its own tells a grower nothing. Every figure is
+   worked out from the days that carry a value. */
+function fcSummary(days, fsx, hasAlerts){
+  const n = days.length; if (!n) return '';
+  const md = x => x.date.slice(5), rows = [];
+  const total = sum(days.map(x => x.rain));
+  // normal for the same calendar days, from the 10-year monthly means
+  let norm = 0, normOk = !!S.base;
+  if (S.base) days.forEach(x => {
+    const m = +x.date.slice(5,7) - 1, v = S.base.normRain[m];
+    if (v == null) normOk = false;
+    else norm += v / new Date(Date.UTC(+x.date.slice(0,4), m + 1, 0)).getUTCDate();
+  });
+  const wettest = days.reduce((a, x) => x.rain > a.rain ? x : a, days[0]);
+  rows.push([T('fs.rainL'), T('fs.rain', fx(total,0), n, days.filter(x => x.rain >= 1).length,
+    normOk && norm > 0 ? Math.round(total / norm * 100) : '', fx(wettest.rain,1), md(wettest))]);
+
+  // longest run of consecutive calendar days matching a test (a missing day breaks the run)
+  const longest = test => {
+    let best = {len:0}, cur = null, prev = null;
+    days.forEach(x => {
+      if (test(x)){
+        if (cur && prev && dayDiff(prev, x.date) === 1) { cur.len++; cur.to = x.date; }
+        else cur = {len:1, from:x.date, to:x.date};
+        if (cur.len > best.len) best = {len:cur.len, from:cur.from, to:cur.to};
+      } else cur = null;
+      prev = x.date;
+    });
+    return best;
+  };
+  const dryD = days.filter(x => x.rain < 2), dryRun = longest(x => x.rain < 2);
+  rows.push([T('fs.workL'), dryD.length
+    ? T('fs.work', dryD.length, n, dryD.length <= 6 ? dryD.map(md).join(', ') : '', dryRun.len, dryRun.from.slice(5))
+    : T('fs.workNone', n)]);
+
+  const d = S.derived, wd = days.filter(x => typeof x.et0 === 'number');
+  if (d && wd.length){
+    const eff = 0.8 * sum(wd.map(x => x.rain)), etc = d.farm.kc * sum(wd.map(x => x.et0));
+    const peak = fsx && fsx.path.length ? Math.max.apply(null, fsx.path.map(p2 => p2.dep).concat([fsx.depToday])) : null;
+    const fine = peak != null ? peak <= P_DEPLETE : eff >= etc;
+    rows.push([T('fs.waterL'), T('fs.water', fx(eff,0), fx(etc,0), wd.length)
+      + (fsx && fsx.path.length ? T('fs.root', fx(fsx.depToday*100,0), fx(fsx.endDep*100,0), fsx.path[fsx.path.length-1].date.slice(5)) : '')
+      + (fine ? T('fs.wOk') : eff < etc ? T('fs.wShort', fx(etc - eff,0)) : T('fs.wDry'))]);
+    if (fsx && fsx.path.length && d.farm.age >= AG.induceAge && !fsx.sure)
+      rows.push([T('fs.indL'),
+          fsx.runToday >= AG.stressTrigger ? T('fs.indOpen')
+        : fsx.hitDay ? T('fs.indHit', fsx.hitDay)
+        : fsx.endRun > 0 ? T('fs.indBuild', fsx.endRun, fsx.path[fsx.path.length-1].date.slice(5), AG.stressTrigger)
+        : T('fs.indNo', fx(peak*100,0), fx(P_DEPLETE*100,0))]);
+  }
+
+  const wetRun = longest(x => x.rain >= 1);
+  if (wetRun.len >= 5){
+    const rh = avg(days.filter(x => x.date >= wetRun.from && x.date <= wetRun.to && typeof x.rh === 'number').map(x => x.rh));
+    rows.push([T('fs.disL'), T('fs.disHi', wetRun.len, wetRun.from.slice(5), wetRun.to.slice(5), rh == null ? '' : fx(rh,0))]);
+  } else rows.push([T('fs.disL'), T('fs.disLo', wetRun.len)]);
+
+  const withT = S.fc.filter(x => typeof x.tmax === 'number' && typeof x.tmin === 'number');
+  if (withT.length){
+    const hot = withT.reduce((a, x) => x.tmax > a.tmax ? x : a, withT[0]);
+    const withW = S.fc.filter(x => typeof x.wind === 'number' && isFinite(x.wind));
+    const wnd = withW.length ? withW.reduce((a, x) => x.wind > a.wind ? x : a, withW[0]) : null;
+    rows.push([T('fs.heatL'), T('fs.heat', fx(hot.tmax,0), md(hot), fx(Math.min.apply(null, withT.map(x => x.tmin)),0),
+      wnd ? fx(wnd.wind * 3.6, 0) : '', wnd ? md(wnd) : '')]);
+  }
+  if (!hasAlerts) rows.push([T('fs.warnL'), T('fc.none', n)]);
+  return '<dl class="fsum">' + rows.map(r => '<div><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>').join('') + '</dl>';
+}
+
 /* ═════════ RENDER — FORECAST ═════════ */
 function renderForecast(){
   if (!S.fc){ $('fcCards').innerHTML = '<div class="err">Forecast unavailable.</div>'; return; }
@@ -3160,9 +3287,9 @@ function renderForecast(){
     T('fc.heavy', fx(rain16,0), wetDays, nR)]);
   if (nR && rain16 < 20 * nR / 16) A.push(['warn','Very little rain forecast',
     T('fc.little', fx(rain16,0), nR)]);
-  if (!A.length) A.push(['good','Nothing notable', T('fc.none', nR)]);
   $('fcAlerts').innerHTML = A.map(a =>
     '<div class="alert ' + a[0] + '"><div><b>' + a[1] + '</b><small>' + a[2] + '</small></div></div>').join('')
+    + fcSummary(withRain, fsx, A.length)
     + (tail ? '<p class="muted" style="font-size:11px;margin:8px 0 0">' + T('fc.tail', tail, span) + '</p>' : '');
 
   chart('cFc', {type:'bar', data:{labels:S.fc.map(x => x.date.slice(5)), datasets:[
@@ -3792,6 +3919,7 @@ async function runOnce(){
         const b = await fetchPower(3650, ['T2M','T2M_MAX','T2M_MIN','RH2M','PRECTOTCORR',
                                           'ALLSKY_SFC_SW_DWN','WS2M','PS']);
         S.baseRaw = b; S.base = baseline(b); renderBaseline();
+        if (S.fc) renderForecast();               // the outlook compares its rain with the normal
       }]
   ];
   setStatus('forecast · terrain · soil · MODIS · baseline…', true);
