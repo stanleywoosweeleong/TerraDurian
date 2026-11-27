@@ -433,5 +433,7 @@
  "The litres shown are what is needed beyond the water already in the soil. The ⅔ margin before stress is my judgement": "显示的升数是扣除土壤中已有水分后仍需补充的量。在胁迫出现前留出 ⅔ 的余量属于我的判断",
  "Standing deficit": "长期缺水",
  "> 45 stress days": "> 45 个胁迫日",
- "Beyond this the app stops calling it an induction window. A rule of thumb, not measured on durian": "超过此天数，应用不再称之为催花窗口。这是经验法则，并非在榴莲上实测"
+ "Beyond this the app stops calling it an induction window. A rule of thumb, not measured on durian": "超过此天数，应用不再称之为催花窗口。这是经验法则，并非在榴莲上实测",
+ "💧 Root-zone depletion": "💧 根区亏缺",
+ "FAO-56 water balance": "FAO-56 水分平衡"
 }

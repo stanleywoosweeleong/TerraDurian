@@ -118,7 +118,9 @@ async function timedBytes(url, opts, ms) {
   const t = setTimeout(() => c.abort(), ms || 8000);
   try {
     const r = await fetch(url, { ...opts, signal: c.signal });
-    return { status: r.status, ok: r.ok, bytes: r.ok ? new Uint8Array(await r.arrayBuffer()) : null };
+    // a login or error PAGE can arrive with status 200; it is not data and must not be decoded as numbers
+    const html = /html/i.test(r.headers.get('content-type') || '');
+    return { status: r.status, ok: r.ok && !html, bytes: (r.ok && !html) ? new Uint8Array(await r.arrayBuffer()) : null };
   } finally { clearTimeout(t); }
 }
 
@@ -256,7 +258,9 @@ export default {
     const cmrUrl = CMR + '?short_name=' + SHORT_NAME
       + '&temporal=' + start.toISOString().slice(0, 10) + ',' + end.toISOString().slice(0, 10)
       + '&bounding_box=' + (lon - 0.1) + ',' + (lat - 0.1) + ',' + (lon + 0.1) + ',' + (lat + 0.1)
-      + '&page_size=400&sort_key=-start_date';
+      // one granule a day: ask for enough to cover the whole window (CMR allows up to 2000),
+      // otherwise a window longer than 400 days would silently lose its older part
+      + '&page_size=' + Math.min(2000, Math.max(400, days + 30)) + '&sort_key=-start_date';
 
     let entries;
     try {

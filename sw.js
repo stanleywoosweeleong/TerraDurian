@@ -74,9 +74,14 @@ function sameBytes(a, b){
   return true;
 }
 function doRefresh(){
-  return Promise.all(OWN.map(url =>
-    fetch(url, {cache: 'no-cache'}).then(res => (res && res.ok) ? res : null).catch(() => null)
-  )).then(fresh => {
+  // each fetch gives up after 20 s: one stalled request must not hold every later update check
+  const get = url => {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20000);
+    return fetch(url, {cache: 'no-cache', signal: ctl.signal})
+      .then(res => (res && res.ok) ? res.blob().then(b => new Response(b, {status: 200, statusText: res.statusText, headers: res.headers})) : null)
+      .catch(() => null).finally(() => clearTimeout(t));      // body read inside the time limit too
+  };
+  return Promise.all(OWN.map(get)).then(fresh => {
     const codeComplete = CODE.every(f => fresh[OWN.indexOf(f)]);
     return caches.open(SHELL).then(c => Promise.all(OWN.map((url, i) => {
       const res = fresh[i];
@@ -135,8 +140,9 @@ function dataKey(url){
     const v = u.searchParams.get(k);
     const m = /^(\d{4})-?(\d{2})-?(\d{2})$/.exec(v);
     if (m) u.searchParams.set(k, 'd-' + (today - Math.floor(Date.UTC(+m[1], m[2] - 1, +m[3]) / 864e5)));
-    const a = /^A(\d{4})(\d{3})$/.exec(v);                             // ORNL's AYYYYDDD (year + day of year)
-    if (a) u.searchParams.set(k, 'd-' + (today - Math.floor(Date.UTC(+a[1], 0, +a[2]) / 864e5)));
+    // ORNL's AYYYYDDD values are left exactly as they are: they name a fixed satellite
+    // composite, not a day counted back from today, so the same request is the same request
+    // tomorrow. (Making them relative gave a new key every day and never matched offline.)
   });
   return u.href;
 }
