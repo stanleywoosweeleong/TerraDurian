@@ -490,7 +490,8 @@ try{var t=localStorage.getItem("td_theme");if(t==="light"||t==="dark")document.d
     </div>
     <div class="card">
       <h3 data-src="POWER">Daily water requirement — last 90 days</h3>
-      <div class="chartbox"><canvas id="cIrr"></canvas></div>
+      <div class="chartbox" id="cIrrBox"><canvas id="cIrr"></canvas></div>
+      <div id="iNone" hidden></div>
       <div class="legend">Litres per tree per day needed to keep the root zone out of stress, after effective rainfall (80% of gross) and the water already stored in the soil. Rain is banked: after a wet spell nothing is needed until the soil has dried back to the refill point.</div>
     </div>
   </div>
@@ -1238,6 +1239,9 @@ var TPL = {
                   zh:function(min){return '用水分胁迫催花适用于约 '+min+' 年及以上的树。在此之前请保持根区湿润；胁迫只会让幼树生长受阻。不推算收成日期。';} },
   'bl.young':   { en:function(min){return 'These induction windows are for trees of about '+min+' years and older. For your young trees, read them as the months when irrigation matters most — do not withhold water.';},
                   zh:function(min){return '这些催花窗口适用于约 '+min+' 年及以上的树。对你的幼树来说，请把它们看作最需要灌溉的月份——不要停水。';} },
+  'ir.noneT': { en:function(){return 'No irrigation needed';}, zh:function(){return '无需灌溉';} },
+  'ir.none': { en:function(n){return 'Nothing to plot: in the last '+n+' days rain kept the root zone above the refill point every day, so the trees needed no irrigation.';},
+               zh:function(n){return '没有可绘制的数据：过去 '+n+' 天里，降雨每天都让根区保持在补水点以上，树木无需灌溉。';} },
   'ir.gap':     { en:function(n){return '⚠ '+n+' day'+(n===1?'':'s')+' between the last observed day and today had no data; the water held in the soil is carried across '+(n===1?'it':'them')+' unchanged, so these figures are an estimate.';},
                   zh:function(n){return '⚠ 最近观测日到今天之间有 '+n+' 天没有数据；土壤储水量按原值延续，因此这些数字是估计值。';} },
   'st.located': { en:function(n){return 'located ±'+n+' m';}, zh:function(n){return '已定位 ±'+n+' 米';} },
@@ -1403,6 +1407,8 @@ var TPL_MS = {
   'fl.yTitle': function(age){ return 'Terlalu muda untuk diaruh — berumur '+age+' tahun'; },
   'fl.yBody': function(min){ return 'Aruhan bunga melalui tegasan air adalah untuk pokok berumur kira-kira '+min+' tahun ke atas. Sehingga itu, pastikan zon akar lembap; tegasan hanya membantutkan pokok muda. Tiada tarikh tuaian diunjurkan.'; },
   'bl.young': function(min){ return 'Tetingkap aruhan ini adalah untuk pokok berumur kira-kira '+min+' tahun ke atas. Bagi pokok muda anda, anggaplah ia sebagai bulan-bulan pengairan paling penting — jangan tahan air.'; },
+  'ir.noneT': function(){ return 'Tiada pengairan diperlukan'; },
+  'ir.none': function(n){ return 'Tiada apa untuk diplot: dalam '+n+' hari lepas, hujan mengekalkan zon akar di atas paras isian semula setiap hari, jadi pokok tidak memerlukan pengairan.'; },
   'ir.gap': function(n){ return '⚠ '+n+' hari antara hari cerapan terakhir dan hari ini tiada data; air yang tersimpan dalam tanah dibawa merentasinya tanpa perubahan, jadi angka ini ialah anggaran.'; },
   'w.holes': function(n){ return '⚠ '+n+' hari ramalan tiba tanpa nilai hujan atau sejatpeluhan. Hari itu dilangkau: keadaan tanah dibawa ke hadapan dan kiraan hari tegasan berturut-turut bermula semula selepasnya.'; },
   'w.nofc': function(){ return '⚠ Ramalan tiba tanpa nilai hujan atau sejatpeluhan yang boleh digunakan, jadi tiada unjuran ke hadapan dibuat.'; },
@@ -3181,6 +3187,10 @@ function renderIrrigation(){
 
   chart('cIrr', {type:'bar', data:{labels: S.power.date.slice(-90), datasets:[
     {label:T('ch','L/tree/day needed'), data: dd.litres.slice(-90), backgroundColor:K.water, borderWidth:0}]}});
+  // Every day at zero draws an empty grid, which reads as "broken". Say what it means instead.
+  const last = dd.litres.slice(-90).filter(v => v != null), allZero = last.length > 0 && last.every(v => v < 0.05);
+  $('cIrrBox').hidden = allZero; $('iNone').hidden = !allZero;
+  $('iNone').innerHTML = allZero ? '<div class="alert good"><div><b>' + T('ir.noneT') + '</b><small>' + T('ir.none', last.length) + '</small></div></div>' : '';
 }
 
 /* What the outlook means for the orchard, in plain rows — shown whether or not anything is
